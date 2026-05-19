@@ -3,13 +3,15 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Faucet Hub API — Sepolia ETH faucet
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: faucet
+    description: Faucet operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,95 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /faucet/claim:
+    post:
+      operationId: claimFaucet
+      tags: [faucet]
+      summary: Claim Sepolia ETH
+      description: Submit an EVM address to receive Sepolia ETH. Subject to 24-hour cooldown per address.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaimInput"
+      responses:
+        "200":
+          description: Claim submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaimResult"
+        "400":
+          description: Invalid address or bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited — address already claimed recently
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /faucet/status/{address}:
+    get:
+      operationId: getFaucetStatus
+      tags: [faucet]
+      summary: Get claim status for an address
+      description: Returns whether the address can claim and when the cooldown expires
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Status for the given address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaimStatus"
+        "400":
+          description: Invalid address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /faucet/stats:
+    get:
+      operationId: getFaucetStats
+      tags: [faucet]
+      summary: Get faucet statistics
+      description: Returns total claims, total ETH distributed, and faucet balance
+      responses:
+        "200":
+          description: Faucet stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FaucetStats"
+
+  /faucet/history:
+    get:
+      operationId: getFaucetHistory
+      tags: [faucet]
+      summary: Get recent claim history
+      description: Returns the most recent claims across all addresses
+      responses:
+        "200":
+          description: Recent claims
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClaimRecord"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +125,102 @@ components:
       required:
         - status
 
+    ClaimInput:
+      type: object
+      required:
+        - address
+      properties:
+        address:
+          type: string
+          description: EVM wallet address (0x...)
+
+    ClaimResult:
+      type: object
+      required:
+        - txHash
+        - address
+        - amount
+        - claimedAt
+      properties:
+        txHash:
+          type: string
+          description: Transaction hash on Sepolia
+        address:
+          type: string
+        amount:
+          type: string
+          description: Amount of Sepolia ETH sent (e.g. "0.05")
+        claimedAt:
+          type: string
+          format: date-time
+
+    ClaimStatus:
+      type: object
+      required:
+        - address
+        - canClaim
+      properties:
+        address:
+          type: string
+        canClaim:
+          type: boolean
+        nextClaimAt:
+          type: ["string", "null"]
+          format: date-time
+          description: ISO timestamp when the address can claim again (null if canClaim is true)
+        lastClaimedAt:
+          type: ["string", "null"]
+          format: date-time
+          description: ISO timestamp of the last claim
+
+    FaucetStats:
+      type: object
+      required:
+        - totalClaims
+        - totalEthDistributed
+        - claimAmountEth
+        - cooldownHours
+      properties:
+        totalClaims:
+          type: integer
+        totalEthDistributed:
+          type: string
+          description: Total ETH sent out (formatted string)
+        faucetBalanceEth:
+          type: ["string", "null"]
+          description: Current faucet wallet balance (null if unavailable)
+        claimAmountEth:
+          type: string
+          description: ETH given per claim
+        cooldownHours:
+          type: integer
+          description: Hours between claims per address
+
+    ClaimRecord:
+      type: object
+      required:
+        - id
+        - address
+        - txHash
+        - amount
+        - claimedAt
+      properties:
+        id:
+          type: integer
+        address:
+          type: string
+        txHash:
+          type: string
+        amount:
+          type: string
+        claimedAt:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string

@@ -6,6 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface ClaimRecord {
+  id: number;
+  address: string;
+  txHash: string;
+  amount: string;
+  claimedAt: Date;
 }
