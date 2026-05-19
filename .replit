@@ -34,7 +34,7 @@ externalPort = 3000
 [userenv]
 
 [userenv.shared]
-VITE_RECAPTCHA_SITE_KEY = "6Lder_IsAAAAAIoBctIfrKGqdVk44Hyia0OP5VrZ"
+VITE_RECAPTCHA_SITE_KEY = "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
 
 [nix]
 channel = "stable-25_05"
