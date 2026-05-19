@@ -13,21 +13,31 @@ export interface ErrorResponse {
   error: string;
 }
 
+export interface PaymentNetwork {
+  id: string;
+  name: string;
+  symbol: string;
+  chainId: number;
+}
+
 export interface BuyInfo {
   chainId: number;
   chainName: string;
   symbol: string;
   receiveAddress: string;
-  /** How many testnet tokens per 1 mainnet ETH (e.g. '1000' means 1 ETH = 1000 testnet ETH) */
+  /** How many testnet tokens per 1 mainnet ETH */
   buyRate: string;
-  /** Minimum mainnet ETH to send (e.g. '0.001') */
+  /** Minimum ETH to send */
   minAmount: string;
+  networks: PaymentNetwork[];
 }
 
 export interface BuyInput {
   chainId: number;
   userAddress: string;
   mainnetTxHash: string;
+  /** Payment network ID: eth, base, arbitrum, optimism, polygon */
+  networkId: string;
 }
 
 export interface BuyResult {
@@ -99,6 +109,12 @@ export interface ChainAdmin {
   buyEnabled: boolean;
   /** @nullable */
   buyUrl?: string | null;
+  buyRate: string;
+  buyMinAmount: string;
+  /** JSON array of enabled payment network IDs e.g. ["eth","base"] */
+  buyCurrencies: string;
+  /** @nullable */
+  receiveAddress?: string | null;
   /** @nullable */
   tokenPrice?: string | null;
   /** @nullable */
@@ -121,6 +137,10 @@ export interface ChainInput {
   availableStatus?: string;
   buyEnabled?: boolean;
   buyUrl?: string;
+  buyRate?: string;
+  buyMinAmount?: string;
+  buyCurrencies?: string;
+  receiveAddress?: string;
   tokenPrice?: string;
   coingeckoId?: string;
   sortOrder?: number;
@@ -140,6 +160,10 @@ export interface ChainUpdate {
   availableStatus?: string;
   buyEnabled?: boolean;
   buyUrl?: string;
+  buyRate?: string;
+  buyMinAmount?: string;
+  buyCurrencies?: string;
+  receiveAddress?: string;
   tokenPrice?: string;
   coingeckoId?: string;
   sortOrder?: number;

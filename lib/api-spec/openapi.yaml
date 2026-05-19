@@ -560,9 +560,22 @@ components:
         error:
           type: string
 
+    PaymentNetwork:
+      type: object
+      required: [id, name, symbol, chainId]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        symbol:
+          type: string
+        chainId:
+          type: integer
+
     BuyInfo:
       type: object
-      required: [chainId, chainName, symbol, receiveAddress, buyRate, minAmount]
+      required: [chainId, chainName, symbol, receiveAddress, buyRate, minAmount, networks]
       properties:
         chainId:
           type: integer
@@ -574,14 +587,18 @@ components:
           type: string
         buyRate:
           type: string
-          description: "How many testnet tokens per 1 mainnet ETH (e.g. '1000' means 1 ETH = 1000 testnet ETH)"
+          description: "How many testnet tokens per 1 mainnet ETH"
         minAmount:
           type: string
-          description: "Minimum mainnet ETH to send (e.g. '0.001')"
+          description: "Minimum ETH to send"
+        networks:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentNetwork"
 
     BuyInput:
       type: object
-      required: [chainId, userAddress, mainnetTxHash]
+      required: [chainId, userAddress, mainnetTxHash, networkId]
       properties:
         chainId:
           type: integer
@@ -589,6 +606,9 @@ components:
           type: string
         mainnetTxHash:
           type: string
+        networkId:
+          type: string
+          description: "Payment network ID: eth, base, arbitrum, optimism, polygon"
 
     BuyResult:
       type: object
@@ -675,7 +695,7 @@ components:
 
     ChainAdmin:
       type: object
-      required: [id, name, symbol, rpcUrl, walletAddress, claimAmount, cooldownHours, isTestnet, isEnabled, availableStatus, buyEnabled, sortOrder, createdAt]
+      required: [id, name, symbol, rpcUrl, walletAddress, claimAmount, cooldownHours, isTestnet, isEnabled, availableStatus, buyEnabled, buyRate, buyMinAmount, buyCurrencies, sortOrder, createdAt]
       properties:
         id:
           type: integer
@@ -702,6 +722,15 @@ components:
         buyEnabled:
           type: boolean
         buyUrl:
+          type: ["string", "null"]
+        buyRate:
+          type: string
+        buyMinAmount:
+          type: string
+        buyCurrencies:
+          type: string
+          description: "JSON array of enabled payment network IDs e.g. [\"eth\",\"base\"]"
+        receiveAddress:
           type: ["string", "null"]
         tokenPrice:
           type: ["string", "null"]
@@ -743,6 +772,14 @@ components:
           type: boolean
         buyUrl:
           type: string
+        buyRate:
+          type: string
+        buyMinAmount:
+          type: string
+        buyCurrencies:
+          type: string
+        receiveAddress:
+          type: string
         tokenPrice:
           type: string
         coingeckoId:
@@ -778,6 +815,14 @@ components:
         buyEnabled:
           type: boolean
         buyUrl:
+          type: string
+        buyRate:
+          type: string
+        buyMinAmount:
+          type: string
+        buyCurrencies:
+          type: string
+        receiveAddress:
           type: string
         tokenPrice:
           type: string

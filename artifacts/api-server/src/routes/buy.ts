@@ -7,8 +7,13 @@ import { sendTokens, isValidEvmAddress } from "../lib/faucet";
 
 const router: IRouter = Router();
 
-const MAINNET_RPC = process.env.MAINNET_RPC_URL || "https://eth.llamarpc.com";
-const MIN_AMOUNT_ETH = "0.001";
+export const PAYMENT_NETWORKS: Record<string, { name: string; symbol: string; chainId: number; rpcUrl: string }> = {
+  eth:       { name: "Ethereum Mainnet", symbol: "ETH",   chainId: 1,     rpcUrl: process.env.MAINNET_RPC_URL || "https://eth.llamarpc.com" },
+  base:      { name: "Base",            symbol: "ETH",   chainId: 8453,  rpcUrl: "https://mainnet.base.org" },
+  arbitrum:  { name: "Arbitrum One",    symbol: "ETH",   chainId: 42161, rpcUrl: "https://arb1.arbitrum.io/rpc" },
+  optimism:  { name: "OP Mainnet",      symbol: "ETH",   chainId: 10,    rpcUrl: "https://mainnet.optimism.io" },
+  polygon:   { name: "Polygon",         symbol: "POL",   chainId: 137,   rpcUrl: "https://polygon-rpc.com" },
+};
 
 router.get("/faucet/buy/info/:chainId", async (req, res): Promise<void> => {
   const params = GetBuyInfoParams.safeParse({ chainId: req.params.chainId });
@@ -28,6 +33,16 @@ router.get("/faucet/buy/info/:chainId", async (req, res): Promise<void> => {
   }
 
   const receiveAddress = chain.receiveAddress || chain.walletAddress;
+  let enabledNetworkIds: string[] = ["eth"];
+  try {
+    enabledNetworkIds = JSON.parse(chain.buyCurrencies);
+  } catch {
+    enabledNetworkIds = ["eth"];
+  }
+
+  const networks = enabledNetworkIds
+    .filter((id) => PAYMENT_NETWORKS[id])
+    .map((id) => ({ id, ...PAYMENT_NETWORKS[id] }));
 
   res.json({
     chainId: chain.id,
@@ -35,7 +50,8 @@ router.get("/faucet/buy/info/:chainId", async (req, res): Promise<void> => {
     symbol: chain.symbol,
     receiveAddress,
     buyRate: chain.buyRate,
-    minAmount: MIN_AMOUNT_ETH,
+    minAmount: chain.buyMinAmount,
+    networks,
   });
 });
 
@@ -46,7 +62,7 @@ router.post("/faucet/buy", async (req, res): Promise<void> => {
     return;
   }
 
-  const { chainId, userAddress, mainnetTxHash } = parsed.data;
+  const { chainId, userAddress, mainnetTxHash, networkId } = parsed.data;
 
   if (!isValidEvmAddress(userAddress)) {
     res.status(400).json({ error: "Invalid user wallet address" });
@@ -55,6 +71,12 @@ router.post("/faucet/buy", async (req, res): Promise<void> => {
 
   if (!/^0x[a-fA-F0-9]{64}$/.test(mainnetTxHash)) {
     res.status(400).json({ error: "Invalid transaction hash format" });
+    return;
+  }
+
+  const network = PAYMENT_NETWORKS[networkId];
+  if (!network) {
+    res.status(400).json({ error: `Unsupported payment network: ${networkId}` });
     return;
   }
 
@@ -68,6 +90,14 @@ router.post("/faucet/buy", async (req, res): Promise<void> => {
     return;
   }
 
+  // Verify this network is enabled for this chain
+  let enabledNetworkIds: string[] = ["eth"];
+  try { enabledNetworkIds = JSON.parse(chain.buyCurrencies); } catch { /* keep default */ }
+  if (!enabledNetworkIds.includes(networkId)) {
+    res.status(400).json({ error: `Payment via ${network.name} is not enabled for this chain` });
+    return;
+  }
+
   // Check tx not already used
   const [existing] = await db
     .select()
@@ -76,30 +106,31 @@ router.post("/faucet/buy", async (req, res): Promise<void> => {
     .limit(1);
 
   if (existing) {
-    res.status(400).json({ error: "This transaction has already been used for a purchase" });
+    res.status(400).json({ error: "This transaction has already been used" });
     return;
   }
 
-  // Verify mainnet tx
+  // Verify tx on the chosen network
   let mainnetAmountPaid: string;
   try {
-    const provider = new ethers.JsonRpcProvider(MAINNET_RPC);
+    const provider = new ethers.JsonRpcProvider(network.rpcUrl);
     const tx = await provider.getTransaction(mainnetTxHash);
 
     if (!tx) {
-      res.status(400).json({ error: "Transaction not found on Ethereum mainnet. Please wait for it to be mined and try again." });
+      res.status(400).json({ error: `Transaction not found on ${network.name}. Wait for confirmation and try again.` });
       return;
     }
 
     const receiveAddress = (chain.receiveAddress || chain.walletAddress).toLowerCase();
     if (!tx.to || tx.to.toLowerCase() !== receiveAddress) {
-      res.status(400).json({ error: `Transaction must send ETH to the correct receive address: ${receiveAddress}` });
+      res.status(400).json({ error: `Transaction must send to: ${receiveAddress}` });
       return;
     }
 
     const amountEth = parseFloat(ethers.formatEther(tx.value));
-    if (amountEth < parseFloat(MIN_AMOUNT_ETH)) {
-      res.status(400).json({ error: `Minimum amount is ${MIN_AMOUNT_ETH} ETH` });
+    const minAmount = parseFloat(chain.buyMinAmount);
+    if (amountEth < minAmount) {
+      res.status(400).json({ error: `Minimum amount is ${chain.buyMinAmount} ETH` });
       return;
     }
 
@@ -134,11 +165,10 @@ router.post("/faucet/buy", async (req, res): Promise<void> => {
     testnetTxHash = result.txHash;
   } catch (err) {
     req.log.error({ err }, "Failed to send testnet tokens for purchase");
-    res.status(500).json({ error: "Failed to send testnet tokens. Please contact support with your mainnet tx hash." });
+    res.status(500).json({ error: "Failed to send testnet tokens. Contact support with your mainnet tx hash." });
     return;
   }
 
-  // Update purchase record as completed
   await db
     .update(purchasesTable)
     .set({ testnetAmountSent: testnetAmount, testnetTxHash, status: "completed" })

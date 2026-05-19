@@ -6,10 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface BuyInput {
+export interface PaymentNetwork {
+  id: string;
+  name: string;
+  symbol: string;
   chainId: number;
-  userAddress: string;
-  mainnetTxHash: string;
-  /** Payment network ID: eth, base, arbitrum, optimism, polygon */
-  networkId: string;
 }

@@ -32,6 +32,7 @@ export * from './getChainsParams';
 export * from './getChainsType';
 export * from './getPricesParams';
 export * from './healthStatus';
+export * from './paymentNetwork';
 export * from './priceItem';
 export * from './uploadImageBody';
 export * from './uploadResponse';

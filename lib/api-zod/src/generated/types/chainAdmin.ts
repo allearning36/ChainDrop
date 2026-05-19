@@ -22,6 +22,12 @@ export interface ChainAdmin {
   buyEnabled: boolean;
   /** @nullable */
   buyUrl?: string | null;
+  buyRate: string;
+  buyMinAmount: string;
+  /** JSON array of enabled payment network IDs e.g. ["eth","base"] */
+  buyCurrencies: string;
+  /** @nullable */
+  receiveAddress?: string | null;
   /** @nullable */
   tokenPrice?: string | null;
   /** @nullable */

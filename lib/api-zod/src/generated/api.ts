@@ -117,8 +117,14 @@ export const GetBuyInfoResponse = zod.object({
   "chainName": zod.string(),
   "symbol": zod.string(),
   "receiveAddress": zod.string(),
-  "buyRate": zod.string().describe('How many testnet tokens per 1 mainnet ETH (e.g. \'1000\' means 1 ETH = 1000 testnet ETH)'),
-  "minAmount": zod.string().describe('Minimum mainnet ETH to send (e.g. \'0.001\')')
+  "buyRate": zod.string().describe('How many testnet tokens per 1 mainnet ETH'),
+  "minAmount": zod.string().describe('Minimum ETH to send'),
+  "networks": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "symbol": zod.string(),
+  "chainId": zod.number()
+}))
 })
 
 
@@ -128,7 +134,8 @@ export const GetBuyInfoResponse = zod.object({
 export const SubmitBuyBody = zod.object({
   "chainId": zod.number(),
   "userAddress": zod.string(),
-  "mainnetTxHash": zod.string()
+  "mainnetTxHash": zod.string(),
+  "networkId": zod.string().describe('Payment network ID: eth, base, arbitrum, optimism, polygon')
 })
 
 export const SubmitBuyResponse = zod.object({
@@ -240,6 +247,10 @@ export const GetAdminChainsResponseItem = zod.object({
   "availableStatus": zod.string(),
   "buyEnabled": zod.boolean(),
   "buyUrl": zod.string().nullish(),
+  "buyRate": zod.string(),
+  "buyMinAmount": zod.string(),
+  "buyCurrencies": zod.string().describe('JSON array of enabled payment network IDs e.g. [\"eth\",\"base\"]'),
+  "receiveAddress": zod.string().nullish(),
   "tokenPrice": zod.string().nullish(),
   "coingeckoId": zod.string().nullish(),
   "sortOrder": zod.number(),
@@ -265,6 +276,10 @@ export const CreateChainBody = zod.object({
   "availableStatus": zod.string().optional(),
   "buyEnabled": zod.boolean().optional(),
   "buyUrl": zod.string().optional(),
+  "buyRate": zod.string().optional(),
+  "buyMinAmount": zod.string().optional(),
+  "buyCurrencies": zod.string().optional(),
+  "receiveAddress": zod.string().optional(),
   "tokenPrice": zod.string().optional(),
   "coingeckoId": zod.string().optional(),
   "sortOrder": zod.number().optional()
@@ -292,6 +307,10 @@ export const UpdateChainBody = zod.object({
   "availableStatus": zod.string().optional(),
   "buyEnabled": zod.boolean().optional(),
   "buyUrl": zod.string().optional(),
+  "buyRate": zod.string().optional(),
+  "buyMinAmount": zod.string().optional(),
+  "buyCurrencies": zod.string().optional(),
+  "receiveAddress": zod.string().optional(),
   "tokenPrice": zod.string().optional(),
   "coingeckoId": zod.string().optional(),
   "sortOrder": zod.number().optional()
@@ -311,6 +330,10 @@ export const UpdateChainResponse = zod.object({
   "availableStatus": zod.string(),
   "buyEnabled": zod.boolean(),
   "buyUrl": zod.string().nullish(),
+  "buyRate": zod.string(),
+  "buyMinAmount": zod.string(),
+  "buyCurrencies": zod.string().describe('JSON array of enabled payment network IDs e.g. [\"eth\",\"base\"]'),
+  "receiveAddress": zod.string().nullish(),
   "tokenPrice": zod.string().nullish(),
   "coingeckoId": zod.string().nullish(),
   "sortOrder": zod.number(),

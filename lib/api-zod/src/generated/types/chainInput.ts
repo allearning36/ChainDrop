@@ -20,6 +20,10 @@ export interface ChainInput {
   availableStatus?: string;
   buyEnabled?: boolean;
   buyUrl?: string;
+  buyRate?: string;
+  buyMinAmount?: string;
+  buyCurrencies?: string;
+  receiveAddress?: string;
   tokenPrice?: string;
   coingeckoId?: string;
   sortOrder?: number;

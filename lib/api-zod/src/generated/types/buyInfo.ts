@@ -5,14 +5,16 @@
  * ChainDrop — Multi-chain faucet hub API
  * OpenAPI spec version: 0.1.0
  */
+import type { PaymentNetwork } from './paymentNetwork';
 
 export interface BuyInfo {
   chainId: number;
   chainName: string;
   symbol: string;
   receiveAddress: string;
-  /** How many testnet tokens per 1 mainnet ETH (e.g. '1000' means 1 ETH = 1000 testnet ETH) */
+  /** How many testnet tokens per 1 mainnet ETH */
   buyRate: string;
-  /** Minimum mainnet ETH to send (e.g. '0.001') */
+  /** Minimum ETH to send */
   minAmount: string;
+  networks: PaymentNetwork[];
 }

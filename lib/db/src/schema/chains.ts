@@ -18,6 +18,8 @@ export const chainsTable = pgTable("chains", {
   buyEnabled: boolean("buy_enabled").notNull().default(false),
   buyUrl: text("buy_url"),
   buyRate: numeric("buy_rate", { precision: 18, scale: 4 }).notNull().default("1000"),
+  buyMinAmount: numeric("buy_min_amount", { precision: 18, scale: 8 }).notNull().default("0.0005"),
+  buyCurrencies: text("buy_currencies").notNull().default('["eth"]'),
   receiveAddress: text("receive_address"),
   tokenPrice: numeric("token_price", { precision: 18, scale: 8 }),
   coingeckoId: text("coingecko_id"),
