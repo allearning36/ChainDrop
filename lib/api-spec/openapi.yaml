@@ -137,6 +137,56 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /faucet/buy/info/{chainId}:
+    get:
+      operationId: getBuyInfo
+      tags: [faucet]
+      summary: Get buy rate and receiver address for a chain
+      parameters:
+        - name: chainId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Buy info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuyInfo"
+        "404":
+          description: Not found or buy disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /faucet/buy:
+    post:
+      operationId: submitBuy
+      tags: [faucet]
+      summary: Submit mainnet tx hash to receive testnet tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuyInput"
+      responses:
+        "200":
+          description: Testnet tokens sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuyResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /faucet/history:
     get:
       operationId: getFaucetHistory
@@ -510,6 +560,49 @@ components:
         error:
           type: string
 
+    BuyInfo:
+      type: object
+      required: [chainId, chainName, symbol, receiveAddress, buyRate, minAmount]
+      properties:
+        chainId:
+          type: integer
+        chainName:
+          type: string
+        symbol:
+          type: string
+        receiveAddress:
+          type: string
+        buyRate:
+          type: string
+          description: "How many testnet tokens per 1 mainnet ETH (e.g. '1000' means 1 ETH = 1000 testnet ETH)"
+        minAmount:
+          type: string
+          description: "Minimum mainnet ETH to send (e.g. '0.001')"
+
+    BuyInput:
+      type: object
+      required: [chainId, userAddress, mainnetTxHash]
+      properties:
+        chainId:
+          type: integer
+        userAddress:
+          type: string
+        mainnetTxHash:
+          type: string
+
+    BuyResult:
+      type: object
+      required: [testnetTxHash, testnetAmountSent, symbol, chainName]
+      properties:
+        testnetTxHash:
+          type: string
+        testnetAmountSent:
+          type: string
+        symbol:
+          type: string
+        chainName:
+          type: string
+
     ChainPublic:
       type: object
       required: [id, name, symbol, claimAmount, cooldownHours, isTestnet, isEnabled, availableStatus, buyEnabled, sortOrder]
@@ -535,6 +628,8 @@ components:
         buyEnabled:
           type: boolean
         buyUrl:
+          type: ["string", "null"]
+        buyRate:
           type: ["string", "null"]
         tokenPrice:
           type: ["string", "null"]

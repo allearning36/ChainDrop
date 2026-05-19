@@ -17,6 +17,8 @@ export const chainsTable = pgTable("chains", {
   availableStatus: text("available_status").notNull().default("YES"),
   buyEnabled: boolean("buy_enabled").notNull().default(false),
   buyUrl: text("buy_url"),
+  buyRate: numeric("buy_rate", { precision: 18, scale: 4 }).notNull().default("1000"),
+  receiveAddress: text("receive_address"),
   tokenPrice: numeric("token_price", { precision: 18, scale: 8 }),
   coingeckoId: text("coingecko_id"),
   sortOrder: integer("sort_order").notNull().default(0),

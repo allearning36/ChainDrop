@@ -29,6 +29,9 @@ import type {
   Banner,
   BannerInput,
   BannerUpdate,
+  BuyInfo,
+  BuyInput,
+  BuyResult,
   ChainAdmin,
   ChainDetail,
   ChainInput,
@@ -449,6 +452,154 @@ export function useGetFaucetStatus<TData = Awaited<ReturnType<typeof getFaucetSt
 
 
 
+
+export const getGetBuyInfoUrl = (chainId: number,) => {
+
+
+
+
+  return `/api/faucet/buy/info/${chainId}`
+}
+
+/**
+ * @summary Get buy rate and receiver address for a chain
+ */
+export const getBuyInfo = async (chainId: number, options?: RequestInit): Promise<BuyInfo> => {
+
+  return customFetch<BuyInfo>(getGetBuyInfoUrl(chainId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBuyInfoQueryKey = (chainId: number,) => {
+    return [
+    `/api/faucet/buy/info/${chainId}`
+    ] as const;
+    }
+
+
+export const getGetBuyInfoQueryOptions = <TData = Awaited<ReturnType<typeof getBuyInfo>>, TError = ErrorType<ErrorResponse>>(chainId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBuyInfo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBuyInfoQueryKey(chainId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBuyInfo>>> = ({ signal }) => getBuyInfo(chainId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(chainId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBuyInfo>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBuyInfoQueryResult = NonNullable<Awaited<ReturnType<typeof getBuyInfo>>>
+export type GetBuyInfoQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get buy rate and receiver address for a chain
+ */
+
+export function useGetBuyInfo<TData = Awaited<ReturnType<typeof getBuyInfo>>, TError = ErrorType<ErrorResponse>>(
+ chainId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBuyInfo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBuyInfoQueryOptions(chainId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSubmitBuyUrl = () => {
+
+
+
+
+  return `/api/faucet/buy`
+}
+
+/**
+ * @summary Submit mainnet tx hash to receive testnet tokens
+ */
+export const submitBuy = async (buyInput: BuyInput, options?: RequestInit): Promise<BuyResult> => {
+
+  return customFetch<BuyResult>(getSubmitBuyUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      buyInput,)
+  }
+);}
+
+
+
+
+export const getSubmitBuyMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitBuy>>, TError,{data: BodyType<BuyInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitBuy>>, TError,{data: BodyType<BuyInput>}, TContext> => {
+
+const mutationKey = ['submitBuy'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitBuy>>, {data: BodyType<BuyInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  submitBuy(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitBuyMutationResult = NonNullable<Awaited<ReturnType<typeof submitBuy>>>
+    export type SubmitBuyMutationBody = BodyType<BuyInput>
+    export type SubmitBuyMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Submit mainnet tx hash to receive testnet tokens
+ */
+export const useSubmitBuy = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitBuy>>, TError,{data: BodyType<BuyInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitBuy>>,
+        TError,
+        {data: BodyType<BuyInput>},
+        TContext
+      > => {
+      return useMutation(getSubmitBuyMutationOptions(options));
+    }
 
 export const getGetFaucetHistoryUrl = () => {
 

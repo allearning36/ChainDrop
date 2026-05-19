@@ -21,6 +21,8 @@ export interface ChainPublic {
   /** @nullable */
   buyUrl?: string | null;
   /** @nullable */
+  buyRate?: string | null;
+  /** @nullable */
   tokenPrice?: string | null;
   /** @nullable */
   coingeckoId?: string | null;

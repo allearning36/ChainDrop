@@ -35,6 +35,7 @@ export const GetChainsResponseItem = zod.object({
   "availableStatus": zod.string(),
   "buyEnabled": zod.boolean(),
   "buyUrl": zod.string().nullish(),
+  "buyRate": zod.string().nullish(),
   "tokenPrice": zod.string().nullish(),
   "coingeckoId": zod.string().nullish(),
   "sortOrder": zod.number()
@@ -101,6 +102,40 @@ export const GetFaucetStatusResponse = zod.object({
   "canClaim": zod.boolean(),
   "nextClaimAt": zod.coerce.date().nullish(),
   "lastClaimedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Get buy rate and receiver address for a chain
+ */
+export const GetBuyInfoParams = zod.object({
+  "chainId": zod.coerce.number()
+})
+
+export const GetBuyInfoResponse = zod.object({
+  "chainId": zod.number(),
+  "chainName": zod.string(),
+  "symbol": zod.string(),
+  "receiveAddress": zod.string(),
+  "buyRate": zod.string().describe('How many testnet tokens per 1 mainnet ETH (e.g. \'1000\' means 1 ETH = 1000 testnet ETH)'),
+  "minAmount": zod.string().describe('Minimum mainnet ETH to send (e.g. \'0.001\')')
+})
+
+
+/**
+ * @summary Submit mainnet tx hash to receive testnet tokens
+ */
+export const SubmitBuyBody = zod.object({
+  "chainId": zod.number(),
+  "userAddress": zod.string(),
+  "mainnetTxHash": zod.string()
+})
+
+export const SubmitBuyResponse = zod.object({
+  "testnetTxHash": zod.string(),
+  "testnetAmountSent": zod.string(),
+  "symbol": zod.string(),
+  "chainName": zod.string()
 })
 
 
@@ -409,7 +444,7 @@ export const DeleteAnnouncementParams = zod.object({
  * @summary Upload an image (logo, banner, etc.)
  */
 export const UploadImageBody = zod.object({
-  "file": zod.any()
+  "file": zod.instanceof(File)
 })
 
 export const UploadImageResponse = zod.object({

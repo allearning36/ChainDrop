@@ -13,6 +13,30 @@ export interface ErrorResponse {
   error: string;
 }
 
+export interface BuyInfo {
+  chainId: number;
+  chainName: string;
+  symbol: string;
+  receiveAddress: string;
+  /** How many testnet tokens per 1 mainnet ETH (e.g. '1000' means 1 ETH = 1000 testnet ETH) */
+  buyRate: string;
+  /** Minimum mainnet ETH to send (e.g. '0.001') */
+  minAmount: string;
+}
+
+export interface BuyInput {
+  chainId: number;
+  userAddress: string;
+  mainnetTxHash: string;
+}
+
+export interface BuyResult {
+  testnetTxHash: string;
+  testnetAmountSent: string;
+  symbol: string;
+  chainName: string;
+}
+
 export interface ChainPublic {
   id: number;
   name: string;
@@ -27,6 +51,8 @@ export interface ChainPublic {
   buyEnabled: boolean;
   /** @nullable */
   buyUrl?: string | null;
+  /** @nullable */
+  buyRate?: string | null;
   /** @nullable */
   tokenPrice?: string | null;
   /** @nullable */

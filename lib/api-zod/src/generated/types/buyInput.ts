@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type UploadImageBody = {
-  file: Blob;
-};
+export interface BuyInput {
+  chainId: number;
+  userAddress: string;
+  mainnetTxHash: string;
+}

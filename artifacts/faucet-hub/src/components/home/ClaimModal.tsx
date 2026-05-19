@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { ChainPublic, useGetFaucetStatus, useClaimFaucet, getGetChainQueryKey, getGetFaucetStatusQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, ExternalLink, Clock, Zap, ShoppingCart, CheckCircle2, Copy, Check, AlertCircle } from "lucide-react";
-import { DexModal } from "./DexModal";
+import { BuyModal } from "./BuyModal";
 import { formatDistanceToNow } from "date-fns";
 
 
@@ -22,7 +22,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [txHash, setTxHash] = useState("");
   const [claimedAmount, setClaimedAmount] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const [dexOpen, setDexOpen] = useState(false);
+  const [buyOpen, setBuyOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const queryClient = useQueryClient();
@@ -246,7 +246,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                 )}
 
                 {/* OR + Buy More */}
-                {chain.buyEnabled && chain.buyUrl && (
+                {chain.buyEnabled && (
                   <>
                     <div className="flex items-center gap-3">
                       <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
@@ -254,7 +254,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                       <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
                     </div>
                     <button
-                      onClick={() => setDexOpen(true)}
+                      onClick={() => setBuyOpen(true)}
                       className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all duration-200"
                       style={{
                         background: "linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)",
@@ -368,7 +368,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                   <Clock className="w-4 h-4" /> Come Back in {chain.cooldownHours}h
                 </button>
 
-                {chain.buyEnabled && chain.buyUrl && (
+                {chain.buyEnabled && (
                   <>
                     <div className="flex items-center gap-3">
                       <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
@@ -376,7 +376,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                       <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
                     </div>
                     <button
-                      onClick={() => setDexOpen(true)}
+                      onClick={() => setBuyOpen(true)}
                       className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2"
                       style={{
                         background: "linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)",
@@ -404,7 +404,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
         </DialogContent>
       </Dialog>
 
-      <DexModal chain={dexOpen ? chain : null} onClose={() => setDexOpen(false)} />
+      <BuyModal chain={buyOpen ? chain : null} onClose={() => setBuyOpen(false)} />
     </>
   );
 }
