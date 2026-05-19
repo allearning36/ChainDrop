@@ -6,11 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ClaimResult {
-  txHash: string;
-  address: string;
-  amount: string;
+export interface PriceItem {
+  id: string;
   symbol: string;
-  chainName: string;
-  claimedAt: Date;
+  name: string;
+  current_price: number;
+  /** @nullable */
+  price_change_percentage_24h?: number | null;
 }

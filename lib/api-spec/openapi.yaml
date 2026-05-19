@@ -1,24 +1,26 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: Faucet Hub API — Sepolia ETH faucet
+  description: ChainDrop — Multi-chain faucet hub API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: chains
   - name: faucet
-    description: Faucet operations
+  - name: banners
+  - name: announcements
+  - name: prices
+  - name: admin
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -27,12 +29,58 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
+  /chains:
+    get:
+      operationId: getChains
+      tags: [chains]
+      summary: List enabled chains
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [testnet, mainnet]
+      responses:
+        "200":
+          description: List of chains
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChainPublic"
+
+  /chains/{id}:
+    get:
+      operationId: getChain
+      tags: [chains]
+      summary: Get single chain detail with live balance
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Chain detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChainDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /faucet/claim:
     post:
       operationId: claimFaucet
       tags: [faucet]
-      summary: Claim Sepolia ETH
-      description: Submit an EVM address to receive Sepolia ETH. Subject to 24-hour cooldown per address.
+      summary: Claim tokens from a chain faucet
       requestBody:
         required: true
         content:
@@ -41,31 +89,35 @@ paths:
               $ref: "#/components/schemas/ClaimInput"
       responses:
         "200":
-          description: Claim submitted successfully
+          description: Claim successful
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ClaimResult"
         "400":
-          description: Invalid address or bad request
+          description: Bad request
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "429":
-          description: Rate limited — address already claimed recently
+          description: Rate limited
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /faucet/status/{address}:
+  /faucet/status/{chainId}/{address}:
     get:
       operationId: getFaucetStatus
       tags: [faucet]
-      summary: Get claim status for an address
-      description: Returns whether the address can claim and when the cooldown expires
+      summary: Get claim cooldown status for address on a chain
       parameters:
+        - name: chainId
+          in: path
+          required: true
+          schema:
+            type: integer
         - name: address
           in: path
           required: true
@@ -73,38 +125,23 @@ paths:
             type: string
       responses:
         "200":
-          description: Status for the given address
+          description: Claim status
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ClaimStatus"
         "400":
-          description: Invalid address
+          description: Bad request
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /faucet/stats:
-    get:
-      operationId: getFaucetStats
-      tags: [faucet]
-      summary: Get faucet statistics
-      description: Returns total claims, total ETH distributed, and faucet balance
-      responses:
-        "200":
-          description: Faucet stats
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/FaucetStats"
-
   /faucet/history:
     get:
       operationId: getFaucetHistory
       tags: [faucet]
-      summary: Get recent claim history
-      description: Returns the most recent claims across all addresses
+      summary: Recent claims across all chains
       responses:
         "200":
           description: Recent claims
@@ -115,51 +152,546 @@ paths:
                 items:
                   $ref: "#/components/schemas/ClaimRecord"
 
+  /banners:
+    get:
+      operationId: getBanners
+      tags: [banners]
+      summary: List active ad banners
+      responses:
+        "200":
+          description: Active banners
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Banner"
+
+  /announcements:
+    get:
+      operationId: getAnnouncements
+      tags: [announcements]
+      summary: List active announcements
+      responses:
+        "200":
+          description: Active announcements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Announcement"
+
+  /prices:
+    get:
+      operationId: getPrices
+      tags: [prices]
+      summary: Live crypto prices from CoinGecko
+      parameters:
+        - name: ids
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Comma-separated CoinGecko IDs e.g. ethereum,binancecoin
+      responses:
+        "200":
+          description: Price data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PriceItem"
+
+  /admin/auth:
+    post:
+      operationId: adminAuth
+      tags: [admin]
+      summary: Admin login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAuthInput"
+      responses:
+        "200":
+          description: JWT token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAuthResult"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [admin]
+      summary: Overall faucet statistics
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+
+  /admin/chains:
+    get:
+      operationId: getAdminChains
+      tags: [admin]
+      summary: List all chains (admin)
+      responses:
+        "200":
+          description: All chains
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChainAdmin"
+    post:
+      operationId: createChain
+      tags: [admin]
+      summary: Create a new chain
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChainInput"
+      responses:
+        "201":
+          description: Created chain
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChainAdmin"
+
+  /admin/chains/{id}:
+    patch:
+      operationId: updateChain
+      tags: [admin]
+      summary: Update a chain
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChainUpdate"
+      responses:
+        "200":
+          description: Updated chain
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChainAdmin"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteChain
+      tags: [admin]
+      summary: Delete a chain
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /admin/banners:
+    get:
+      operationId: getAdminBanners
+      tags: [admin]
+      summary: List all banners (admin)
+      responses:
+        "200":
+          description: All banners
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Banner"
+    post:
+      operationId: createBanner
+      tags: [admin]
+      summary: Create a banner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BannerInput"
+      responses:
+        "201":
+          description: Created banner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Banner"
+
+  /admin/banners/{id}:
+    patch:
+      operationId: updateBanner
+      tags: [admin]
+      summary: Update a banner
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BannerUpdate"
+      responses:
+        "200":
+          description: Updated banner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Banner"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteBanner
+      tags: [admin]
+      summary: Delete a banner
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /admin/announcements:
+    get:
+      operationId: getAdminAnnouncements
+      tags: [admin]
+      summary: List all announcements (admin)
+      responses:
+        "200":
+          description: All announcements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Announcement"
+    post:
+      operationId: createAnnouncement
+      tags: [admin]
+      summary: Create an announcement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+
+  /admin/announcements/{id}:
+    patch:
+      operationId: updateAnnouncement
+      tags: [admin]
+      summary: Update an announcement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteAnnouncement
+      tags: [admin]
+      summary: Delete an announcement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    ChainPublic:
+      type: object
+      required: [id, name, symbol, claimAmount, cooldownHours, isTestnet, isEnabled, availableStatus, buyEnabled, sortOrder]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        symbol:
+          type: string
+        logoUrl:
+          type: ["string", "null"]
+        claimAmount:
+          type: string
+        cooldownHours:
+          type: integer
+        isTestnet:
+          type: boolean
+        isEnabled:
+          type: boolean
+        availableStatus:
+          type: string
+        buyEnabled:
+          type: boolean
+        buyUrl:
+          type: ["string", "null"]
+        coingeckoId:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+
+    ChainDetail:
+      type: object
+      required: [id, name, symbol, claimAmount, cooldownHours, isTestnet, isEnabled, availableStatus, buyEnabled, sortOrder]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        symbol:
+          type: string
+        logoUrl:
+          type: ["string", "null"]
+        claimAmount:
+          type: string
+        cooldownHours:
+          type: integer
+        isTestnet:
+          type: boolean
+        isEnabled:
+          type: boolean
+        availableStatus:
+          type: string
+        buyEnabled:
+          type: boolean
+        buyUrl:
+          type: ["string", "null"]
+        coingeckoId:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        walletBalanceEth:
+          type: ["string", "null"]
+
+    ChainAdmin:
+      type: object
+      required: [id, name, symbol, rpcUrl, walletAddress, claimAmount, cooldownHours, isTestnet, isEnabled, availableStatus, buyEnabled, sortOrder, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        symbol:
+          type: string
+        logoUrl:
+          type: ["string", "null"]
+        rpcUrl:
+          type: string
+        walletAddress:
+          type: string
+        claimAmount:
+          type: string
+        cooldownHours:
+          type: integer
+        isTestnet:
+          type: boolean
+        isEnabled:
+          type: boolean
+        availableStatus:
+          type: string
+        buyEnabled:
+          type: boolean
+        buyUrl:
+          type: ["string", "null"]
+        coingeckoId:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    ChainInput:
+      type: object
+      required: [name, symbol, rpcUrl, privateKey, walletAddress]
+      properties:
+        name:
+          type: string
+        symbol:
+          type: string
+        logoUrl:
+          type: string
+        rpcUrl:
+          type: string
+        privateKey:
+          type: string
+        walletAddress:
+          type: string
+        claimAmount:
+          type: string
+        cooldownHours:
+          type: integer
+        isTestnet:
+          type: boolean
+        isEnabled:
+          type: boolean
+        availableStatus:
+          type: string
+        buyEnabled:
+          type: boolean
+        buyUrl:
+          type: string
+        coingeckoId:
+          type: string
+        sortOrder:
+          type: integer
+
+    ChainUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        symbol:
+          type: string
+        logoUrl:
+          type: string
+        rpcUrl:
+          type: string
+        privateKey:
+          type: string
+        walletAddress:
+          type: string
+        claimAmount:
+          type: string
+        cooldownHours:
+          type: integer
+        isTestnet:
+          type: boolean
+        isEnabled:
+          type: boolean
+        availableStatus:
+          type: string
+        buyEnabled:
+          type: boolean
+        buyUrl:
+          type: string
+        coingeckoId:
+          type: string
+        sortOrder:
+          type: integer
 
     ClaimInput:
       type: object
-      required:
-        - address
+      required: [chainId, address, captchaToken]
       properties:
+        chainId:
+          type: integer
         address:
           type: string
-          description: EVM wallet address (0x...)
+        captchaToken:
+          type: string
 
     ClaimResult:
       type: object
-      required:
-        - txHash
-        - address
-        - amount
-        - claimedAt
+      required: [txHash, address, amount, symbol, chainName, claimedAt]
       properties:
         txHash:
           type: string
-          description: Transaction hash on Sepolia
         address:
           type: string
         amount:
           type: string
-          description: Amount of Sepolia ETH sent (e.g. "0.05")
+        symbol:
+          type: string
+        chainName:
+          type: string
         claimedAt:
           type: string
           format: date-time
 
     ClaimStatus:
       type: object
-      required:
-        - address
-        - canClaim
+      required: [chainId, address, canClaim]
       properties:
+        chainId:
+          type: integer
         address:
           type: string
         canClaim:
@@ -167,46 +699,22 @@ components:
         nextClaimAt:
           type: ["string", "null"]
           format: date-time
-          description: ISO timestamp when the address can claim again (null if canClaim is true)
         lastClaimedAt:
           type: ["string", "null"]
           format: date-time
-          description: ISO timestamp of the last claim
-
-    FaucetStats:
-      type: object
-      required:
-        - totalClaims
-        - totalEthDistributed
-        - claimAmountEth
-        - cooldownHours
-      properties:
-        totalClaims:
-          type: integer
-        totalEthDistributed:
-          type: string
-          description: Total ETH sent out (formatted string)
-        faucetBalanceEth:
-          type: ["string", "null"]
-          description: Current faucet wallet balance (null if unavailable)
-        claimAmountEth:
-          type: string
-          description: ETH given per claim
-        cooldownHours:
-          type: integer
-          description: Hours between claims per address
 
     ClaimRecord:
       type: object
-      required:
-        - id
-        - address
-        - txHash
-        - amount
-        - claimedAt
+      required: [id, chainId, chainName, symbol, address, txHash, amount, claimedAt]
       properties:
         id:
           type: integer
+        chainId:
+          type: integer
+        chainName:
+          type: string
+        symbol:
+          type: string
         address:
           type: string
         txHash:
@@ -217,10 +725,130 @@ components:
           type: string
           format: date-time
 
-    ErrorResponse:
+    Banner:
       type: object
-      required:
-        - error
+      required: [id, imageUrl, isActive, sortOrder, createdAt]
       properties:
-        error:
+        id:
+          type: integer
+        imageUrl:
           type: string
+        linkUrl:
+          type: ["string", "null"]
+        altText:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        sortOrder:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    BannerInput:
+      type: object
+      required: [imageUrl]
+      properties:
+        imageUrl:
+          type: string
+        linkUrl:
+          type: string
+        altText:
+          type: string
+        isActive:
+          type: boolean
+        sortOrder:
+          type: integer
+
+    BannerUpdate:
+      type: object
+      properties:
+        imageUrl:
+          type: string
+        linkUrl:
+          type: string
+        altText:
+          type: string
+        isActive:
+          type: boolean
+        sortOrder:
+          type: integer
+
+    Announcement:
+      type: object
+      required: [id, title, content, isActive, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    AnnouncementInput:
+      type: object
+      required: [title, content]
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        isActive:
+          type: boolean
+
+    AnnouncementUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        isActive:
+          type: boolean
+
+    PriceItem:
+      type: object
+      required: [id, symbol, name, current_price]
+      properties:
+        id:
+          type: string
+        symbol:
+          type: string
+        name:
+          type: string
+        current_price:
+          type: number
+        price_change_percentage_24h:
+          type: ["number", "null"]
+
+    AdminAuthInput:
+      type: object
+      required: [password]
+      properties:
+        password:
+          type: string
+
+    AdminAuthResult:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+
+    AdminStats:
+      type: object
+      required: [totalClaims, totalChains, activeChains]
+      properties:
+        totalClaims:
+          type: integer
+        totalChains:
+          type: integer
+        activeChains:
+          type: integer
+        recentClaimsCount:
+          type: integer

@@ -6,12 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ClaimStatus {
-  chainId: number;
-  address: string;
-  canClaim: boolean;
+export interface Banner {
+  id: number;
+  imageUrl: string;
   /** @nullable */
-  nextClaimAt?: Date | null;
+  linkUrl?: string | null;
   /** @nullable */
-  lastClaimedAt?: Date | null;
+  altText?: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: Date;
 }

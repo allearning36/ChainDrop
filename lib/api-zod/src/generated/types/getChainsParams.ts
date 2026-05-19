@@ -5,7 +5,8 @@
  * ChainDrop — Multi-chain faucet hub API
  * OpenAPI spec version: 0.1.0
  */
+import type { GetChainsType } from './getChainsType';
 
-export interface HealthStatus {
-  status: string;
-}
+export type GetChainsParams = {
+type?: GetChainsType;
+};
