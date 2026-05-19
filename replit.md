@@ -1,36 +1,52 @@
-# [Project name]
+# Faucet Hub
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A Sepolia ETH testnet faucet — users enter their EVM wallet address and claim free Sepolia ETH for smart contract development and testing.
 
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/faucet-hub run dev` — run the frontend (port assigned by workflow)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
+- Required secrets: `FAUCET_PRIVATE_KEY`, `SEPOLIA_RPC_URL`
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
+- Frontend: React + Vite + Tailwind CSS + shadcn/ui
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
+- Blockchain: ethers.js v6 for Sepolia transactions
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `lib/api-spec/openapi.yaml` — API contract (source of truth)
+- `lib/db/src/schema/claims.ts` — claims table schema
+- `artifacts/api-server/src/routes/faucet.ts` — faucet API routes
+- `artifacts/api-server/src/lib/faucet.ts` — ethers.js transaction logic
+- `artifacts/faucet-hub/src/pages/home.tsx` — main faucet UI
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Rate limiting is DB-backed (24-hour cooldown per address stored in `claims` table)
+- Faucet sends ETH immediately on claim — no queue; tx hash returned directly
+- Faucet wallet balance is fetched live from the RPC on each `/faucet/stats` call
+- All addresses stored lowercase for consistent deduplication
+- Claim amount (0.05 ETH) and cooldown (24h) are constants in `artifacts/api-server/src/lib/faucet.ts`
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Users paste an EVM address and click "Request Funds" to receive 0.05 Sepolia ETH
+- 24-hour cooldown enforced per address
+- Live stats: total claims, total ETH distributed, faucet wallet balance
+- Recent claims feed showing last 20 distributions
+- Tx hash links to Sepolia Etherscan on success
 
 ## User preferences
 
@@ -38,8 +54,6 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- `FAUCET_PRIVATE_KEY` wallet must have Sepolia ETH balance or claims will fail
+- Run `pnpm run typecheck:libs` after any DB schema changes before running `typecheck` on artifacts
+- After any OpenAPI spec change, always re-run codegen before touching routes or frontend
