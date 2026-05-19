@@ -19,20 +19,46 @@ export function Navbar() {
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary text-primary-foreground flex items-center justify-center font-bold font-mono rounded">
+        <Link href="/" className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 flex items-center justify-center font-bold font-mono rounded text-sm shrink-0"
+            style={{
+              background: "linear-gradient(135deg, #15803d 0%, #22c55e 100%)",
+              color: "#ffffff",
+              boxShadow: "0 0 12px rgba(34,197,94,0.4)",
+            }}
+          >
             CD
           </div>
-          <span className="font-bold text-xl tracking-tight hidden sm:inline-block">ChainDrop</span>
+          <div className="flex flex-col leading-none">
+            <span
+              className="font-black tracking-wider uppercase"
+              style={{
+                fontSize: "clamp(18px, 4vw, 26px)",
+                fontFamily: "'Courier New', monospace",
+                color: "#22c55e",
+                textShadow: "0 0 12px rgba(34,197,94,0.5)",
+                letterSpacing: "0.12em",
+              }}
+            >
+              ChainDrop
+            </span>
+            <span
+              className="font-mono uppercase tracking-widest hidden sm:block"
+              style={{ fontSize: "9px", color: "rgba(255,255,255,0.4)", letterSpacing: "0.2em" }}
+            >
+              Your Ultimate Faucet Hub
+            </span>
+          </div>
         </Link>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-5 w-5" />
                 {hasUnread && (
-                  <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
+                  <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary animate-pulse" />
                 )}
               </Button>
             </PopoverTrigger>
@@ -61,7 +87,7 @@ export function Navbar() {
           </Popover>
           
           <Link href="/admin">
-            <Button variant="outline" size="sm" className="hidden sm:flex">
+            <Button variant="outline" size="sm" className="font-mono text-xs tracking-widest uppercase">
               Admin
             </Button>
           </Link>
