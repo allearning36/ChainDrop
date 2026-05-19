@@ -44,7 +44,7 @@ export function Navbar() {
               ChainDrop
             </span>
             <span
-              className="font-mono uppercase tracking-widest hidden sm:block"
+              className="font-mono uppercase tracking-widest"
               style={{ fontSize: "9px", color: "rgba(255,255,255,0.4)", letterSpacing: "0.2em" }}
             >
               Your Ultimate Faucet Hub
@@ -86,11 +86,6 @@ export function Navbar() {
             </PopoverContent>
           </Popover>
           
-          <Link href="/admin">
-            <Button variant="outline" size="sm" className="font-mono text-xs tracking-widest uppercase">
-              Admin
-            </Button>
-          </Link>
         </div>
       </div>
     </nav>

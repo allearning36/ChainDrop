@@ -39,6 +39,7 @@ export default function Home() {
             {networkType} Faucets
           </h2>
 
+          <div className="flex flex-row items-center gap-4">
           {/* Testnet toggle pill */}
           <button
             onClick={() => setNetworkType("testnet")}
@@ -114,6 +115,7 @@ export default function Home() {
               Mainnet
             </span>
           </button>
+          </div>
         </div>
 
         {isLoading ? (
