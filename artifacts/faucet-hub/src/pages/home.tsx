@@ -39,82 +39,84 @@ export default function Home() {
             {networkType} Faucets
           </h2>
 
-          <div className="flex flex-row items-center gap-4">
-          {/* Testnet toggle pill */}
-          <button
-            onClick={() => setNetworkType("testnet")}
-            aria-label="Enable Testnet"
-            className="relative flex items-center w-52 h-12 rounded-full cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400/60 transition-all duration-300"
-            style={{
-              background: networkType === "testnet"
-                ? "linear-gradient(135deg, #15803d 0%, #22c55e 100%)"
-                : "linear-gradient(135deg, #374151 0%, #4b5563 100%)",
-              boxShadow: networkType === "testnet"
-                ? "inset 0 2px 8px rgba(0,0,0,0.3), 0 0 16px rgba(34,197,94,0.4)"
-                : "inset 0 2px 8px rgba(0,0,0,0.4)",
-            }}
-          >
-            {/* Knob — left when active */}
-            <span
-              className="absolute top-1.5 w-9 h-9 rounded-full transition-all duration-300 ease-in-out"
+          <div className="flex flex-row items-center gap-3">
+            {/* Testnet toggle pill */}
+            <button
+              onClick={() => setNetworkType("testnet")}
+              aria-label="Enable Testnet"
+              className="relative flex items-center h-10 rounded-full cursor-pointer select-none focus:outline-none transition-all duration-300"
               style={{
-                left: networkType === "testnet" ? "6px" : "calc(100% - 42px)",
-                background: "radial-gradient(circle at 35% 35%, #ffffff, #d1d5db)",
-                boxShadow: "0 3px 10px rgba(0,0,0,0.35), inset 0 1px 2px rgba(255,255,255,0.8)",
-              }}
-            />
-            {/* Label */}
-            <span
-              className="absolute inset-0 flex items-center font-bold text-base text-white/95 transition-all duration-300"
-              style={{
-                justifyContent: networkType === "testnet" ? "flex-end" : "flex-start",
-                paddingRight: networkType === "testnet" ? "16px" : undefined,
-                paddingLeft: networkType !== "testnet" ? "16px" : undefined,
-                fontFamily: "sans-serif",
-                letterSpacing: "0.05em",
+                width: "clamp(120px, 38vw, 160px)",
+                background: networkType === "testnet"
+                  ? "linear-gradient(135deg, #15803d 0%, #22c55e 100%)"
+                  : "linear-gradient(135deg, #374151 0%, #4b5563 100%)",
+                boxShadow: networkType === "testnet"
+                  ? "inset 0 2px 6px rgba(0,0,0,0.25), 0 0 14px rgba(34,197,94,0.4)"
+                  : "inset 0 2px 6px rgba(0,0,0,0.4)",
               }}
             >
-              Testnet
-            </span>
-          </button>
+              {/* Knob — RIGHT = ON (active), LEFT = OFF (inactive) */}
+              <span
+                className="absolute top-1 w-8 h-8 rounded-full transition-all duration-300 ease-in-out"
+                style={{
+                  left: networkType === "testnet" ? "calc(100% - 36px)" : "4px",
+                  background: "radial-gradient(circle at 35% 35%, #ffffff, #d1d5db)",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.35), inset 0 1px 2px rgba(255,255,255,0.8)",
+                }}
+              />
+              {/* Label — LEFT when ON, RIGHT when OFF */}
+              <span
+                className="absolute inset-0 flex items-center font-bold text-sm text-white/95 transition-all duration-300"
+                style={{
+                  justifyContent: networkType === "testnet" ? "flex-start" : "flex-end",
+                  paddingLeft: networkType === "testnet" ? "14px" : undefined,
+                  paddingRight: networkType !== "testnet" ? "14px" : undefined,
+                  fontFamily: "sans-serif",
+                  letterSpacing: "0.04em",
+                }}
+              >
+                Testnet
+              </span>
+            </button>
 
-          {/* Mainnet toggle pill */}
-          <button
-            onClick={() => setNetworkType("mainnet")}
-            aria-label="Enable Mainnet"
-            className="relative flex items-center w-52 h-12 rounded-full cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60 transition-all duration-300"
-            style={{
-              background: networkType === "mainnet"
-                ? "linear-gradient(135deg, #6d28d9 0%, #a855f7 100%)"
-                : "linear-gradient(135deg, #374151 0%, #4b5563 100%)",
-              boxShadow: networkType === "mainnet"
-                ? "inset 0 2px 8px rgba(0,0,0,0.3), 0 0 16px rgba(168,85,247,0.4)"
-                : "inset 0 2px 8px rgba(0,0,0,0.4)",
-            }}
-          >
-            {/* Knob — left when active */}
-            <span
-              className="absolute top-1.5 w-9 h-9 rounded-full transition-all duration-300 ease-in-out"
+            {/* Mainnet toggle pill */}
+            <button
+              onClick={() => setNetworkType("mainnet")}
+              aria-label="Enable Mainnet"
+              className="relative flex items-center h-10 rounded-full cursor-pointer select-none focus:outline-none transition-all duration-300"
               style={{
-                left: networkType === "mainnet" ? "6px" : "calc(100% - 42px)",
-                background: "radial-gradient(circle at 35% 35%, #ffffff, #d1d5db)",
-                boxShadow: "0 3px 10px rgba(0,0,0,0.35), inset 0 1px 2px rgba(255,255,255,0.8)",
-              }}
-            />
-            {/* Label */}
-            <span
-              className="absolute inset-0 flex items-center font-bold text-base text-white/95 transition-all duration-300"
-              style={{
-                justifyContent: networkType === "mainnet" ? "flex-end" : "flex-start",
-                paddingRight: networkType === "mainnet" ? "16px" : undefined,
-                paddingLeft: networkType !== "mainnet" ? "16px" : undefined,
-                fontFamily: "sans-serif",
-                letterSpacing: "0.05em",
+                width: "clamp(120px, 38vw, 160px)",
+                background: networkType === "mainnet"
+                  ? "linear-gradient(135deg, #6d28d9 0%, #a855f7 100%)"
+                  : "linear-gradient(135deg, #374151 0%, #4b5563 100%)",
+                boxShadow: networkType === "mainnet"
+                  ? "inset 0 2px 6px rgba(0,0,0,0.25), 0 0 14px rgba(168,85,247,0.4)"
+                  : "inset 0 2px 6px rgba(0,0,0,0.4)",
               }}
             >
-              Mainnet
-            </span>
-          </button>
+              {/* Knob — RIGHT = ON, LEFT = OFF */}
+              <span
+                className="absolute top-1 w-8 h-8 rounded-full transition-all duration-300 ease-in-out"
+                style={{
+                  left: networkType === "mainnet" ? "calc(100% - 36px)" : "4px",
+                  background: "radial-gradient(circle at 35% 35%, #ffffff, #d1d5db)",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.35), inset 0 1px 2px rgba(255,255,255,0.8)",
+                }}
+              />
+              {/* Label — LEFT when ON, RIGHT when OFF */}
+              <span
+                className="absolute inset-0 flex items-center font-bold text-sm text-white/95 transition-all duration-300"
+                style={{
+                  justifyContent: networkType === "mainnet" ? "flex-start" : "flex-end",
+                  paddingLeft: networkType === "mainnet" ? "14px" : undefined,
+                  paddingRight: networkType !== "mainnet" ? "14px" : undefined,
+                  fontFamily: "sans-serif",
+                  letterSpacing: "0.04em",
+                }}
+              >
+                Mainnet
+              </span>
+            </button>
           </div>
         </div>
 
