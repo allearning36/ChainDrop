@@ -28,6 +28,8 @@ export interface ChainPublic {
   /** @nullable */
   buyUrl?: string | null;
   /** @nullable */
+  tokenPrice?: string | null;
+  /** @nullable */
   coingeckoId?: string | null;
   sortOrder: number;
 }
@@ -46,6 +48,8 @@ export interface ChainDetail {
   buyEnabled: boolean;
   /** @nullable */
   buyUrl?: string | null;
+  /** @nullable */
+  tokenPrice?: string | null;
   /** @nullable */
   coingeckoId?: string | null;
   sortOrder: number;
@@ -70,6 +74,8 @@ export interface ChainAdmin {
   /** @nullable */
   buyUrl?: string | null;
   /** @nullable */
+  tokenPrice?: string | null;
+  /** @nullable */
   coingeckoId?: string | null;
   sortOrder: number;
   createdAt: string;
@@ -89,6 +95,7 @@ export interface ChainInput {
   availableStatus?: string;
   buyEnabled?: boolean;
   buyUrl?: string;
+  tokenPrice?: string;
   coingeckoId?: string;
   sortOrder?: number;
 }
@@ -107,8 +114,13 @@ export interface ChainUpdate {
   availableStatus?: string;
   buyEnabled?: boolean;
   buyUrl?: string;
+  tokenPrice?: string;
   coingeckoId?: string;
   sortOrder?: number;
+}
+
+export interface UploadResponse {
+  url: string;
 }
 
 export interface ClaimInput {
@@ -236,5 +248,9 @@ export type GetPricesParams = {
  * Comma-separated CoinGecko IDs e.g. ethereum,binancecoin
  */
 ids: string;
+};
+
+export type UploadImageBody = {
+  file: Blob;
 };
 

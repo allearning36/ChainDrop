@@ -470,6 +470,30 @@ paths:
         "204":
           description: Deleted
 
+  /admin/upload:
+    post:
+      operationId: uploadImage
+      tags: [admin]
+      summary: Upload an image (logo, banner, etc.)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Upload successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -512,6 +536,8 @@ components:
           type: boolean
         buyUrl:
           type: ["string", "null"]
+        tokenPrice:
+          type: ["string", "null"]
         coingeckoId:
           type: ["string", "null"]
         sortOrder:
@@ -542,6 +568,8 @@ components:
         buyEnabled:
           type: boolean
         buyUrl:
+          type: ["string", "null"]
+        tokenPrice:
           type: ["string", "null"]
         coingeckoId:
           type: ["string", "null"]
@@ -579,6 +607,8 @@ components:
         buyEnabled:
           type: boolean
         buyUrl:
+          type: ["string", "null"]
+        tokenPrice:
           type: ["string", "null"]
         coingeckoId:
           type: ["string", "null"]
@@ -618,6 +648,8 @@ components:
           type: boolean
         buyUrl:
           type: string
+        tokenPrice:
+          type: string
         coingeckoId:
           type: string
         sortOrder:
@@ -652,10 +684,19 @@ components:
           type: boolean
         buyUrl:
           type: string
+        tokenPrice:
+          type: string
         coingeckoId:
           type: string
         sortOrder:
           type: integer
+
+    UploadResponse:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
 
     ClaimInput:
       type: object

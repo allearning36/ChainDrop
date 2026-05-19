@@ -42,7 +42,9 @@ import type {
   GetChainsParams,
   GetPricesParams,
   HealthStatus,
-  PriceItem
+  PriceItem,
+  UploadImageBody,
+  UploadResponse
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1779,5 +1781,78 @@ export const useDeleteAnnouncement = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteAnnouncementMutationOptions(options));
+    }
+
+export const getUploadImageUrl = () => {
+
+
+
+
+  return `/api/admin/upload`
+}
+
+/**
+ * @summary Upload an image (logo, banner, etc.)
+ */
+export const uploadImage = async (uploadImageBody: UploadImageBody, options?: RequestInit): Promise<UploadResponse> => {
+    const formData = new FormData();
+formData.append(`file`, uploadImageBody.file);
+
+  return customFetch<UploadResponse>(getUploadImageUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body:
+      formData,
+  }
+);}
+
+
+
+
+export const getUploadImageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadImage>>, TError,{data: BodyType<UploadImageBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadImage>>, TError,{data: BodyType<UploadImageBody>}, TContext> => {
+
+const mutationKey = ['uploadImage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadImage>>, {data: BodyType<UploadImageBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadImage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadImageMutationResult = NonNullable<Awaited<ReturnType<typeof uploadImage>>>
+    export type UploadImageMutationBody = BodyType<UploadImageBody>
+    export type UploadImageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Upload an image (logo, banner, etc.)
+ */
+export const useUploadImage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadImage>>, TError,{data: BodyType<UploadImageBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadImage>>,
+        TError,
+        {data: BodyType<UploadImageBody>},
+        TContext
+      > => {
+      return useMutation(getUploadImageMutationOptions(options));
     }
 

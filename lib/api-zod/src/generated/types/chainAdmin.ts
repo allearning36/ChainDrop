@@ -23,6 +23,8 @@ export interface ChainAdmin {
   /** @nullable */
   buyUrl?: string | null;
   /** @nullable */
+  tokenPrice?: string | null;
+  /** @nullable */
   coingeckoId?: string | null;
   sortOrder: number;
   createdAt: Date;

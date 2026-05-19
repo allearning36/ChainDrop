@@ -6,6 +6,7 @@ import { ChainPublic, useGetFaucetStatus, useClaimFaucet, getGetChainQueryKey, g
 import ReCAPTCHA from "react-google-recaptcha";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, ExternalLink } from "lucide-react";
+import { DexModal } from "./DexModal";
 import { formatDistanceToNow } from "date-fns";
 
 interface ClaimModalProps {
@@ -22,6 +23,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [txHash, setTxHash] = useState("");
   const [claimedAmount, setClaimedAmount] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [dexOpen, setDexOpen] = useState(false);
 
   const queryClient = useQueryClient();
   const claimMutation = useClaimFaucet();
@@ -102,6 +104,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   if (!chain) return null;
 
   return (
+    <>
     <Dialog open={!!chain} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md bg-card border-border">
         <DialogHeader>
@@ -209,11 +212,11 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
             </div>
             
             <div className="w-full space-y-3 pt-4">
-              {chain.buyEnabled && chain.isTestnet && chain.buyUrl && (
+              {chain.buyEnabled && chain.buyUrl && (
                 <Button 
                   className="w-full bg-primary/20 text-primary hover:bg-primary/30 border border-primary/50"
                   variant="outline"
-                  onClick={() => window.open(chain.buyUrl!, "_blank")}
+                  onClick={() => setDexOpen(true)}
                 >
                   Need more? Buy {chain.symbol}
                 </Button>
@@ -227,5 +230,8 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
         )}
       </DialogContent>
     </Dialog>
+
+    <DexModal chain={dexOpen ? chain : null} onClose={() => setDexOpen(false)} />
+    </>
   );
 }

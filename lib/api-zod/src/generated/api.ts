@@ -35,6 +35,7 @@ export const GetChainsResponseItem = zod.object({
   "availableStatus": zod.string(),
   "buyEnabled": zod.boolean(),
   "buyUrl": zod.string().nullish(),
+  "tokenPrice": zod.string().nullish(),
   "coingeckoId": zod.string().nullish(),
   "sortOrder": zod.number()
 })
@@ -60,6 +61,7 @@ export const GetChainResponse = zod.object({
   "availableStatus": zod.string(),
   "buyEnabled": zod.boolean(),
   "buyUrl": zod.string().nullish(),
+  "tokenPrice": zod.string().nullish(),
   "coingeckoId": zod.string().nullish(),
   "sortOrder": zod.number(),
   "walletBalanceEth": zod.string().nullish()
@@ -203,6 +205,7 @@ export const GetAdminChainsResponseItem = zod.object({
   "availableStatus": zod.string(),
   "buyEnabled": zod.boolean(),
   "buyUrl": zod.string().nullish(),
+  "tokenPrice": zod.string().nullish(),
   "coingeckoId": zod.string().nullish(),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date()
@@ -227,6 +230,7 @@ export const CreateChainBody = zod.object({
   "availableStatus": zod.string().optional(),
   "buyEnabled": zod.boolean().optional(),
   "buyUrl": zod.string().optional(),
+  "tokenPrice": zod.string().optional(),
   "coingeckoId": zod.string().optional(),
   "sortOrder": zod.number().optional()
 })
@@ -253,6 +257,7 @@ export const UpdateChainBody = zod.object({
   "availableStatus": zod.string().optional(),
   "buyEnabled": zod.boolean().optional(),
   "buyUrl": zod.string().optional(),
+  "tokenPrice": zod.string().optional(),
   "coingeckoId": zod.string().optional(),
   "sortOrder": zod.number().optional()
 })
@@ -271,6 +276,7 @@ export const UpdateChainResponse = zod.object({
   "availableStatus": zod.string(),
   "buyEnabled": zod.boolean(),
   "buyUrl": zod.string().nullish(),
+  "tokenPrice": zod.string().nullish(),
   "coingeckoId": zod.string().nullish(),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date()
@@ -396,6 +402,18 @@ export const UpdateAnnouncementResponse = zod.object({
  */
 export const DeleteAnnouncementParams = zod.object({
   "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Upload an image (logo, banner, etc.)
+ */
+export const UploadImageBody = zod.object({
+  "file": zod.any()
+})
+
+export const UploadImageResponse = zod.object({
+  "url": zod.string()
 })
 
 

@@ -6,6 +6,7 @@ import bannersRouter from "./banners";
 import announcementsRouter from "./announcements";
 import pricesRouter from "./prices";
 import adminRouter from "./admin";
+import uploadRouter from "./upload";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(bannersRouter);
 router.use(announcementsRouter);
 router.use(pricesRouter);
 router.use(adminRouter);
+router.use(uploadRouter);
 
 export default router;

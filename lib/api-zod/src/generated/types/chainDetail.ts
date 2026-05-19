@@ -21,6 +21,8 @@ export interface ChainDetail {
   /** @nullable */
   buyUrl?: string | null;
   /** @nullable */
+  tokenPrice?: string | null;
+  /** @nullable */
   coingeckoId?: string | null;
   sortOrder: number;
   /** @nullable */

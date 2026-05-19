@@ -33,6 +33,7 @@ router.get("/chains", async (req, res): Promise<void> => {
       availableStatus: c.availableStatus,
       buyEnabled: c.isTestnet ? c.buyEnabled : false,
       buyUrl: c.isTestnet ? c.buyUrl : null,
+      tokenPrice: c.tokenPrice,
       coingeckoId: c.coingeckoId,
       sortOrder: c.sortOrder,
     }))
@@ -72,6 +73,7 @@ router.get("/chains/:id", async (req, res): Promise<void> => {
     availableStatus: chain.availableStatus,
     buyEnabled: chain.isTestnet ? chain.buyEnabled : false,
     buyUrl: chain.isTestnet ? chain.buyUrl : null,
+    tokenPrice: chain.tokenPrice,
     coingeckoId: chain.coingeckoId,
     sortOrder: chain.sortOrder,
     walletBalanceEth,

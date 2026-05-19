@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { 
   useGetAdminChains, 
   useCreateChain, 
@@ -16,8 +16,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Plus, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getToken } from "@/lib/auth";
 
 const DEFAULT_CHAIN = {
   name: "",
@@ -33,6 +34,7 @@ const DEFAULT_CHAIN = {
   availableStatus: "YES",
   buyEnabled: false,
   buyUrl: "",
+  tokenPrice: "",
   coingeckoId: "",
   sortOrder: 0
 };
@@ -52,10 +54,34 @@ export function ChainManagement() {
   const [deletingChain, setDeletingChain] = useState<ChainAdmin | null>(null);
   const [formData, setFormData] = useState<any>(DEFAULT_CHAIN);
   const [formError, setFormError] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const createMutation = useCreateChain();
   const updateMutation = useUpdateChain();
   const deleteMutation = useDeleteChain();
+
+  const handleImageUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const token = getToken();
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json() as { url: string };
+      setFormData((prev: any) => ({ ...prev, logoUrl: data.url }));
+      toast({ title: "Uploaded", description: "Logo uploaded successfully." });
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Failed to upload image." });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleOpenCreate = () => {
     setEditingChain(null);
@@ -290,10 +316,61 @@ export function ChainManagement() {
               <Label>CoinGecko ID</Label>
               <Input value={formData.coingeckoId} onChange={e => setFormData({...formData, coingeckoId: e.target.value})} placeholder="e.g. ethereum" className="font-mono" />
             </div>
-            
+
             <div className="space-y-2">
-              <Label>Logo URL</Label>
-              <Input value={formData.logoUrl} onChange={e => setFormData({...formData, logoUrl: e.target.value})} placeholder="https://..." className="font-mono" />
+              <Label>Token Price (USD)</Label>
+              <Input type="number" step="0.0001" value={formData.tokenPrice} onChange={e => setFormData({...formData, tokenPrice: e.target.value})} placeholder="e.g. 0.0012" className="font-mono" />
+            </div>
+            
+            <div className="space-y-2 md:col-span-2">
+              <Label>Chain Logo</Label>
+              <div className="flex items-center gap-3">
+                {formData.logoUrl && (
+                  <div className="relative w-12 h-12 rounded-full overflow-hidden border border-border bg-muted flex-shrink-0">
+                    <img src={formData.logoUrl} alt="Logo preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setFormData((p: any) => ({ ...p, logoUrl: "" }))}
+                      className="absolute top-0 right-0 w-4 h-4 bg-destructive/80 text-white flex items-center justify-center rounded-bl"
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+                )}
+                <div className="flex-1 space-y-2">
+                  <div className="flex gap-2">
+                    <Input
+                      value={formData.logoUrl}
+                      onChange={e => setFormData({...formData, logoUrl: e.target.value})}
+                      placeholder="Paste URL or upload below..."
+                      className="font-mono text-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0 font-mono"
+                      disabled={uploading}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      <span className="ml-1.5 hidden sm:inline">Upload</span>
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground font-mono">PNG/JPG/SVG · Max 5MB</p>
+                </div>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImageUpload(file);
+                  e.target.value = "";
+                }}
+              />
             </div>
 
             <div className="space-y-2">

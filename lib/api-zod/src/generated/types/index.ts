@@ -30,3 +30,5 @@ export * from './getChainsType';
 export * from './getPricesParams';
 export * from './healthStatus';
 export * from './priceItem';
+export * from './uploadImageBody';
+export * from './uploadResponse';
