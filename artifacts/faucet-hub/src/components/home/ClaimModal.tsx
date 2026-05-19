@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ChainPublic, useGetFaucetStatus, useClaimFaucet, getGetChainQueryKey, getGetFaucetStatusQueryKey } from "@workspace/api-client-react";
-import ReCAPTCHA from "react-google-recaptcha";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, ExternalLink, Clock, Zap, ShoppingCart, CheckCircle2, Copy, Check, AlertCircle } from "lucide-react";
 import { DexModal } from "./DexModal";
 import { formatDistanceToNow } from "date-fns";
+
+
 
 interface ClaimModalProps {
   chain: ChainPublic | null;
@@ -16,7 +17,6 @@ interface ClaimModalProps {
 export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [address, setAddress] = useState("");
   const [debouncedAddress, setDebouncedAddress] = useState("");
-  const [captchaToken, setCaptchaToken] = useState("");
   const [step, setStep] = useState<"input" | "ad" | "result">("input");
   const [adCountdown, setAdCountdown] = useState(5);
   const [txHash, setTxHash] = useState("");
@@ -56,9 +56,9 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   }, [step, adCountdown]);
 
   const handleClaim = () => {
-    if (!chain || !debouncedAddress || !captchaToken) return;
+    if (!chain || !debouncedAddress) return;
     setErrorMsg("");
-    claimMutation.mutate({ data: { chainId: chain.id, address: debouncedAddress, captchaToken } }, {
+    claimMutation.mutate({ data: { chainId: chain.id, address: debouncedAddress, captchaToken: "" } }, {
       onSuccess: (res) => {
         setTxHash(res.txHash);
         setClaimedAmount(res.amount);
@@ -81,7 +81,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
     if (!open) {
       setTimeout(() => {
         setStep("input"); setAddress(""); setDebouncedAddress("");
-        setCaptchaToken(""); setAdCountdown(5); setErrorMsg("");
+        setAdCountdown(5); setErrorMsg("");
       }, 300);
       onClose();
     }
@@ -92,7 +92,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   // Derived states
   const addressValid = isValidEvmAddress(address);
   const inCooldown = !!debouncedAddress && !!status && !status.canClaim;
-  const canSubmit = addressValid && !!captchaToken && !inCooldown && !isStatusLoading;
+  const canSubmit = addressValid && !inCooldown && !isStatusLoading;
 
   const explorerUrl = chain.isTestnet
     ? `https://sepolia.etherscan.io/tx/${txHash}`
@@ -202,17 +202,6 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                       Next claim {status?.nextClaimAt ? formatDistanceToNow(new Date(status.nextClaimAt), { addSuffix: true }) : "later"}
                     </div>
                   )}
-                </div>
-
-                {/* reCAPTCHA — always visible */}
-                <div className="flex justify-center">
-                  <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-                    <ReCAPTCHA
-                      sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"}
-                      onChange={(val) => setCaptchaToken(val || "")}
-                      theme="dark"
-                    />
-                  </div>
                 </div>
 
                 {errorMsg && (

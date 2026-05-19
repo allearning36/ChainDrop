@@ -4,21 +4,6 @@ import { db, claimsTable, chainsTable } from "@workspace/db";
 import { ClaimFaucetBody, GetFaucetStatusParams } from "@workspace/api-zod";
 import { sendTokens, isValidEvmAddress } from "../lib/faucet";
 
-const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET_KEY;
-
-async function verifyCaptcha(token: string): Promise<boolean> {
-  if (!RECAPTCHA_SECRET) return true; // skip if not configured
-  try {
-    const res = await fetch(
-      `https://www.google.com/recaptcha/api/siteverify?secret=${RECAPTCHA_SECRET}&response=${token}`,
-      { method: "POST" }
-    );
-    const data = (await res.json()) as { success: boolean };
-    return data.success;
-  } catch {
-    return false;
-  }
-}
 
 const router: IRouter = Router();
 
@@ -33,12 +18,6 @@ router.post("/faucet/claim", async (req, res): Promise<void> => {
 
   if (!isValidEvmAddress(address)) {
     res.status(400).json({ error: "Invalid EVM address" });
-    return;
-  }
-
-  const captchaValid = await verifyCaptcha(captchaToken);
-  if (!captchaValid) {
-    res.status(400).json({ error: "CAPTCHA verification failed. Please try again." });
     return;
   }
 
