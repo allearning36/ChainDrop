@@ -7,7 +7,6 @@ import { ChainCard } from "@/components/home/ChainCard";
 import { RecentFeed } from "@/components/home/RecentFeed";
 import { ClaimModal } from "@/components/home/ClaimModal";
 import { useGetChains, getGetChainsQueryKey, ChainPublic } from "@workspace/api-client-react";
-import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 
 export default function Home() {
@@ -49,13 +48,33 @@ export default function Home() {
             {networkType} Faucets
           </h2>
           
-          <Button 
+          <button
             onClick={toggleNetwork}
-            variant={networkType === "testnet" ? "outline" : "default"}
-            className="font-mono uppercase tracking-widest w-full md:w-auto h-12 md:h-10"
+            aria-label={`Switch to ${networkType === "testnet" ? "mainnet" : "testnet"}`}
+            className="relative flex items-center w-44 h-11 rounded-full cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 transition-colors duration-300"
+            style={{
+              background: networkType === "testnet"
+                ? "linear-gradient(135deg, #16a34a 0%, #22c55e 100%)"
+                : "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)",
+              boxShadow: networkType === "testnet"
+                ? "inset 0 2px 6px rgba(0,0,0,0.25), 0 0 12px rgba(34,197,94,0.35)"
+                : "inset 0 2px 6px rgba(0,0,0,0.25), 0 0 12px rgba(168,85,247,0.35)",
+            }}
           >
-            Enable {networkType === "testnet" ? "Mainnet" : "Testnet"}
-          </Button>
+            {/* Label text */}
+            <span
+              className="absolute inset-0 flex items-center font-mono font-bold text-sm tracking-widest uppercase text-white/90 transition-all duration-300"
+              style={{ paddingLeft: networkType === "testnet" ? "14px" : undefined, paddingRight: networkType === "mainnet" ? "14px" : undefined, justifyContent: networkType === "testnet" ? "flex-start" : "flex-end" }}
+            >
+              {networkType === "testnet" ? "Testnet" : "Mainnet"}
+            </span>
+
+            {/* Sliding knob */}
+            <span
+              className="absolute top-1 w-9 h-9 rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.3)] transition-all duration-300 ease-in-out"
+              style={{ left: networkType === "testnet" ? "calc(100% - 40px)" : "4px" }}
+            />
+          </button>
         </div>
 
         {isLoading ? (
