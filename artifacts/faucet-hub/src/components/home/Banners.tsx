@@ -43,7 +43,7 @@ export function Banners() {
             boxShadow: "0 0 24px rgba(34,197,94,0.12), 0 4px 24px rgba(0,0,0,0.5)",
           }}
         >
-          <div className="relative w-full" style={{ aspectRatio: "900/200" }}>
+          <div className="relative w-full" style={{ aspectRatio: "1200/600" }}>
             <img
               src={current.imageUrl}
               alt={current.altText || "Ad banner"}
