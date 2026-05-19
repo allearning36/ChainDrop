@@ -45,6 +45,7 @@
     "@tailwindcss/vite": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@types/node": "catalog:",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@types/react-google-recaptcha": "^2.1.9",
@@ -76,6 +77,8 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "@walletconnect/ethereum-provider": "^2.23.9",
+    "qrcode": "^1.5.4",
     "react-google-recaptcha": "^3.1.0"
   }
 }
