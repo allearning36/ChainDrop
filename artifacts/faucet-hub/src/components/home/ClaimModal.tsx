@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { ChainPublic, useGetFaucetStatus, useClaimFaucet, getGetChainQueryKey, getGetFaucetStatusQueryKey } from "@workspace/api-client-react";
 import ReCAPTCHA from "react-google-recaptcha";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, ExternalLink, Clock, Zap, ShoppingCart, CheckCircle2, Copy, Check } from "lucide-react";
+import { Loader2, ExternalLink, Clock, Zap, ShoppingCart, CheckCircle2, Copy, Check, AlertCircle } from "lucide-react";
 import { DexModal } from "./DexModal";
 import { formatDistanceToNow } from "date-fns";
 
@@ -89,6 +89,11 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
 
   if (!chain) return null;
 
+  // Derived states
+  const addressValid = isValidEvmAddress(address);
+  const inCooldown = !!debouncedAddress && !!status && !status.canClaim;
+  const canSubmit = addressValid && !!captchaToken && !inCooldown && !isStatusLoading;
+
   const explorerUrl = chain.isTestnet
     ? `https://sepolia.etherscan.io/tx/${txHash}`
     : `https://etherscan.io/tx/${txHash}`;
@@ -106,7 +111,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
             }}
           >
             {/* Top glow bar */}
-            <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg, transparent, #22c55e, #22c55e80, transparent)" }} />
+            <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg, transparent, #22c55e, rgba(34,197,94,0.5), transparent)" }} />
 
             {/* Header */}
             <div className="flex items-center gap-3 px-5 pt-5 pb-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
@@ -149,7 +154,8 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
 
             {/* ── STEP: INPUT ── */}
             {step === "input" && (
-              <div className="px-5 py-5 flex flex-col gap-5">
+              <div className="px-5 py-5 flex flex-col gap-4">
+
                 {/* Wallet Input */}
                 <div className="flex flex-col gap-2">
                   <label className="text-[11px] font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.4)" }}>
@@ -163,214 +169,92 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                       className="font-mono text-sm h-11 pl-4 pr-10"
                       style={{
                         background: "rgba(255,255,255,0.04)",
-                        border: debouncedAddress
-                          ? status?.canClaim ? "1px solid rgba(34,197,94,0.4)" : "1px solid rgba(239,68,68,0.4)"
+                        border: address.length > 5
+                          ? addressValid
+                            ? inCooldown ? "1px solid rgba(239,68,68,0.4)" : "1px solid rgba(34,197,94,0.4)"
+                            : "1px solid rgba(239,68,68,0.3)"
                           : "1px solid rgba(255,255,255,0.1)",
                         color: "white",
                         borderRadius: "10px",
                       }}
                     />
-                    {debouncedAddress && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        {isStatusLoading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#22c55e" }} />
-                        ) : status?.canClaim ? (
-                          <CheckCircle2 className="w-4 h-4" style={{ color: "#22c55e" }} />
-                        ) : (
-                          <Clock className="w-4 h-4" style={{ color: "#ef4444" }} />
-                        )}
-                      </div>
-                    )}
+                    {/* Status icon */}
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {debouncedAddress && isStatusLoading && (
+                        <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#22c55e" }} />
+                      )}
+                      {debouncedAddress && !isStatusLoading && status?.canClaim && (
+                        <CheckCircle2 className="w-4 h-4" style={{ color: "#22c55e" }} />
+                      )}
+                      {debouncedAddress && !isStatusLoading && inCooldown && (
+                        <Clock className="w-4 h-4" style={{ color: "#ef4444" }} />
+                      )}
+                    </div>
                   </div>
 
-                  {/* Cooldown warning */}
-                  {status && !status.canClaim && (
+                  {/* Cooldown message */}
+                  {inCooldown && (
                     <div
                       className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-mono"
                       style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}
                     >
                       <Clock className="w-3.5 h-3.5 shrink-0" />
-                      Next claim available {status.nextClaimAt ? formatDistanceToNow(new Date(status.nextClaimAt), { addSuffix: true }) : "later"}
+                      Next claim {status?.nextClaimAt ? formatDistanceToNow(new Date(status.nextClaimAt), { addSuffix: true }) : "later"}
                     </div>
                   )}
                 </div>
 
-                {/* reCAPTCHA */}
-                {status?.canClaim && (
-                  <div className="flex flex-col gap-4">
-                    <div className="flex justify-center">
-                      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-                        <ReCAPTCHA
-                          sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"}
-                          onChange={(val) => setCaptchaToken(val || "")}
-                          theme="dark"
-                        />
-                      </div>
-                    </div>
-
-                    {errorMsg && (
-                      <div className="text-xs text-center font-mono" style={{ color: "#f87171" }}>{errorMsg}</div>
-                    )}
-
-                    {/* Claim Button */}
-                    <button
-                      onClick={handleClaim}
-                      disabled={!captchaToken || claimMutation.isPending}
-                      className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm transition-all duration-200 flex items-center justify-center gap-2"
-                      style={{
-                        background: !captchaToken || claimMutation.isPending
-                          ? "rgba(34,197,94,0.2)"
-                          : "linear-gradient(135deg, #15803d 0%, #22c55e 100%)",
-                        color: !captchaToken || claimMutation.isPending ? "rgba(34,197,94,0.5)" : "white",
-                        boxShadow: captchaToken && !claimMutation.isPending ? "0 0 20px rgba(34,197,94,0.3)" : "none",
-                        cursor: !captchaToken || claimMutation.isPending ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      {claimMutation.isPending ? (
-                        <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
-                      ) : (
-                        <><Zap className="w-4 h-4" /> Request {chain.claimAmount} {chain.symbol}</>
-                      )}
-                    </button>
-
-                    {/* OR divider */}
-                    {chain.buyEnabled && chain.buyUrl && (
-                      <>
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
-                          <span className="text-xs font-bold font-mono" style={{ color: "rgba(255,255,255,0.25)" }}>OR</span>
-                          <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
-                        </div>
-
-                        {/* Buy More Button */}
-                        <button
-                          onClick={() => setDexOpen(true)}
-                          className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm transition-all duration-200 flex items-center justify-center gap-2"
-                          style={{
-                            background: "linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)",
-                            color: "white",
-                            boxShadow: "0 0 20px rgba(37,99,235,0.3)",
-                          }}
-                        >
-                          <ShoppingCart className="w-4 h-4" /> Buy More {chain.symbol}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {/* Info tiles */}
-                <div className="grid grid-cols-2 gap-2 mt-1">
-                  <div className="rounded-xl px-4 py-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                    <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>Per Request</p>
-                    <p className="text-sm font-bold font-mono" style={{ color: "#22c55e" }}>{chain.claimAmount} {chain.symbol}</p>
-                  </div>
-                  <div className="rounded-xl px-4 py-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                    <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>Cooldown</p>
-                    <p className="text-sm font-bold font-mono" style={{ color: "#a855f7" }}>{chain.cooldownHours}h</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ── STEP: AD / PROCESSING ── */}
-            {step === "ad" && (
-              <div className="px-5 py-10 flex flex-col items-center gap-6 text-center">
-                <div className="relative">
-                  <div
-                    className="w-20 h-20 rounded-full flex items-center justify-center"
-                    style={{ background: "rgba(34,197,94,0.1)", border: "2px solid rgba(34,197,94,0.2)" }}
-                  >
-                    <div
-                      className="w-16 h-16 rounded-full border-4 border-transparent border-t-green-500 animate-spin"
+                {/* reCAPTCHA — always visible */}
+                <div className="flex justify-center">
+                  <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <ReCAPTCHA
+                      sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"}
+                      onChange={(val) => setCaptchaToken(val || "")}
+                      theme="dark"
                     />
                   </div>
-                  <div
-                    className="absolute inset-0 flex items-center justify-center font-bold font-mono text-xl"
-                    style={{ color: "#22c55e" }}
-                  >
-                    {adCountdown}
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold font-mono text-white">Processing Transaction</h3>
-                  <p className="text-sm mt-1 font-mono" style={{ color: "rgba(255,255,255,0.4)" }}>
-                    Broadcasting to {chain.name} network...
-                  </p>
-                </div>
-                {/* Ad space */}
-                <div
-                  className="w-full rounded-xl flex items-center justify-center py-6"
-                  style={{ background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.08)" }}
-                >
-                  <p className="text-xs font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>
-                    — Advertisement —
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* ── STEP: RESULT ── */}
-            {step === "result" && (
-              <div className="px-5 py-6 flex flex-col gap-5">
-                {/* Success banner */}
-                <div
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                  style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)" }}
-                >
-                  <CheckCircle2 className="w-5 h-5 shrink-0" style={{ color: "#22c55e" }} />
-                  <div>
-                    <p className="text-sm font-bold font-mono" style={{ color: "#22c55e" }}>Transaction Sent!</p>
-                    <p className="text-xs font-mono" style={{ color: "rgba(34,197,94,0.7)" }}>
-                      {claimedAmount} {chain.symbol} sent to your wallet
-                    </p>
-                  </div>
                 </div>
 
-                {/* TX Hash */}
-                {txHash && (
-                  <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-                    <div className="px-3 py-2" style={{ background: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                      <p className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.35)" }}>Transaction Hash</p>
-                    </div>
-                    <div className="px-3 py-2.5 flex items-center justify-between gap-2">
-                      <span className="text-xs font-mono truncate" style={{ color: "rgba(255,255,255,0.6)" }}>{txHash}</span>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          onClick={handleCopy}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-                          style={{ background: "rgba(255,255,255,0.05)", color: copied ? "#22c55e" : "rgba(255,255,255,0.4)" }}
-                        >
-                          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                        </button>
-                        <a
-                          href={explorerUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-                          style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" }}
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      </div>
-                    </div>
+                {errorMsg && (
+                  <div className="flex items-center gap-2 text-xs font-mono px-3 py-2 rounded-lg" style={{ background: "rgba(239,68,68,0.08)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {errorMsg}
                   </div>
                 )}
 
-                {/* Come Back timer button (disabled style) */}
-                <button
-                  disabled
-                  className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2"
-                  style={{
-                    background: "linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)",
-                    color: "rgba(255,255,255,0.7)",
-                    boxShadow: "0 0 16px rgba(124,58,237,0.25)",
-                    cursor: "not-allowed",
-                  }}
-                >
-                  <Clock className="w-4 h-4" />
-                  Come Back in {chain.cooldownHours}h
-                </button>
+                {/* Claim Button OR Cooldown Button */}
+                {inCooldown ? (
+                  <button
+                    disabled
+                    className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2"
+                    style={{
+                      background: "linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)",
+                      color: "rgba(255,255,255,0.6)",
+                      cursor: "not-allowed",
+                    }}
+                  >
+                    <Clock className="w-4 h-4" /> Come Back in {chain.cooldownHours}h
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleClaim}
+                    disabled={!canSubmit || claimMutation.isPending}
+                    className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all duration-200"
+                    style={{
+                      background: canSubmit && !claimMutation.isPending
+                        ? "linear-gradient(135deg, #15803d 0%, #22c55e 100%)"
+                        : "rgba(34,197,94,0.15)",
+                      color: canSubmit && !claimMutation.isPending ? "white" : "rgba(34,197,94,0.4)",
+                      boxShadow: canSubmit && !claimMutation.isPending ? "0 0 20px rgba(34,197,94,0.3)" : "none",
+                      cursor: canSubmit && !claimMutation.isPending ? "pointer" : "not-allowed",
+                    }}
+                  >
+                    {claimMutation.isPending ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
+                    ) : (
+                      <><Zap className="w-4 h-4" /> Request {chain.claimAmount} {chain.symbol}</>
+                    )}
+                  </button>
+                )}
 
                 {/* OR + Buy More */}
                 {chain.buyEnabled && chain.buyUrl && (
@@ -386,7 +270,129 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                       style={{
                         background: "linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)",
                         color: "white",
-                        boxShadow: "0 0 20px rgba(37,99,235,0.3)",
+                        boxShadow: "0 0 20px rgba(37,99,235,0.25)",
+                      }}
+                    >
+                      <ShoppingCart className="w-4 h-4" /> Buy More {chain.symbol}
+                    </button>
+                  </>
+                )}
+
+                {/* Info tiles */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-xl px-4 py-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>Per Request</p>
+                    <p className="text-sm font-bold font-mono" style={{ color: "#22c55e" }}>{chain.claimAmount} {chain.symbol}</p>
+                  </div>
+                  <div className="rounded-xl px-4 py-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>Cooldown</p>
+                    <p className="text-sm font-bold font-mono" style={{ color: "#a855f7" }}>{chain.cooldownHours}h</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── STEP: AD / PROCESSING ── */}
+            {step === "ad" && (
+              <div className="px-5 py-10 flex flex-col items-center gap-6 text-center">
+                <div className="relative w-20 h-20">
+                  <div
+                    className="absolute inset-0 rounded-full"
+                    style={{ background: "rgba(34,197,94,0.1)", border: "2px solid rgba(34,197,94,0.2)" }}
+                  />
+                  <div className="absolute inset-2 rounded-full border-4 border-transparent border-t-green-500 animate-spin" />
+                  <div className="absolute inset-0 flex items-center justify-center font-bold font-mono text-xl" style={{ color: "#22c55e" }}>
+                    {adCountdown}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold font-mono text-white">Processing Transaction</h3>
+                  <p className="text-sm mt-1 font-mono" style={{ color: "rgba(255,255,255,0.4)" }}>
+                    Broadcasting to {chain.name} network...
+                  </p>
+                </div>
+                <div
+                  className="w-full rounded-xl flex items-center justify-center py-6"
+                  style={{ background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.08)" }}
+                >
+                  <p className="text-xs font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>
+                    — Advertisement —
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ── STEP: RESULT ── */}
+            {step === "result" && (
+              <div className="px-5 py-6 flex flex-col gap-4">
+                <div
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl"
+                  style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)" }}
+                >
+                  <CheckCircle2 className="w-5 h-5 shrink-0" style={{ color: "#22c55e" }} />
+                  <div>
+                    <p className="text-sm font-bold font-mono" style={{ color: "#22c55e" }}>Transaction Sent!</p>
+                    <p className="text-xs font-mono" style={{ color: "rgba(34,197,94,0.7)" }}>
+                      {claimedAmount} {chain.symbol} sent to your wallet
+                    </p>
+                  </div>
+                </div>
+
+                {txHash && (
+                  <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <div className="px-3 py-2" style={{ background: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                      <p className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.35)" }}>Transaction Hash</p>
+                    </div>
+                    <div className="px-3 py-2.5 flex items-center justify-between gap-2">
+                      <span className="text-xs font-mono truncate" style={{ color: "rgba(255,255,255,0.6)" }}>{txHash}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={handleCopy}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center"
+                          style={{ background: "rgba(255,255,255,0.05)", color: copied ? "#22c55e" : "rgba(255,255,255,0.4)" }}
+                        >
+                          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                        <a
+                          href={explorerUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-7 h-7 rounded-lg flex items-center justify-center"
+                          style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" }}
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  disabled
+                  className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2"
+                  style={{
+                    background: "linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)",
+                    color: "rgba(255,255,255,0.6)",
+                    cursor: "not-allowed",
+                  }}
+                >
+                  <Clock className="w-4 h-4" /> Come Back in {chain.cooldownHours}h
+                </button>
+
+                {chain.buyEnabled && chain.buyUrl && (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+                      <span className="text-xs font-bold font-mono" style={{ color: "rgba(255,255,255,0.25)" }}>OR</span>
+                      <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+                    </div>
+                    <button
+                      onClick={() => setDexOpen(true)}
+                      className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2"
+                      style={{
+                        background: "linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)",
+                        color: "white",
+                        boxShadow: "0 0 20px rgba(37,99,235,0.25)",
                       }}
                     >
                       <ShoppingCart className="w-4 h-4" /> Buy More {chain.symbol}
@@ -396,7 +402,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
 
                 <button
                   onClick={() => handleOpenChange(false)}
-                  className="w-full h-10 rounded-xl text-sm font-mono transition-colors"
+                  className="w-full h-10 rounded-xl text-sm font-mono"
                   style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}
                 >
                   Close
@@ -404,7 +410,6 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
               </div>
             )}
 
-            {/* Bottom glow bar */}
             <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg, transparent, rgba(34,197,94,0.3), transparent)" }} />
           </div>
         </DialogContent>
