@@ -1,50 +1,36 @@
 import { ethers } from "ethers";
 import { logger } from "./logger";
 
-const CLAIM_AMOUNT_ETH = "0.05";
-const COOLDOWN_HOURS = 24;
+export async function sendTokens(
+  rpcUrl: string,
+  privateKey: string,
+  toAddress: string,
+  amountEth: string
+): Promise<{ txHash: string }> {
+  const provider = new ethers.JsonRpcProvider(rpcUrl);
+  const wallet = new ethers.Wallet(privateKey, provider);
+  const amountWei = ethers.parseEther(amountEth);
 
-export { CLAIM_AMOUNT_ETH, COOLDOWN_HOURS };
+  logger.info({ toAddress, amount: amountEth }, "Sending faucet tokens");
 
-function getProvider(): ethers.JsonRpcProvider {
-  const rpcUrl = process.env.SEPOLIA_RPC_URL;
-  if (!rpcUrl) throw new Error("SEPOLIA_RPC_URL is not set");
-  return new ethers.JsonRpcProvider(rpcUrl);
+  const tx = await wallet.sendTransaction({ to: toAddress, value: amountWei });
+
+  logger.info({ txHash: tx.hash, toAddress }, "Transaction submitted");
+
+  return { txHash: tx.hash };
 }
 
-function getWallet(): ethers.Wallet {
-  const privateKey = process.env.FAUCET_PRIVATE_KEY;
-  if (!privateKey) throw new Error("FAUCET_PRIVATE_KEY is not set");
-  return new ethers.Wallet(privateKey, getProvider());
+export async function getWalletBalance(rpcUrl: string, address: string): Promise<string | null> {
+  try {
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    const balance = await provider.getBalance(address);
+    return ethers.formatEther(balance);
+  } catch (err) {
+    logger.warn({ err }, "Failed to get wallet balance");
+    return null;
+  }
 }
 
 export function isValidEvmAddress(address: string): boolean {
   return ethers.isAddress(address);
-}
-
-export async function sendSepoliaEth(toAddress: string): Promise<{ txHash: string; amount: string }> {
-  const wallet = getWallet();
-  const amountWei = ethers.parseEther(CLAIM_AMOUNT_ETH);
-
-  logger.info({ toAddress, amount: CLAIM_AMOUNT_ETH }, "Sending Sepolia ETH");
-
-  const tx = await wallet.sendTransaction({
-    to: toAddress,
-    value: amountWei,
-  });
-
-  logger.info({ txHash: tx.hash, toAddress }, "Transaction submitted");
-
-  return { txHash: tx.hash, amount: CLAIM_AMOUNT_ETH };
-}
-
-export async function getFaucetBalance(): Promise<string | null> {
-  try {
-    const wallet = getWallet();
-    const balance = await wallet.provider!.getBalance(wallet.address);
-    return ethers.formatEther(balance);
-  } catch (err) {
-    logger.warn({ err }, "Failed to get faucet balance");
-    return null;
-  }
 }
