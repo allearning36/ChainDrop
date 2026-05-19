@@ -30,15 +30,6 @@ export default function Home() {
       <Navbar />
       
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8">
-        <div className="flex flex-col items-center justify-center text-center space-y-4 mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <h1 className="text-4xl md:text-6xl font-bold font-mono tracking-tighter uppercase text-primary drop-shadow-[0_0_15px_rgba(var(--primary),0.3)]">
-            ChainDrop
-          </h1>
-          <p className="text-lg md:text-xl text-muted-foreground font-mono tracking-widest uppercase max-w-2xl">
-            Your Ultimate Faucet Hub — Get Free Tokens For Every Chain
-          </p>
-        </div>
-
         <PriceMarquee coinIds={coinIds} />
         
         <Banners />
