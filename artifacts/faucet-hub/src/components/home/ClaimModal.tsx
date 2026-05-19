@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { ChainPublic, useGetFaucetStatus, useClaimFaucet, getGetChainQueryKey, getGetFaucetStatusQueryKey } from "@workspace/api-client-react";
 import ReCAPTCHA from "react-google-recaptcha";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, ExternalLink } from "lucide-react";
+import { Loader2, ExternalLink, Clock, Zap, ShoppingCart, CheckCircle2, Copy, Check } from "lucide-react";
 import { DexModal } from "./DexModal";
 import { formatDistanceToNow } from "date-fns";
 
@@ -24,6 +23,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [claimedAmount, setClaimedAmount] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [dexOpen, setDexOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const queryClient = useQueryClient();
   const claimMutation = useClaimFaucet();
@@ -32,11 +32,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (isValidEvmAddress(address)) {
-        setDebouncedAddress(address);
-      } else {
-        setDebouncedAddress("");
-      }
+      setDebouncedAddress(isValidEvmAddress(address) ? address : "");
     }, 500);
     return () => clearTimeout(timer);
   }, [address]);
@@ -44,12 +40,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const { data: status, isLoading: isStatusLoading } = useGetFaucetStatus(
     chain?.id || 0,
     debouncedAddress,
-    { 
-      query: { 
-        enabled: !!chain && !!debouncedAddress,
-        queryKey: getGetFaucetStatusQueryKey(chain?.id || 0, debouncedAddress)
-      } 
-    }
+    { query: { enabled: !!chain && !!debouncedAddress, queryKey: getGetFaucetStatusQueryKey(chain?.id || 0, debouncedAddress) } }
   );
 
   useEffect(() => {
@@ -67,14 +58,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const handleClaim = () => {
     if (!chain || !debouncedAddress || !captchaToken) return;
     setErrorMsg("");
-    
-    claimMutation.mutate({
-      data: {
-        chainId: chain.id,
-        address: debouncedAddress,
-        captchaToken
-      }
-    }, {
+    claimMutation.mutate({ data: { chainId: chain.id, address: debouncedAddress, captchaToken } }, {
       onSuccess: (res) => {
         setTxHash(res.txHash);
         setClaimedAmount(res.amount);
@@ -87,15 +71,17 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
     });
   };
 
+  const handleCopy = () => {
+    navigator.clipboard.writeText(txHash);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       setTimeout(() => {
-        setStep("input");
-        setAddress("");
-        setDebouncedAddress("");
-        setCaptchaToken("");
-        setAdCountdown(5);
-        setErrorMsg("");
+        setStep("input"); setAddress(""); setDebouncedAddress("");
+        setCaptchaToken(""); setAdCountdown(5); setErrorMsg("");
       }, 300);
       onClose();
     }
@@ -103,135 +89,328 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
 
   if (!chain) return null;
 
+  const explorerUrl = chain.isTestnet
+    ? `https://sepolia.etherscan.io/tx/${txHash}`
+    : `https://etherscan.io/tx/${txHash}`;
+
   return (
     <>
-    <Dialog open={!!chain} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md bg-card border-border">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3 text-xl font-mono uppercase tracking-tight">
-            Claim {chain.name}
-            {chain.isTestnet && (
-              <span className="text-[10px] bg-primary/20 text-primary px-2 py-1 rounded-sm">
-                TESTNET
-              </span>
-            )}
-          </DialogTitle>
-        </DialogHeader>
+      <Dialog open={!!chain} onOpenChange={handleOpenChange}>
+        <DialogContent className="sm:max-w-md w-full p-0 overflow-hidden border-0 bg-transparent shadow-none">
+          <div
+            className="relative w-full rounded-2xl overflow-hidden"
+            style={{
+              background: "linear-gradient(160deg, #0d1117 0%, #0a1628 50%, #0d1117 100%)",
+              border: "1px solid rgba(34,197,94,0.2)",
+              boxShadow: "0 0 40px rgba(34,197,94,0.1), 0 20px 60px rgba(0,0,0,0.8)",
+            }}
+          >
+            {/* Top glow bar */}
+            <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg, transparent, #22c55e, #22c55e80, transparent)" }} />
 
-        {step === "input" && (
-          <div className="flex flex-col gap-6 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-mono text-muted-foreground uppercase tracking-widest">
-                Wallet Address
-              </label>
-              <Input
-                placeholder="0x..."
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="font-mono bg-background/50"
-              />
-              {debouncedAddress && isStatusLoading && (
-                <div className="text-sm text-muted-foreground flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Checking eligibility...
-                </div>
-              )}
-              {status && !status.canClaim && (
-                <div className="text-sm text-destructive font-mono bg-destructive/10 p-3 rounded border border-destructive/20 mt-2">
-                  Cannot claim yet. Next claim available {status.nextClaimAt ? formatDistanceToNow(new Date(status.nextClaimAt), { addSuffix: true }) : "later"}.
-                </div>
-              )}
-            </div>
-
-            {status?.canClaim && (
-              <div className="flex flex-col items-center gap-6">
-                <div className="bg-background/80 p-2 rounded-md border border-border inline-block">
-                  <ReCAPTCHA
-                    sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"}
-                    onChange={(val) => setCaptchaToken(val || "")}
-                    theme="dark"
-                  />
-                </div>
-                
-                {errorMsg && (
-                  <div className="text-sm text-destructive text-center">{errorMsg}</div>
+            {/* Header */}
+            <div className="flex items-center gap-3 px-5 pt-5 pb-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 overflow-hidden"
+                style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)" }}
+              >
+                {chain.logoUrl ? (
+                  <img src={chain.logoUrl} alt={chain.symbol} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="font-bold text-lg" style={{ color: "#22c55e" }}>{chain.symbol.slice(0, 2)}</span>
                 )}
-                
-                <Button 
-                  onClick={handleClaim} 
-                  disabled={!captchaToken || claimMutation.isPending}
-                  className="w-full font-mono uppercase tracking-widest h-12 text-lg"
-                >
-                  {claimMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : `Claim ${chain.claimAmount} ${chain.symbol}`}
-                </Button>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="font-bold font-mono text-white text-base uppercase tracking-wide">{chain.name}</h2>
+                  <span
+                    className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-widest"
+                    style={{
+                      background: chain.isTestnet ? "rgba(34,197,94,0.15)" : "rgba(168,85,247,0.15)",
+                      color: chain.isTestnet ? "#22c55e" : "#a855f7",
+                      border: `1px solid ${chain.isTestnet ? "rgba(34,197,94,0.3)" : "rgba(168,85,247,0.3)"}`,
+                    }}
+                  >
+                    {chain.isTestnet ? "TESTNET" : "MAINNET"}
+                  </span>
+                </div>
+                <p className="text-xs font-mono mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>
+                  {chain.claimAmount} {chain.symbol} · {chain.cooldownHours}h cooldown
+                </p>
+              </div>
+              <button
+                onClick={() => handleOpenChange(false)}
+                className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0"
+                style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* ── STEP: INPUT ── */}
+            {step === "input" && (
+              <div className="px-5 py-5 flex flex-col gap-5">
+                {/* Wallet Input */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-[11px] font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.4)" }}>
+                    Wallet Address
+                  </label>
+                  <div className="relative">
+                    <Input
+                      placeholder="0x..."
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="font-mono text-sm h-11 pl-4 pr-10"
+                      style={{
+                        background: "rgba(255,255,255,0.04)",
+                        border: debouncedAddress
+                          ? status?.canClaim ? "1px solid rgba(34,197,94,0.4)" : "1px solid rgba(239,68,68,0.4)"
+                          : "1px solid rgba(255,255,255,0.1)",
+                        color: "white",
+                        borderRadius: "10px",
+                      }}
+                    />
+                    {debouncedAddress && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {isStatusLoading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#22c55e" }} />
+                        ) : status?.canClaim ? (
+                          <CheckCircle2 className="w-4 h-4" style={{ color: "#22c55e" }} />
+                        ) : (
+                          <Clock className="w-4 h-4" style={{ color: "#ef4444" }} />
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Cooldown warning */}
+                  {status && !status.canClaim && (
+                    <div
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-mono"
+                      style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}
+                    >
+                      <Clock className="w-3.5 h-3.5 shrink-0" />
+                      Next claim available {status.nextClaimAt ? formatDistanceToNow(new Date(status.nextClaimAt), { addSuffix: true }) : "later"}
+                    </div>
+                  )}
+                </div>
+
+                {/* reCAPTCHA */}
+                {status?.canClaim && (
+                  <div className="flex flex-col gap-4">
+                    <div className="flex justify-center">
+                      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+                        <ReCAPTCHA
+                          sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"}
+                          onChange={(val) => setCaptchaToken(val || "")}
+                          theme="dark"
+                        />
+                      </div>
+                    </div>
+
+                    {errorMsg && (
+                      <div className="text-xs text-center font-mono" style={{ color: "#f87171" }}>{errorMsg}</div>
+                    )}
+
+                    {/* Claim Button */}
+                    <button
+                      onClick={handleClaim}
+                      disabled={!captchaToken || claimMutation.isPending}
+                      className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm transition-all duration-200 flex items-center justify-center gap-2"
+                      style={{
+                        background: !captchaToken || claimMutation.isPending
+                          ? "rgba(34,197,94,0.2)"
+                          : "linear-gradient(135deg, #15803d 0%, #22c55e 100%)",
+                        color: !captchaToken || claimMutation.isPending ? "rgba(34,197,94,0.5)" : "white",
+                        boxShadow: captchaToken && !claimMutation.isPending ? "0 0 20px rgba(34,197,94,0.3)" : "none",
+                        cursor: !captchaToken || claimMutation.isPending ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {claimMutation.isPending ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
+                      ) : (
+                        <><Zap className="w-4 h-4" /> Request {chain.claimAmount} {chain.symbol}</>
+                      )}
+                    </button>
+
+                    {/* OR divider */}
+                    {chain.buyEnabled && chain.buyUrl && (
+                      <>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+                          <span className="text-xs font-bold font-mono" style={{ color: "rgba(255,255,255,0.25)" }}>OR</span>
+                          <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+                        </div>
+
+                        {/* Buy More Button */}
+                        <button
+                          onClick={() => setDexOpen(true)}
+                          className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm transition-all duration-200 flex items-center justify-center gap-2"
+                          style={{
+                            background: "linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)",
+                            color: "white",
+                            boxShadow: "0 0 20px rgba(37,99,235,0.3)",
+                          }}
+                        >
+                          <ShoppingCart className="w-4 h-4" /> Buy More {chain.symbol}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Info tiles */}
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <div className="rounded-xl px-4 py-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>Per Request</p>
+                    <p className="text-sm font-bold font-mono" style={{ color: "#22c55e" }}>{chain.claimAmount} {chain.symbol}</p>
+                  </div>
+                  <div className="rounded-xl px-4 py-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>Cooldown</p>
+                    <p className="text-sm font-bold font-mono" style={{ color: "#a855f7" }}>{chain.cooldownHours}h</p>
+                  </div>
+                </div>
               </div>
             )}
-          </div>
-        )}
 
-        {step === "ad" && (
-          <div className="py-12 flex flex-col items-center justify-center gap-6 text-center">
-            <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin"></div>
-            <div className="space-y-2">
-              <h3 className="text-lg font-bold font-mono">Processing Transaction</h3>
-              <p className="text-muted-foreground">Please wait while your request is processed.</p>
-            </div>
-            <div className="text-sm font-mono bg-muted/50 px-4 py-2 rounded-md">
-              Continuing in {adCountdown}...
-            </div>
-            
-            <div className="w-full aspect-video bg-muted/30 border border-border flex flex-col items-center justify-center gap-2 mt-4 relative overflow-hidden group">
-               <div className="text-xs text-muted-foreground uppercase tracking-widest font-mono">Advertisement</div>
-               <div className="text-xl font-bold opacity-30">Space Reserved</div>
-               <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.05)_50%,transparent_75%,transparent_100%)] bg-[length:250%_250%,100%_100%] animate-[shimmer_2s_infinite]"></div>
-            </div>
-          </div>
-        )}
-
-        {step === "result" && (
-          <div className="py-8 flex flex-col items-center justify-center gap-8 text-center">
-            <div className="w-20 h-20 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center border border-green-500/30">
-              <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="text-2xl font-bold font-mono text-green-500">Success!</h3>
-              <p className="text-lg">Sent <span className="font-bold">{claimedAmount} {chain.symbol}</span></p>
-            </div>
-            
-            <div className="w-full bg-muted/30 border border-border rounded-md p-4 text-sm font-mono flex flex-col gap-2 text-left">
-              <div className="text-muted-foreground">Transaction Hash</div>
-              <div className="truncate flex items-center justify-between">
-                <span>{txHash}</span>
-                {/* Normally we'd use a real block explorer URL based on chain config */}
-                <a href={`#tx-${txHash}`} target="_blank" className="text-primary hover:underline flex items-center gap-1">
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              </div>
-            </div>
-            
-            <div className="w-full space-y-3 pt-4">
-              {chain.buyEnabled && chain.buyUrl && (
-                <Button 
-                  className="w-full bg-primary/20 text-primary hover:bg-primary/30 border border-primary/50"
-                  variant="outline"
-                  onClick={() => setDexOpen(true)}
+            {/* ── STEP: AD / PROCESSING ── */}
+            {step === "ad" && (
+              <div className="px-5 py-10 flex flex-col items-center gap-6 text-center">
+                <div className="relative">
+                  <div
+                    className="w-20 h-20 rounded-full flex items-center justify-center"
+                    style={{ background: "rgba(34,197,94,0.1)", border: "2px solid rgba(34,197,94,0.2)" }}
+                  >
+                    <div
+                      className="w-16 h-16 rounded-full border-4 border-transparent border-t-green-500 animate-spin"
+                    />
+                  </div>
+                  <div
+                    className="absolute inset-0 flex items-center justify-center font-bold font-mono text-xl"
+                    style={{ color: "#22c55e" }}
+                  >
+                    {adCountdown}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold font-mono text-white">Processing Transaction</h3>
+                  <p className="text-sm mt-1 font-mono" style={{ color: "rgba(255,255,255,0.4)" }}>
+                    Broadcasting to {chain.name} network...
+                  </p>
+                </div>
+                {/* Ad space */}
+                <div
+                  className="w-full rounded-xl flex items-center justify-center py-6"
+                  style={{ background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.08)" }}
                 >
-                  Need more? Buy {chain.symbol}
-                </Button>
-              )}
-              
-              <Button onClick={() => handleOpenChange(false)} variant="ghost" className="w-full">
-                Close
-              </Button>
-            </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+                  <p className="text-xs font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>
+                    — Advertisement —
+                  </p>
+                </div>
+              </div>
+            )}
 
-    <DexModal chain={dexOpen ? chain : null} onClose={() => setDexOpen(false)} />
+            {/* ── STEP: RESULT ── */}
+            {step === "result" && (
+              <div className="px-5 py-6 flex flex-col gap-5">
+                {/* Success banner */}
+                <div
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl"
+                  style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)" }}
+                >
+                  <CheckCircle2 className="w-5 h-5 shrink-0" style={{ color: "#22c55e" }} />
+                  <div>
+                    <p className="text-sm font-bold font-mono" style={{ color: "#22c55e" }}>Transaction Sent!</p>
+                    <p className="text-xs font-mono" style={{ color: "rgba(34,197,94,0.7)" }}>
+                      {claimedAmount} {chain.symbol} sent to your wallet
+                    </p>
+                  </div>
+                </div>
+
+                {/* TX Hash */}
+                {txHash && (
+                  <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <div className="px-3 py-2" style={{ background: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                      <p className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.35)" }}>Transaction Hash</p>
+                    </div>
+                    <div className="px-3 py-2.5 flex items-center justify-between gap-2">
+                      <span className="text-xs font-mono truncate" style={{ color: "rgba(255,255,255,0.6)" }}>{txHash}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={handleCopy}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+                          style={{ background: "rgba(255,255,255,0.05)", color: copied ? "#22c55e" : "rgba(255,255,255,0.4)" }}
+                        >
+                          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                        <a
+                          href={explorerUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+                          style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" }}
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Come Back timer button (disabled style) */}
+                <button
+                  disabled
+                  className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2"
+                  style={{
+                    background: "linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)",
+                    color: "rgba(255,255,255,0.7)",
+                    boxShadow: "0 0 16px rgba(124,58,237,0.25)",
+                    cursor: "not-allowed",
+                  }}
+                >
+                  <Clock className="w-4 h-4" />
+                  Come Back in {chain.cooldownHours}h
+                </button>
+
+                {/* OR + Buy More */}
+                {chain.buyEnabled && chain.buyUrl && (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+                      <span className="text-xs font-bold font-mono" style={{ color: "rgba(255,255,255,0.25)" }}>OR</span>
+                      <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+                    </div>
+                    <button
+                      onClick={() => setDexOpen(true)}
+                      className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all duration-200"
+                      style={{
+                        background: "linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)",
+                        color: "white",
+                        boxShadow: "0 0 20px rgba(37,99,235,0.3)",
+                      }}
+                    >
+                      <ShoppingCart className="w-4 h-4" /> Buy More {chain.symbol}
+                    </button>
+                  </>
+                )}
+
+                <button
+                  onClick={() => handleOpenChange(false)}
+                  className="w-full h-10 rounded-xl text-sm font-mono transition-colors"
+                  style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}
+                >
+                  Close
+                </button>
+              </div>
+            )}
+
+            {/* Bottom glow bar */}
+            <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg, transparent, rgba(34,197,94,0.3), transparent)" }} />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <DexModal chain={dexOpen ? chain : null} onClose={() => setDexOpen(false)} />
     </>
   );
 }
