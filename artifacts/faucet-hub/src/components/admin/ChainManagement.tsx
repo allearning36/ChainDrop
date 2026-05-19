@@ -114,11 +114,17 @@ export function ChainManagement() {
     setEditingChain(chain);
     setFormData({
       ...chain,
+      // Never pre-fill private key
       privateKey: "",
+      // Null → empty string for all optional text fields
+      logoUrl: chain.logoUrl ?? "",
+      buyUrl: chain.buyUrl ?? "",
+      tokenPrice: chain.tokenPrice ?? "",
+      coingeckoId: chain.coingeckoId ?? "",
+      receiveAddress: chain.receiveAddress ?? "",
       buyRate: chain.buyRate || "1000",
       buyMinAmount: chain.buyMinAmount || "0.0005",
       buyCurrencies: chain.buyCurrencies || '["eth"]',
-      receiveAddress: chain.receiveAddress || "",
     });
     setFormError("");
     setIsFormOpen(true);
@@ -144,13 +150,20 @@ export function ChainManagement() {
       return;
     }
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       ...formData,
       cooldownHours: Number(formData.cooldownHours),
       sortOrder: Number(formData.sortOrder),
       buyRate: formData.buyRate || "1000",
       buyMinAmount: formData.buyMinAmount || "0.0005",
     };
+
+    // Strip empty strings and nulls for optional fields — backend Zod rejects null
+    const optionalFields = ["logoUrl", "buyUrl", "tokenPrice", "coingeckoId", "receiveAddress"];
+    for (const key of optionalFields) {
+      if (payload[key] === null || payload[key] === "") delete payload[key];
+    }
+
     if (editingChain && !payload.privateKey) delete payload.privateKey;
 
     const mutation = editingChain ? updateMutation : createMutation;

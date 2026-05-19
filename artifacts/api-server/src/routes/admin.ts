@@ -126,8 +126,15 @@ router.get("/admin/chains", async (_req, res): Promise<void> => {
   );
 });
 
+/** Strip null and empty-string values so optional Zod fields don't reject them */
+function stripNulls(obj: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== null && v !== "")
+  );
+}
+
 router.post("/admin/chains", async (req, res): Promise<void> => {
-  const parsed = CreateChainBody.safeParse(req.body);
+  const parsed = CreateChainBody.safeParse(stripNulls(req.body));
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -164,7 +171,7 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const parsed = UpdateChainBody.safeParse(req.body);
+  const parsed = UpdateChainBody.safeParse(stripNulls(req.body));
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
