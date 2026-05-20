@@ -5,9 +5,15 @@ import { ExternalLink, ShoppingCart, Droplets, ChevronLeft, ChevronRight, Slider
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
+/** Strip invisible/special Unicode characters and trailing slashes from a URL. */
+function cleanUrl(url: string): string {
+  // Remove zero-width, word-joiner, BOM, and other invisible chars, then trim slashes
+  return url.replace(/[\u200B-\u200D\uFEFF\u2060\u00AD]/g, "").replace(/\/+$/, "").trim();
+}
+
 /** Returns the TX explorer URL, or null if none is known for this chain. */
 function getExplorerUrl(chainName: string, txHash: string, explorerUrl?: string | null): string | null {
-  if (explorerUrl) return `${explorerUrl.replace(/\/$/, "")}/tx/${txHash}`;
+  if (explorerUrl) return `${cleanUrl(explorerUrl)}/tx/${txHash}`;
   const name = chainName.toLowerCase();
   if (name.includes("sepolia"))    return `https://sepolia.etherscan.io/tx/${txHash}`;
   if (name.includes("ethereum"))   return `https://etherscan.io/tx/${txHash}`;
@@ -124,7 +130,7 @@ export function RecentFeed() {
                 <span className="font-mono text-xs font-bold" style={{ color: isBuy ? "#a5b4fc" : "#4ade80" }}>
                   +{parseFloat(record.amount).toFixed(4)} {record.symbol}
                 </span>
-                <span className="text-[10px] font-mono hidden sm:block" style={{ color: "rgba(255,255,255,0.2)" }}>
+                <span className="text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.3)" }}>
                   {formatDistanceToNow(new Date(record.claimedAt), { addSuffix: true })}
                 </span>
                 {(() => {
