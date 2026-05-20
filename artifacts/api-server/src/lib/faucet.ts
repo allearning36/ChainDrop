@@ -1,6 +1,19 @@
 import { ethers } from "ethers";
 import { logger } from "./logger";
 
+export class InsufficientBalanceError extends Error {
+  public readonly balance: string;
+  public readonly required: string;
+  constructor(balance: string, required: string) {
+    super(`Faucet wallet has insufficient funds — balance: ${balance} ETH, required: ${required} ETH`);
+    this.name = "InsufficientBalanceError";
+    this.balance = balance;
+    this.required = required;
+    // Ensure ethers-style error classification picks this up
+    (this as unknown as Record<string, unknown>).code = "INSUFFICIENT_FUNDS";
+  }
+}
+
 export async function sendTokens(
   rpcUrl: string,
   privateKey: string,
@@ -13,11 +26,21 @@ export async function sendTokens(
 
   logger.info({ toAddress, amount: amountEth }, "Sending faucet tokens");
 
+  // Pre-flight: check wallet balance before attempting to send
+  const balanceWei = await provider.getBalance(wallet.address);
+  // Require at least 1.05× the claim amount to also cover gas
+  const minRequired = (amountWei * 105n) / 100n;
+  if (balanceWei < minRequired) {
+    const balanceEth = ethers.formatEther(balanceWei);
+    logger.warn({ balance: balanceEth, required: amountEth, address: wallet.address }, "Insufficient faucet wallet balance");
+    throw new InsufficientBalanceError(balanceEth, amountEth);
+  }
+
   // Get fee data and bump priority fee to ensure inclusion on fast networks (Polygon etc.)
   const feeData = await provider.getFeeData();
   const txOverrides: Record<string, unknown> = { to: toAddress, value: amountWei };
   if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
-    // EIP-1559 — bump priority fee by 20% to avoid getting stuck
+    // EIP-1559 — bump priority fee by 30% to avoid getting stuck
     txOverrides.maxFeePerGas = (feeData.maxFeePerGas * 130n) / 100n;
     txOverrides.maxPriorityFeePerGas = (feeData.maxPriorityFeePerGas * 130n) / 100n;
   } else if (feeData.gasPrice) {

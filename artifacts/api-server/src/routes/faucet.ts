@@ -4,7 +4,7 @@ import { db, claimsTable, chainsTable, blockedAddressesTable, ipBlocksTable, set
 import { ClaimFaucetBody, GetFaucetStatusParams } from "@workspace/api-zod";
 import { sendTokens, isValidAddress, type ChainType } from "../lib/chains/index";
 import { claimLimiter } from "../lib/rateLimiters";
-import { broadcast, broadcastError } from "../lib/liveEvents";
+import { broadcast, broadcastError, classifyError, getErrorMeta } from "../lib/liveEvents";
 
 function getClientIp(req: Request): string {
   const fwd = req.headers["x-forwarded-for"];
@@ -135,11 +135,31 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
       symbol: chain.symbol,
     });
 
-    const msg = err instanceof Error ? err.message : "";
-    if (msg.includes("timed out") || msg.includes("timeout") || msg.includes("network") || msg.includes("ECONNREFUSED") || msg.includes("ENOTFOUND")) {
-      res.status(503).json({ error: "Could not connect to the network. The RPC node may be down — please try again later." });
-    } else if (msg.includes("insufficient funds") || msg.includes("insufficient balance")) {
-      res.status(503).json({ error: "Faucet wallet has insufficient funds. Please try again later." });
+    const cause = classifyError(err);
+    const { detail } = getErrorMeta(cause);
+
+    const userMessages: Record<string, { status: number; msg: string }> = {
+      RPC_DISCONNECTED:      { status: 503, msg: "Network connection dropped. Please try again in a moment." },
+      RPC_REFUSED:           { status: 503, msg: "Could not reach the network. The RPC node may be down." },
+      RPC_INVALID_URL:       { status: 503, msg: "Could not reach the network. The RPC node may be down." },
+      RPC_TIMEOUT:           { status: 503, msg: "Network request timed out. Please try again." },
+      RPC_UNREACHABLE:       { status: 503, msg: "Could not reach the network. Please try again later." },
+      RPC_WRONG_NETWORK:     { status: 503, msg: "RPC network mismatch. Please try again later." },
+      RPC_BAD_RESPONSE:      { status: 503, msg: "Received an invalid response from the network. Please try again." },
+      WALLET_EMPTY:          { status: 503, msg: "The faucet is temporarily out of funds. Please try again later." },
+      NONCE_CONFLICT:        { status: 503, msg: "Transaction conflict — please wait a moment and try again." },
+      TX_UNDERPRICED:        { status: 503, msg: "Gas price too low for current network conditions. Please try again." },
+      TX_REVERTED:           { status: 500, msg: "Transaction was rejected by the network. Please try again." },
+      GAS_ESTIMATION_FAILED: { status: 503, msg: "Could not estimate gas. Please try again later." },
+      GAS_TOO_LOW:           { status: 503, msg: "Network is congested. Please try again in a moment." },
+      BAD_PRIVATE_KEY:       { status: 500, msg: "Faucet configuration error. Please contact support." },
+    };
+
+    req.log.error({ err, cause, detail }, "Failed to send tokens — classified error");
+
+    const entry = userMessages[cause];
+    if (entry) {
+      res.status(entry.status).json({ error: entry.msg });
     } else {
       res.status(500).json({ error: "Transaction failed. Please try again later." });
     }

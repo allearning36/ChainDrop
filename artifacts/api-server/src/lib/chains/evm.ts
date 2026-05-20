@@ -19,6 +19,19 @@ function makeProvider(rpcUrl: string): ethers.JsonRpcProvider {
   return new ethers.JsonRpcProvider(req);
 }
 
+export class EvmInsufficientBalanceError extends Error {
+  public readonly balance: string = "";
+  public readonly required: string = "";
+  constructor(balance: string, required: string) {
+    super(`Faucet wallet has insufficient funds — balance: ${balance} ETH, required ≥ ${required} ETH (includes gas buffer)`);
+    this.name = "EvmInsufficientBalanceError";
+    this.balance = balance;
+    this.required = required;
+    // Set ethers-compatible code so classifyError picks it up reliably
+    (this as unknown as Record<string, unknown>).code = "INSUFFICIENT_FUNDS";
+  }
+}
+
 export async function sendEvm(
   rpcUrl: string,
   privateKey: string,
@@ -31,6 +44,22 @@ export async function sendEvm(
     const amountWei = ethers.parseEther(amount);
 
     logger.info({ toAddress, amount }, "Sending EVM tokens");
+
+    // ── Pre-flight: check balance before spending gas on doomed txs ──────────
+    const balanceWei = await withTimeout(
+      provider.getBalance(wallet.address),
+      RPC_TIMEOUT_MS,
+      "getBalance"
+    );
+    // Require at least 105 % of the claim amount to cover gas
+    const minRequired = (amountWei * 105n) / 100n;
+    if (balanceWei < minRequired) {
+      const balanceEth = ethers.formatEther(balanceWei);
+      const requiredEth = ethers.formatEther(minRequired);
+      logger.warn({ balance: balanceEth, required: requiredEth, walletAddress: wallet.address }, "Insufficient faucet wallet balance");
+      throw new EvmInsufficientBalanceError(balanceEth, requiredEth);
+    }
+    // ────────────────────────────────────────────────────────────────────────
 
     const feeData = await withTimeout(
       provider.getFeeData(),

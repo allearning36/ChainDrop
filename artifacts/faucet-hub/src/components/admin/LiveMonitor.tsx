@@ -23,22 +23,9 @@ interface LiveEvent {
   error?: string;
   rootCause?: string;
   detail?: string;
+  hint?: string;
   clients?: number;
 }
-
-const ROOT_CAUSE_FIX: Record<string, string> = {
-  RPC_TIMEOUT: "Admin panel → Chains → Edit chain → সঠিক/দ্রুত RPC URL দাও",
-  RPC_UNREACHABLE: "Admin panel → Chains → Edit chain → RPC URL যাচাই করো",
-  WALLET_EMPTY: "Faucet wallet-এ token পাঠাও",
-  NONCE_CONFLICT: "কিছুক্ষণ পর আবার try করো",
-  GAS_ESTIMATION_FAILED: "RPC URL বা wallet balance চেক করো",
-  BAD_PRIVATE_KEY: "Admin panel → Chains → সঠিক Private Key দাও",
-  CAPTCHA_FAILED: "User reCAPTCHA সঠিকভাবে complete করেনি",
-  RATE_LIMITED: "IP rate limit hit — স্বাভাবিক",
-  ADDRESS_BLOCKED: "Admin কর্তৃক blocked",
-  COOLDOWN_ACTIVE: "Cooldown এখনো শেষ হয়নি",
-  UNKNOWN: "Server log দেখো বিস্তারিত জানতে",
-};
 
 function maskAddress(addr?: string) {
   if (!addr || addr.length < 10) return addr ?? "";
@@ -191,7 +178,7 @@ export function LiveMonitor() {
             {[...new Set(events.filter(e => e.rootCause).map(e => e.rootCause!))].map((cause) => (
               <div key={cause} className="text-xs space-y-0.5">
                 <div className="font-mono text-red-400 font-semibold">{cause}</div>
-                <div className="text-muted-foreground">{ROOT_CAUSE_FIX[cause] ?? "—"}</div>
+                <div className="text-muted-foreground">{events.find(e => e.rootCause === cause)?.hint ?? events.find(e => e.rootCause === cause)?.detail ?? "—"}</div>
               </div>
             ))}
           </div>
@@ -268,10 +255,10 @@ function EventRow({ event: ev }: { event: LiveEvent }) {
               {ev.error}
             </div>
           )}
-          {ev.rootCause && ROOT_CAUSE_FIX[ev.rootCause] && (
+          {ev.hint && (
             <div className="text-[11px] text-yellow-400/80 flex items-start gap-1">
               <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
-              Fix: {ROOT_CAUSE_FIX[ev.rootCause]}
+              Fix: {ev.hint}
             </div>
           )}
         </div>
