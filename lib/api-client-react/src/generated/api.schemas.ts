@@ -274,6 +274,44 @@ export interface AdminAuthResult {
   token: string;
 }
 
+export interface SupportConversation {
+  id: number;
+  userName: string;
+  userEmail: string;
+  status: string;
+  /** @nullable */
+  lastMessage?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupportMessage {
+  id: number;
+  conversationId: number;
+  content: string;
+  isAdmin: boolean;
+  createdAt: string;
+}
+
+export interface SupportConversationDetail {
+  id: number;
+  userName: string;
+  userEmail: string;
+  status: string;
+  messages: SupportMessage[];
+  createdAt: string;
+}
+
+export interface SupportStartInput {
+  userName: string;
+  userEmail: string;
+  message: string;
+}
+
+export interface SupportMessageInput {
+  content: string;
+}
+
 export interface AdminStats {
   totalClaims: number;
   totalChains: number;
@@ -298,6 +336,18 @@ export type GetPricesParams = {
  * Comma-separated CoinGecko IDs e.g. ethereum,binancecoin
  */
 ids: string;
+};
+
+export type UpdateSupportConversationBodyStatus = typeof UpdateSupportConversationBodyStatus[keyof typeof UpdateSupportConversationBodyStatus];
+
+
+export const UpdateSupportConversationBodyStatus = {
+  open: 'open',
+  closed: 'closed',
+} as const;
+
+export type UpdateSupportConversationBody = {
+  status: UpdateSupportConversationBodyStatus;
 };
 
 export type UploadImageBody = {

@@ -8,6 +8,7 @@ import announcementsRouter from "./announcements";
 import pricesRouter from "./prices";
 import adminRouter from "./admin";
 import uploadRouter from "./upload";
+import supportRouter from "./support";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(announcementsRouter);
 router.use(pricesRouter);
 router.use(adminRouter);
 router.use(uploadRouter);
+router.use(supportRouter);
 
 export default router;

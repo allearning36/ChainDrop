@@ -464,6 +464,123 @@ export const DeleteAnnouncementParams = zod.object({
 
 
 /**
+ * @summary Start a new support conversation
+ */
+export const StartSupportConversationBody = zod.object({
+  "userName": zod.string(),
+  "userEmail": zod.string(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Get messages for a conversation
+ */
+export const GetSupportMessagesParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetSupportMessagesResponse = zod.object({
+  "id": zod.number(),
+  "userName": zod.string(),
+  "userEmail": zod.string(),
+  "status": zod.string(),
+  "messages": zod.array(zod.object({
+  "id": zod.number(),
+  "conversationId": zod.number(),
+  "content": zod.string(),
+  "isAdmin": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Send a message in a conversation
+ */
+export const SendSupportMessageParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SendSupportMessageBody = zod.object({
+  "content": zod.string()
+})
+
+
+/**
+ * @summary List all support conversations (admin)
+ */
+export const GetAdminSupportConversationsResponseItem = zod.object({
+  "id": zod.number(),
+  "userName": zod.string(),
+  "userEmail": zod.string(),
+  "status": zod.string(),
+  "lastMessage": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const GetAdminSupportConversationsResponse = zod.array(GetAdminSupportConversationsResponseItem)
+
+
+/**
+ * @summary Get a conversation with all messages (admin)
+ */
+export const GetAdminSupportConversationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetAdminSupportConversationResponse = zod.object({
+  "id": zod.number(),
+  "userName": zod.string(),
+  "userEmail": zod.string(),
+  "status": zod.string(),
+  "messages": zod.array(zod.object({
+  "id": zod.number(),
+  "conversationId": zod.number(),
+  "content": zod.string(),
+  "isAdmin": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update conversation status (admin)
+ */
+export const UpdateSupportConversationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateSupportConversationBody = zod.object({
+  "status": zod.enum(['open', 'closed'])
+})
+
+export const UpdateSupportConversationResponse = zod.object({
+  "id": zod.number(),
+  "userName": zod.string(),
+  "userEmail": zod.string(),
+  "status": zod.string(),
+  "lastMessage": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Admin reply to a support conversation
+ */
+export const AdminReplySupportConversationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminReplySupportConversationBody = zod.object({
+  "content": zod.string()
+})
+
+
+/**
  * @summary Upload an image (logo, banner, etc.)
  */
 export const UploadImageBody = zod.object({

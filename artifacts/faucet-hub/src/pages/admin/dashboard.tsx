@@ -3,11 +3,12 @@ import { useLocation } from "wouter";
 import { isAuthenticated, removeToken } from "@/lib/auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { LogOut, LayoutDashboard, Link as LinkIcon, Image, Megaphone } from "lucide-react";
+import { LogOut, LayoutDashboard, Link as LinkIcon, Image, Megaphone, HeadphonesIcon } from "lucide-react";
 import { StatsOverview } from "@/components/admin/Stats";
 import { ChainManagement } from "@/components/admin/ChainManagement";
 import { BannerManagement } from "@/components/admin/BannerManagement";
 import { AnnouncementManagement } from "@/components/admin/AnnouncementManagement";
+import { SupportManagement } from "@/components/admin/SupportManagement";
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
@@ -57,6 +58,9 @@ export default function AdminDashboard() {
             <TabsTrigger value="announcements" className="font-mono text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary gap-2 h-10 px-4">
               <Megaphone className="w-4 h-4" /> Announcements
             </TabsTrigger>
+            <TabsTrigger value="support" className="font-mono text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary gap-2 h-10 px-4">
+              <HeadphonesIcon className="w-4 h-4" /> Support
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="stats" className="mt-0 outline-none">
@@ -73,6 +77,10 @@ export default function AdminDashboard() {
           
           <TabsContent value="announcements" className="mt-0 outline-none">
             <AnnouncementManagement />
+          </TabsContent>
+
+          <TabsContent value="support" className="mt-0 outline-none">
+            <SupportManagement />
           </TabsContent>
         </Tabs>
       </main>

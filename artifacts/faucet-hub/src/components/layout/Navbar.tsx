@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Bell } from "lucide-react";
+import { Bell, MessageCircle } from "lucide-react";
 import { useGetAnnouncements, getGetAnnouncementsQueryKey } from "@workspace/api-client-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { SupportModal } from "@/components/support/SupportModal";
 
 export function Navbar() {
   const { data: announcements = [] } = useGetAnnouncements({
@@ -12,6 +13,7 @@ export function Navbar() {
     }
   });
   const [open, setOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
   
   const activeAnnouncements = announcements.filter(a => a.isActive);
   const hasUnread = activeAnnouncements.length > 0;
@@ -52,7 +54,28 @@ export function Navbar() {
           </div>
         </Link>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* Support button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSupportOpen(true)}
+            className="h-9 gap-2 text-xs font-mono font-semibold text-muted-foreground hover:text-foreground hidden sm:flex"
+          >
+            <MessageCircle className="h-4 w-4" />
+            Support
+          </Button>
+          {/* Mobile support icon */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSupportOpen(true)}
+            className="sm:hidden"
+          >
+            <MessageCircle className="h-5 w-5" />
+          </Button>
+
+          {/* Announcements bell */}
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="relative">
@@ -85,9 +108,10 @@ export function Navbar() {
               </div>
             </PopoverContent>
           </Popover>
-          
         </div>
       </div>
+
+      <SupportModal open={supportOpen} onOpenChange={setSupportOpen} />
     </nav>
   );
 }

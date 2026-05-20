@@ -14,6 +14,7 @@ tags:
   - name: announcements
   - name: prices
   - name: admin
+  - name: support
 
 paths:
   /healthz:
@@ -520,6 +521,184 @@ paths:
         "204":
           description: Deleted
 
+  /support/conversations:
+    post:
+      operationId: startSupportConversation
+      tags: [support]
+      summary: Start a new support conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportStartInput"
+      responses:
+        "201":
+          description: Conversation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportConversation"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /support/conversations/{id}/messages:
+    get:
+      operationId: getSupportMessages
+      tags: [support]
+      summary: Get messages for a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportConversationDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: sendSupportMessage
+      tags: [support]
+      summary: Send a message in a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportMessageInput"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportMessage"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/support:
+    get:
+      operationId: getAdminSupportConversations
+      tags: [support]
+      summary: List all support conversations (admin)
+      responses:
+        "200":
+          description: All conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SupportConversation"
+
+  /admin/support/{id}:
+    get:
+      operationId: getAdminSupportConversation
+      tags: [support]
+      summary: Get a conversation with all messages (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Conversation detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportConversationDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateSupportConversation
+      tags: [support]
+      summary: Update conversation status (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [open, closed]
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportConversation"
+
+  /admin/support/{id}/reply:
+    post:
+      operationId: adminReplySupportConversation
+      tags: [support]
+      summary: Admin reply to a support conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportMessageInput"
+      responses:
+        "201":
+          description: Reply sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportMessage"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /admin/upload:
     post:
       operationId: uploadImage
@@ -1019,6 +1198,81 @@ components:
       required: [token]
       properties:
         token:
+          type: string
+
+    SupportConversation:
+      type: object
+      required: [id, userName, userEmail, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        userName:
+          type: string
+        userEmail:
+          type: string
+        status:
+          type: string
+        lastMessage:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SupportMessage:
+      type: object
+      required: [id, conversationId, content, isAdmin, createdAt]
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        content:
+          type: string
+        isAdmin:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    SupportConversationDetail:
+      type: object
+      required: [id, userName, userEmail, status, messages, createdAt]
+      properties:
+        id:
+          type: integer
+        userName:
+          type: string
+        userEmail:
+          type: string
+        status:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/SupportMessage"
+        createdAt:
+          type: string
+          format: date-time
+
+    SupportStartInput:
+      type: object
+      required: [userName, userEmail, message]
+      properties:
+        userName:
+          type: string
+        userEmail:
+          type: string
+        message:
+          type: string
+
+    SupportMessageInput:
+      type: object
+      required: [content]
+      properties:
+        content:
           type: string
 
     AdminStats:
