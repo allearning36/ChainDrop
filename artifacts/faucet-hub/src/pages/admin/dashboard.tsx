@@ -33,7 +33,7 @@ async function fetchUnreadCount(): Promise<number> {
   } catch { return 0; }
 }
 
-const TAB = "font-mono text-xs data-[state=active]:bg-primary/20 data-[state=active]:text-primary gap-1 h-9 px-0 w-9 sm:w-auto sm:px-2.5 flex-shrink-0";
+const TAB = "font-mono text-xs data-[state=active]:bg-primary/20 data-[state=active]:text-primary gap-1 h-9 px-2.5 flex-shrink-0";
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
@@ -70,38 +70,38 @@ export default function AdminDashboard() {
         <Tabs defaultValue="stats" className="w-full space-y-8">
           <TabsList className="bg-card border border-border p-1 gap-0.5 flex flex-wrap h-auto w-full">
             <TabsTrigger value="live" className={TAB} title="Live">
-              <Radio className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Live</span>
+              <Radio className="w-3.5 h-3.5" /> Live
             </TabsTrigger>
             <TabsTrigger value="stats" className={TAB} title="Stats">
-              <LayoutDashboard className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Stats</span>
+              <LayoutDashboard className="w-3.5 h-3.5" /> Stats
             </TabsTrigger>
             <TabsTrigger value="analytics" className={TAB} title="Analytics">
-              <BarChart2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Analytics</span>
+              <BarChart2 className="w-3.5 h-3.5" /> Analytics
             </TabsTrigger>
             <TabsTrigger value="audience" className={TAB} title="Audience">
-              <Users className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Audience</span>
+              <Users className="w-3.5 h-3.5" /> Audience
             </TabsTrigger>
             <TabsTrigger value="chains" className={TAB} title="Chains">
-              <LinkIcon className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Chains</span>
+              <LinkIcon className="w-3.5 h-3.5" /> Chains
             </TabsTrigger>
             <TabsTrigger value="wallets" className={TAB} title="Wallets">
-              <Wallet className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Wallets</span>
+              <Wallet className="w-3.5 h-3.5" /> Wallets
             </TabsTrigger>
             <TabsTrigger value="claims" className={TAB} title="Claims">
-              <ClipboardList className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Claims</span>
+              <ClipboardList className="w-3.5 h-3.5" /> Claims
             </TabsTrigger>
             <TabsTrigger value="blocked" className={TAB} title="Blocked">
-              <ShieldOff className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Blocked</span>
+              <ShieldOff className="w-3.5 h-3.5" /> Blocked
             </TabsTrigger>
             <TabsTrigger value="ipblocks" className={TAB} title="IP Block">
-              <Globe className="w-3.5 h-3.5" /> <span className="hidden sm:inline">IP Block</span>
+              <Globe className="w-3.5 h-3.5" /> IP Block
             </TabsTrigger>
             <TabsTrigger value="post" className={TAB} title="Post">
-              <Send className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Post</span>
+              <Send className="w-3.5 h-3.5" /> Post
             </TabsTrigger>
             <TabsTrigger value="support" className={TAB} title="Support">
               <HeadphonesIcon className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Support</span>
+              Support
               {supportUnread > 0 && (
                 <span className="inline-flex items-center justify-center font-mono font-bold text-white rounded-full text-[9px] px-1 min-w-[14px] h-[14px] leading-none"
                   style={{ background: "#ef4444", boxShadow: "0 0 6px rgba(239,68,68,0.8)" }}>
@@ -110,10 +110,10 @@ export default function AdminDashboard() {
               )}
             </TabsTrigger>
             <TabsTrigger value="pages" className={TAB} title="Pages">
-              <FileText className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Pages</span>
+              <FileText className="w-3.5 h-3.5" /> Pages
             </TabsTrigger>
             <TabsTrigger value="siteconfig" className={TAB} title="Settings">
-              <Settings2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Settings</span>
+              <Settings2 className="w-3.5 h-3.5" /> Settings
             </TabsTrigger>
           </TabsList>
 
