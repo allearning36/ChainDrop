@@ -165,7 +165,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
       <Dialog open={!!chain} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-md w-full p-0 border-0 bg-transparent shadow-none [&>button]:hidden">
           <div
-            className="relative w-full rounded-2xl"
+            className="relative w-full rounded-2xl overflow-hidden"
             style={{
               background: "linear-gradient(160deg, #0d1117 0%, #0a1628 50%, #0d1117 100%)",
               border: "1px solid rgba(34,197,94,0.2)",
@@ -409,8 +409,8 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                     <div className="px-3 py-2" style={{ background: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                       <p className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.35)" }}>Transaction Hash</p>
                     </div>
-                    <div className="px-3 py-2.5 flex items-center justify-between gap-2">
-                      <span className="text-xs font-mono truncate" style={{ color: "rgba(255,255,255,0.6)" }}>{txHash}</span>
+                    <div className="px-3 py-2.5 flex items-center justify-between gap-2 min-w-0">
+                      <span className="text-xs font-mono truncate min-w-0 flex-1" style={{ color: "rgba(255,255,255,0.6)" }}>{txHash}</span>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button
                           onClick={handleCopy}
