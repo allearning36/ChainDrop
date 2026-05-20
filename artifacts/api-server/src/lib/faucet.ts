@@ -15,7 +15,14 @@ export async function sendTokens(
 
   const tx = await wallet.sendTransaction({ to: toAddress, value: amountWei });
 
-  logger.info({ txHash: tx.hash, toAddress }, "Transaction submitted");
+  logger.info({ txHash: tx.hash, toAddress }, "Transaction submitted, waiting for confirmation");
+
+  const receipt = await tx.wait(1);
+  if (!receipt || receipt.status === 0) {
+    throw new Error(`Transaction reverted on-chain: ${tx.hash}`);
+  }
+
+  logger.info({ txHash: tx.hash, toAddress, blockNumber: receipt.blockNumber }, "Transaction confirmed");
 
   return { txHash: tx.hash };
 }
