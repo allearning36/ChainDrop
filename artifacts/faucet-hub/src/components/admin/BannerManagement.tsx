@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { 
   useGetAdminBanners, 
   useCreateBanner, 
@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Plus, Trash2, Loader2, Image as ImageIcon } from "lucide-react";
+import { Edit2, Plus, Trash2, Loader2, Image as ImageIcon, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const DEFAULT_BANNER = {
@@ -40,6 +40,8 @@ export function BannerManagement() {
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
   const [deletingBanner, setDeletingBanner] = useState<Banner | null>(null);
   const [formData, setFormData] = useState<any>(DEFAULT_BANNER);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const createMutation = useCreateBanner();
   const updateMutation = useUpdateBanner();
@@ -60,6 +62,47 @@ export function BannerManagement() {
   const handleOpenDelete = (banner: Banner) => {
     setDeletingBanner(banner);
     setIsDeleteOpen(true);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({ variant: "destructive", title: "Invalid file", description: "Please select an image file." });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ variant: "destructive", title: "File too large", description: "Image must be under 5 MB." });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const adminPassword = sessionStorage.getItem("adminPassword") || "";
+      const fd = new FormData();
+      fd.append("image", file);
+
+      const res = await fetch("/api/uploads/banner", {
+        method: "POST",
+        headers: { "x-admin-password": adminPassword },
+        body: fd,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any).error || "Upload failed");
+      }
+
+      const { url } = await res.json() as { url: string };
+      setFormData((prev: any) => ({ ...prev, imageUrl: url }));
+      toast({ title: "Uploaded", description: "Image uploaded successfully." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Upload failed", description: err?.message || "Could not upload image." });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   const handleSave = () => {
@@ -185,17 +228,58 @@ export function BannerManagement() {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {/* Image upload area */}
             <div className="space-y-2">
-              <Label>Image URL (728x90 Recommended) *</Label>
-              <Input value={formData.imageUrl} onChange={e => setFormData({...formData, imageUrl: e.target.value})} className="font-mono" />
+              <Label>Banner Image (1200×600 recommended) *</Label>
+
+              {/* Upload from gallery button */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-dashed font-mono gap-2"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
+                {uploading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Uploading…</>
+                ) : (
+                  <><Upload className="w-4 h-4" /> Choose from Gallery / Device</>
+                )}
+              </Button>
+
+              {/* OR divider */}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex-1 border-t border-border" />
+                <span>or paste a URL</span>
+                <div className="flex-1 border-t border-border" />
+              </div>
+
+              <Input
+                value={formData.imageUrl}
+                onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
+                placeholder="https://example.com/banner.jpg"
+                className="font-mono text-sm"
+              />
             </div>
-            
+
+            {/* Preview */}
             {formData.imageUrl && (
-              <div className="w-full aspect-[728/90] bg-muted rounded border border-border overflow-hidden mt-2 relative">
-                <img src={formData.imageUrl} alt="Preview" className="w-full h-full object-contain" 
+              <div className="w-full aspect-[1200/600] bg-muted rounded border border-border overflow-hidden relative">
+                <img
+                  src={formData.imageUrl}
+                  alt="Preview"
+                  className="w-full h-full object-contain"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 728 90"><rect fill="%23222" width="728" height="90"/><text fill="%23fff" x="50%" y="50%" font-family="monospace" font-size="14" text-anchor="middle" dominant-baseline="middle">Invalid Image URL</text></svg>';
-                  }} 
+                    (e.target as HTMLImageElement).src =
+                      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 1200 600"><rect fill="%23222" width="1200" height="600"/><text fill="%23fff" x="50%" y="50%" font-family="monospace" font-size="20" text-anchor="middle" dominant-baseline="middle">Invalid Image URL</text></svg>';
+                  }}
                 />
               </div>
             )}
@@ -224,7 +308,11 @@ export function BannerManagement() {
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsFormOpen(false)} className="font-mono">Cancel</Button>
-            <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending || !formData.imageUrl} className="font-mono">
+            <Button
+              onClick={handleSave}
+              disabled={createMutation.isPending || updateMutation.isPending || !formData.imageUrl || uploading}
+              className="font-mono"
+            >
               {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Save Slot
             </Button>
