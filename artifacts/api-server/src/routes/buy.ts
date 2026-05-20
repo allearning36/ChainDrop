@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 import { db, chainsTable, purchasesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { GetBuyInfoParams, SubmitBuyBody } from "@workspace/api-zod";
-import { sendTokens, isValidEvmAddress } from "../lib/faucet";
+import { sendTokens as sendChainTokens, isValidAddress, type ChainType } from "../lib/chains/index";
 import { buyLimiter } from "../lib/rateLimiters";
 
 const router: IRouter = Router();
@@ -65,11 +65,6 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
 
   const { chainId, userAddress, mainnetTxHash, networkId } = parsed.data;
 
-  if (!isValidEvmAddress(userAddress)) {
-    res.status(400).json({ error: "Invalid user wallet address" });
-    return;
-  }
-
   if (!/^0x[a-fA-F0-9]{64}$/.test(mainnetTxHash)) {
     res.status(400).json({ error: "Invalid transaction hash format" });
     return;
@@ -88,6 +83,13 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
 
   if (!chain || !chain.buyEnabled) {
     res.status(404).json({ error: "Chain not found or buy not enabled" });
+    return;
+  }
+
+  // Validate the user's address against the actual chain type (EVM, Solana, TON, etc.)
+  const addressValid = await isValidAddress(chain.chainType as ChainType, userAddress);
+  if (!addressValid) {
+    res.status(400).json({ error: "Invalid user wallet address for this chain" });
     return;
   }
 
@@ -162,7 +164,7 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
   // Send testnet tokens
   let testnetTxHash: string;
   try {
-    const result = await sendTokens(chain.rpcUrl, chain.privateKey, userAddress, testnetAmount);
+    const result = await sendChainTokens(chain.chainType as ChainType, chain.rpcUrl, chain.privateKey, userAddress, testnetAmount);
     testnetTxHash = result.txHash;
   } catch (err) {
     req.log.error({ err }, "Failed to send testnet tokens for purchase");

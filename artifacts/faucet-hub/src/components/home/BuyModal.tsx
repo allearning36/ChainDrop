@@ -6,7 +6,7 @@ import {
 } from "@workspace/api-client-react";
 import {
   Loader2, X, Wallet, CheckCircle2, Copy, Check,
-  AlertCircle, ExternalLink, ArrowLeftRight, Zap, ChevronDown, Radio,
+  AlertCircle, ExternalLink, ArrowLeftRight, Zap, ChevronDown, Radio, ArrowRight,
 } from "lucide-react";
 import { WalletSelector } from "./WalletSelector";
 
@@ -83,6 +83,8 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
   const [copied, setCopied] = useState<"addr" | "tx" | null>(null);
   const [walletSelectorOpen, setWalletSelectorOpen] = useState(false);
   const [confirmDots, setConfirmDots] = useState(0);
+  const [sendingSeconds, setSendingSeconds] = useState(0);
+  const [recoveryHash, setRecoveryHash] = useState("");
 
   const abortRef = useRef<AbortController | null>(null);
   const submitBuy = useSubmitBuy();
@@ -102,14 +104,47 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
     return () => clearInterval(id);
   }, [step]);
 
+  // Count how long we're stuck in "sending" — WalletConnect mobile can drop the response
+  useEffect(() => {
+    if (step !== "sending") { setSendingSeconds(0); setRecoveryHash(""); return; }
+    const id = setInterval(() => setSendingSeconds((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [step]);
+
   useEffect(() => {
     if (!chain) {
       abortRef.current?.abort();
       setStep("info"); setWalletAddress(""); setEthAmount("0.01");
       setMainnetTxHash(""); setErrorMsg(""); setSelectedNetwork(null);
-      setWalletProvider(null); setConfirmDots(0);
+      setWalletProvider(null); setConfirmDots(0); setSendingSeconds(0); setRecoveryHash("");
     }
   }, [chain]);
+
+  // Recovery for WalletConnect mobile: tx was signed but response never came back
+  const handleRecoveryHashSubmit = () => {
+    const hash = recoveryHash.trim();
+    if (!hash || !hash.startsWith("0x") || hash.length < 60 || !selectedNetwork) return;
+    setMainnetTxHash(hash);
+    setStep("confirming");
+    const abort = new AbortController();
+    abortRef.current = abort;
+    const rpcUrl = NETWORK_RPC[selectedNetwork.id] || "https://eth.llamarpc.com";
+    waitForReceipt(rpcUrl, hash, abort.signal).then((result) => {
+      if (abort.signal.aborted) return;
+      if (result === null) {
+        setErrorMsg("Transaction not found on-chain after 3 minutes. If you paid, contact support with your tx hash.");
+        setStep("error");
+        return;
+      }
+      if (result === false) {
+        setErrorMsg("Transaction was reverted on-chain. Your ETH may have been refunded by the network.");
+        setStep("error");
+        return;
+      }
+      setStep("submitting");
+      doSubmitBuy(hash);
+    });
+  };
 
   if (!chain || !chain.buyEnabled) return null;
 
@@ -273,7 +308,10 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const explorerUrl = `https://sepolia.etherscan.io/tx/${testnetTxHash}`;
+  // Use chain's configured explorer, fall back to a generic block explorer
+  const explorerUrl = chain?.explorerUrl
+    ? `${chain.explorerUrl.replace(/\/$/, "")}/tx/${testnetTxHash}`
+    : `https://blockscan.com/tx/${testnetTxHash}`;
 
   return (
     <>
@@ -465,14 +503,50 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
                 </div>
                 <div>
                   <p className="font-bold font-mono text-white">Waiting for wallet{dots}</p>
-                  <p className="text-sm font-mono mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>Confirm the transaction in your wallet app</p>
+                  <p className="text-sm font-mono mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
+                    Confirm the transaction in your wallet app
+                  </p>
                   <p className="text-xs font-mono mt-1" style={{ color: "rgba(255,255,255,0.2)" }}>
                     Tokens will be sent automatically once confirmed on-chain
                   </p>
                 </div>
+
+                {/* Recovery panel — shown after 30s. WalletConnect mobile can silently drop responses. */}
+                {sendingSeconds >= 30 && (
+                  <div className="w-full flex flex-col gap-2 px-1">
+                    <div className="rounded-xl px-3 py-2.5 text-xs font-mono text-left" style={{ background: "rgba(250,204,21,0.07)", border: "1px solid rgba(250,204,21,0.2)", color: "#fbbf24" }}>
+                      Already approved in your wallet but the page is stuck? This sometimes happens with mobile wallets. Paste your transaction hash below — we'll verify it on-chain and send your tokens.
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={recoveryHash}
+                        onChange={(e) => setRecoveryHash(e.target.value.trim())}
+                        placeholder="0x... (your mainnet tx hash)"
+                        className="flex-1 h-9 rounded-xl px-3 font-mono text-xs text-white outline-none min-w-0"
+                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)" }}
+                      />
+                      <button
+                        onClick={handleRecoveryHashSubmit}
+                        disabled={!recoveryHash.startsWith("0x") || recoveryHash.length < 60}
+                        className="h-9 px-3 rounded-xl font-mono text-xs font-semibold shrink-0 transition-all flex items-center gap-1"
+                        style={{
+                          background: recoveryHash.startsWith("0x") && recoveryHash.length >= 60
+                            ? `linear-gradient(135deg,#4f46e5,${netColor})`
+                            : "rgba(255,255,255,0.06)",
+                          color: recoveryHash.startsWith("0x") && recoveryHash.length >= 60
+                            ? "#fff" : "rgba(255,255,255,0.3)",
+                        }}
+                      >
+                        <ArrowRight className="w-3.5 h-3.5" /> Submit
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <button
                   onClick={() => { abortRef.current?.abort(); setStep("info"); setErrorMsg(""); }}
-                  className="text-xs font-mono mt-2"
+                  className="text-xs font-mono"
                   style={{ color: "rgba(255,255,255,0.2)" }}
                 >
                   Cancel
