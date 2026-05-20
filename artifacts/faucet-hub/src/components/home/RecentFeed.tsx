@@ -1,14 +1,13 @@
+import { useState } from "react";
 import { useGetFaucetHistory, getGetFaucetHistoryQueryKey } from "@workspace/api-client-react";
 import { formatDistanceToNow } from "date-fns";
-import { ExternalLink, ShoppingCart, Droplets } from "lucide-react";
+import { ExternalLink, ShoppingCart, Droplets, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
 /** Returns the TX explorer URL, or null if none is known for this chain. */
 function getExplorerUrl(chainName: string, txHash: string, explorerUrl?: string | null): string | null {
-  // 1. Use chain's own configured explorer (set by admin)
-  if (explorerUrl) {
-    return `${explorerUrl.replace(/\/$/, "")}/tx/${txHash}`;
-  }
-  // 2. Well-known chains — match by name
+  if (explorerUrl) return `${explorerUrl.replace(/\/$/, "")}/tx/${txHash}`;
   const name = chainName.toLowerCase();
   if (name.includes("sepolia"))    return `https://sepolia.etherscan.io/tx/${txHash}`;
   if (name.includes("ethereum"))   return `https://etherscan.io/tx/${txHash}`;
@@ -19,7 +18,6 @@ function getExplorerUrl(chainName: string, txHash: string, explorerUrl?: string 
   if (name.includes("bsc") || name.includes("binance")) return `https://bscscan.com/tx/${txHash}`;
   if (name.includes("avalanche"))  return `https://snowtrace.io/tx/${txHash}`;
   if (name.includes("fantom"))     return `https://ftmscan.com/tx/${txHash}`;
-  // 3. Unknown chain — don't link to a wrong explorer
   return null;
 }
 
@@ -31,12 +29,30 @@ export function RecentFeed() {
     }
   });
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [showSizeMenu, setShowSizeMenu] = useState(false);
+
   if (history.length === 0) return null;
+
+  const totalPages = Math.ceil(history.length / pageSize);
+  const safeCurrentPage = Math.min(page, totalPages);
+  const pageItems = history.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
+
+  const goTo = (p: number) => setPage(Math.max(1, Math.min(p, totalPages)));
+
+  // Show max 5 page tabs around current page
+  const pageTabs: number[] = [];
+  const maxTabs = 5;
+  let tabStart = Math.max(1, safeCurrentPage - Math.floor(maxTabs / 2));
+  let tabEnd = Math.min(totalPages, tabStart + maxTabs - 1);
+  if (tabEnd - tabStart < maxTabs - 1) tabStart = Math.max(1, tabEnd - maxTabs + 1);
+  for (let i = tabStart; i <= tabEnd; i++) pageTabs.push(i);
 
   return (
     <div className="w-full max-w-4xl mx-auto my-12">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-5">
         <h2 className="text-xl font-bold font-mono tracking-tight uppercase" style={{ color: "rgba(255,255,255,0.85)" }}>
           Recent Drops
         </h2>
@@ -50,26 +66,22 @@ export function RecentFeed() {
         </span>
       </div>
 
+      {/* Records list */}
       <div className="flex flex-col gap-2">
-        {history.slice(0, 15).map((record) => {
+        {pageItems.map((record) => {
           const isBuy = record.type === "buy";
           return (
             <div
               key={`${record.type}-${record.id}`}
               className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3 rounded-2xl gap-3 transition-all duration-200 hover:translate-y-[-1px]"
               style={{
-                background: isBuy
-                  ? "rgba(129,140,248,0.05)"
-                  : "rgba(34,197,94,0.04)",
-                border: isBuy
-                  ? "1px solid rgba(129,140,248,0.12)"
-                  : "1px solid rgba(34,197,94,0.1)",
+                background: isBuy ? "rgba(129,140,248,0.05)" : "rgba(34,197,94,0.04)",
+                border: isBuy ? "1px solid rgba(129,140,248,0.12)" : "1px solid rgba(34,197,94,0.1)",
                 boxShadow: "0 1px 8px rgba(0,0,0,0.2)",
               }}
             >
-              {/* Left: type badge + chain + address */}
+              {/* Left */}
               <div className="flex items-center gap-3 min-w-0">
-                {/* Chain logo */}
                 {record.logoUrl ? (
                   <img
                     src={record.logoUrl}
@@ -90,8 +102,6 @@ export function RecentFeed() {
                     {record.symbol.slice(0, 2)}
                   </div>
                 )}
-
-                {/* Type + chain badge */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <span
                     className="flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded-md"
@@ -100,52 +110,32 @@ export function RecentFeed() {
                       : { background: "rgba(34,197,94,0.1)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)" }
                     }
                   >
-                    {isBuy
-                      ? <><ShoppingCart className="w-2.5 h-2.5" /> BUY</>
-                      : <><Droplets className="w-2.5 h-2.5" /> CLAIM</>
-                    }
+                    {isBuy ? <><ShoppingCart className="w-2.5 h-2.5" /> BUY</> : <><Droplets className="w-2.5 h-2.5" /> CLAIM</>}
                   </span>
-                  <span
-                    className="text-xs font-mono font-semibold"
-                    style={{ color: "rgba(255,255,255,0.5)" }}
-                  >
+                  <span className="text-xs font-mono font-semibold" style={{ color: "rgba(255,255,255,0.5)" }}>
                     {record.chainName}
                   </span>
                 </div>
-
-                {/* Address */}
                 <span className="font-mono text-xs hidden sm:block" style={{ color: "rgba(255,255,255,0.3)" }}>
                   {record.address.slice(0, 6)}…{record.address.slice(-4)}
                 </span>
               </div>
 
-              {/* Right: amount + time + TX link */}
+              {/* Right */}
               <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
-                <span
-                  className="font-mono text-sm font-bold"
-                  style={{
-                    color: isBuy ? "#a5b4fc" : "#4ade80",
-                  }}
-                >
+                <span className="font-mono text-sm font-bold" style={{ color: isBuy ? "#a5b4fc" : "#4ade80" }}>
                   +{parseFloat(record.amount).toFixed(4)} {record.symbol}
                 </span>
-
                 <span className="text-[11px] font-mono hidden sm:block" style={{ color: "rgba(255,255,255,0.25)" }}>
                   {formatDistanceToNow(new Date(record.claimedAt), { addSuffix: true })}
                 </span>
-
                 {(() => {
                   const url = getExplorerUrl(record.chainName, record.txHash, record.explorerUrl);
                   return url ? (
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <a href={url} target="_blank" rel="noopener noreferrer"
                       className="flex items-center gap-1 text-[11px] font-mono transition-colors hover:opacity-80"
-                      style={{ color: "rgba(255,255,255,0.3)" }}
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      TX
+                      style={{ color: "rgba(255,255,255,0.3)" }}>
+                      <ExternalLink className="w-3 h-3" /> TX
                     </a>
                   ) : null;
                 })()}
@@ -154,6 +144,116 @@ export function RecentFeed() {
           );
         })}
       </div>
+
+      {/* Pagination bar */}
+      {totalPages > 1 && (
+        <div className="mt-5 flex items-center justify-between gap-3 flex-wrap">
+
+          {/* Left: count info + filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-mono" style={{ color: "rgba(255,255,255,0.3)" }}>
+              {(safeCurrentPage - 1) * pageSize + 1}–{Math.min(safeCurrentPage * pageSize, history.length)} / {history.length}
+            </span>
+
+            {/* Per-page filter */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowSizeMenu(v => !v)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all"
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  color: "rgba(255,255,255,0.5)",
+                }}
+              >
+                <SlidersHorizontal className="w-3 h-3" />
+                {pageSize}
+              </button>
+              {showSizeMenu && (
+                <div
+                  className="absolute left-0 bottom-full mb-1.5 rounded-xl overflow-hidden z-20 min-w-[80px]"
+                  style={{ background: "rgba(15,15,20,0.97)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
+                >
+                  {PAGE_SIZE_OPTIONS.map(n => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => { setPageSize(n); setPage(1); setShowSizeMenu(false); }}
+                      className="w-full text-left px-3 py-2 text-xs font-mono transition-colors hover:bg-white/5"
+                      style={{ color: pageSize === n ? "#4ade80" : "rgba(255,255,255,0.6)" }}
+                    >
+                      {n} / page
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right: prev + page tabs + next */}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              disabled={safeCurrentPage === 1}
+              onClick={() => goTo(safeCurrentPage - 1)}
+              className="flex items-center justify-center w-7 h-7 rounded-lg transition-all disabled:opacity-30"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}
+            >
+              <ChevronLeft className="w-3.5 h-3.5" style={{ color: "rgba(255,255,255,0.6)" }} />
+            </button>
+
+            {tabStart > 1 && (
+              <>
+                <button type="button" onClick={() => goTo(1)}
+                  className="w-7 h-7 rounded-lg text-[11px] font-mono transition-all"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}>
+                  1
+                </button>
+                {tabStart > 2 && <span className="text-[11px] font-mono" style={{ color: "rgba(255,255,255,0.3)" }}>…</span>}
+              </>
+            )}
+
+            {pageTabs.map(p => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => goTo(p)}
+                className="w-7 h-7 rounded-lg text-[11px] font-mono transition-all"
+                style={{
+                  background: p === safeCurrentPage ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.04)",
+                  border: p === safeCurrentPage ? "1px solid rgba(34,197,94,0.35)" : "1px solid rgba(255,255,255,0.08)",
+                  color: p === safeCurrentPage ? "#4ade80" : "rgba(255,255,255,0.5)",
+                  fontWeight: p === safeCurrentPage ? 700 : 400,
+                }}
+              >
+                {p}
+              </button>
+            ))}
+
+            {tabEnd < totalPages && (
+              <>
+                {tabEnd < totalPages - 1 && <span className="text-[11px] font-mono" style={{ color: "rgba(255,255,255,0.3)" }}>…</span>}
+                <button type="button" onClick={() => goTo(totalPages)}
+                  className="w-7 h-7 rounded-lg text-[11px] font-mono transition-all"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}>
+                  {totalPages}
+                </button>
+              </>
+            )}
+
+            <button
+              type="button"
+              disabled={safeCurrentPage === totalPages}
+              onClick={() => goTo(safeCurrentPage + 1)}
+              className="flex items-center justify-center w-7 h-7 rounded-lg transition-all disabled:opacity-30"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}
+            >
+              <ChevronRight className="w-3.5 h-3.5" style={{ color: "rgba(255,255,255,0.6)" }} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

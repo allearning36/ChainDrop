@@ -254,7 +254,7 @@ router.get("/faucet/history", async (_req, res): Promise<void> => {
     .from(claimsTable)
     .innerJoin(chainsTable, eq(claimsTable.chainId, chainsTable.id))
     .orderBy(desc(claimsTable.claimedAt))
-    .limit(20),
+    .limit(150),
 
     db.select({
       id: purchasesTable.id,
@@ -272,7 +272,7 @@ router.get("/faucet/history", async (_req, res): Promise<void> => {
     .innerJoin(chainsTable, eq(purchasesTable.chainId, chainsTable.id))
     .where(eq(purchasesTable.status, "completed"))
     .orderBy(desc(purchasesTable.createdAt))
-    .limit(20),
+    .limit(150),
   ]);
 
   const combined = [
