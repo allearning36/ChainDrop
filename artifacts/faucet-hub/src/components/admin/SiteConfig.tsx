@@ -106,7 +106,7 @@ function MaintenanceTab({ data, onSave, saving }: { data: MaintenanceMode; onSav
           onClick={() => setForm(p => ({ ...p, enabled: !p.enabled }))}
           className={`relative w-12 h-6 rounded-full transition-colors ${form.enabled ? "bg-destructive" : "bg-muted"}`}
         >
-          <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${form.enabled ? "translate-x-7" : "translate-x-1"}`} />
+          <span className={`absolute top-1 left-0 w-4 h-4 rounded-full bg-white transition-transform ${form.enabled ? "translate-x-7" : "translate-x-1"}`} />
         </button>
       </div>
       <div className="space-y-1.5">
