@@ -68,7 +68,7 @@ export function Navbar() {
               ChainDrop
             </span>
             <span
-              className="font-mono uppercase tracking-widest"
+              className="font-mono uppercase tracking-widest whitespace-nowrap"
               style={{ fontSize: "9px", color: "rgba(255,255,255,0.4)", letterSpacing: "0.2em" }}
             >
               Your Ultimate Faucet Hub
