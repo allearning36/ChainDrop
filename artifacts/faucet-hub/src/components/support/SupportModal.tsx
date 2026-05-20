@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Send, MessageCircle, Loader2, CheckCircle2, X } from "lucide-react";
+import { Send, MessageCircle, Loader2 } from "lucide-react";
 
 const STORAGE_KEY = "chainDrop_supportConvId";
+const TOKEN_KEY   = "chainDrop_supportToken";
 
 type Message = {
   id: number;
@@ -23,50 +24,55 @@ interface SupportModalProps {
 }
 
 export function SupportModal({ open, onOpenChange }: SupportModalProps) {
-  const [step, setStep] = useState<Step>("info");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [step, setStep]         = useState<Step>("info");
+  const [name, setName]         = useState("");
+  const [email, setEmail]       = useState("");
   const [firstMsg, setFirstMsg] = useState("");
-  const [convId, setConvId] = useState<number | null>(null);
+  const [convId, setConvId]     = useState<number | null>(null);
+  const [userToken, setUserToken] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [newMsg, setNewMsg] = useState("");
-  const [sending, setSending] = useState(false);
+  const [newMsg, setNewMsg]     = useState("");
+  const [sending, setSending]   = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError]       = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Load existing conversation from localStorage on open
   useEffect(() => {
     if (!open) return;
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const id = parseInt(stored);
+    const storedId    = localStorage.getItem(STORAGE_KEY);
+    const storedToken = localStorage.getItem(TOKEN_KEY);
+    if (storedId && storedToken) {
+      const id = parseInt(storedId);
       if (!isNaN(id)) {
         setConvId(id);
+        setUserToken(storedToken);
         setStep("chat");
-        loadMessages(id);
+        void loadMessages(id, storedToken);
       }
     }
   }, [open]);
 
   // Poll for new messages when in chat step
   useEffect(() => {
-    if (step === "chat" && convId) {
-      pollRef.current = setInterval(() => loadMessages(convId), 5000);
+    if (step === "chat" && convId && userToken) {
+      pollRef.current = setInterval(() => void loadMessages(convId, userToken), 5000);
       return () => { if (pollRef.current) clearInterval(pollRef.current); };
     }
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [step, convId]);
+  }, [step, convId, userToken]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  async function loadMessages(id: number) {
+  async function loadMessages(id: number, token: string) {
     try {
-      const res = await fetch(`/api/support/conversations/${id}/messages`);
+      const res = await fetch(`/api/support/conversations/${id}/messages`, {
+        headers: { "x-user-token": token },
+      });
       if (!res.ok) return;
       const data = await res.json() as { messages: Message[] };
       setMessages(data.messages ?? []);
@@ -96,10 +102,12 @@ export function SupportModal({ open, onOpenChange }: SupportModalProps) {
         body: JSON.stringify({ userName: name.trim(), userEmail: email.trim(), message: firstMsg.trim() }),
       });
       if (!res.ok) throw new Error("Failed");
-      const conv = await res.json() as { id: number };
+      const conv = await res.json() as { id: number; userToken: string };
       localStorage.setItem(STORAGE_KEY, String(conv.id));
+      localStorage.setItem(TOKEN_KEY, conv.userToken);
       setConvId(conv.id);
-      await loadMessages(conv.id);
+      setUserToken(conv.userToken);
+      await loadMessages(conv.id, conv.userToken);
       setStep("chat");
     } catch {
       setError("Failed to start conversation. Please try again.");
@@ -109,18 +117,18 @@ export function SupportModal({ open, onOpenChange }: SupportModalProps) {
   }
 
   async function handleSend() {
-    if (!newMsg.trim() || !convId) return;
+    if (!newMsg.trim() || !convId || !userToken) return;
     setSending(true);
     const content = newMsg.trim();
     setNewMsg("");
     try {
       const res = await fetch(`/api/support/conversations/${convId}/messages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-user-token": userToken },
         body: JSON.stringify({ content }),
       });
       if (!res.ok) throw new Error("Failed");
-      await loadMessages(convId);
+      await loadMessages(convId, userToken);
     } catch {
       setNewMsg(content);
     } finally {
@@ -213,7 +221,6 @@ export function SupportModal({ open, onOpenChange }: SupportModalProps) {
         {/* Step: Chat */}
         {step === "chat" && (
           <div className="flex flex-col" style={{ height: "420px" }}>
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2">
               {messages.length === 0 && (
                 <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
@@ -243,7 +250,6 @@ export function SupportModal({ open, onOpenChange }: SupportModalProps) {
               <div ref={bottomRef} />
             </div>
 
-            {/* Input bar */}
             <div className="border-t border-border px-3 py-2 flex items-end gap-2">
               <Textarea
                 placeholder="Type a message… (Enter to send)"

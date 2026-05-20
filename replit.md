@@ -52,49 +52,16 @@ A Sepolia ETH testnet faucet — users enter their EVM wallet address and claim 
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
 
-## CAPTCHA — সরানো হয়েছে, পরে যোগ করতে হবে
+## CAPTCHA
 
-reCAPTCHA সাময়িকভাবে সরানো হয়েছে। পরে **ঠিক এই জায়গাগুলোতে** আবার যোগ করতে হবে:
+reCAPTCHA v2 সক্রিয় আছে (ClaimModal + backend faucet route)।
 
-### 1. Frontend — `artifacts/faucet-hub/src/components/home/ClaimModal.tsx`
+### Env vars প্রয়োজন
+- `VITE_RECAPTCHA_SITE_KEY` — frontend public site key (Google reCAPTCHA console থেকে); fallback হিসেবে Google-এর test key ব্যবহার হচ্ছে
+- `RECAPTCHA_SECRET_KEY` — backend secret key (Replit Secrets-এ) — যদি না থাকে, backend CAPTCHA skip করে (dev mode)
 
-যা যা সরানো হয়েছে:
-- `import ReCAPTCHA from "react-google-recaptcha";` — file-এর top-এ
-- `const [captchaToken, setCaptchaToken] = useState("");` — state variable
-- `canSubmit` এ `!!captchaToken &&` condition ছিল
-- `handleClaim`-এ `!captchaToken` check ছিল, এখন `captchaToken: ""` hardcoded
-- JSX-এ reCAPTCHA block ছিল (wallet input-এর নিচে, claim button-এর উপরে):
-```tsx
-{/* reCAPTCHA — always visible */}
-<div className="flex justify-center">
-  <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-    <ReCAPTCHA
-      sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"}
-      onChange={(val) => setCaptchaToken(val || "")}
-      theme="dark"
-    />
-  </div>
-</div>
-```
-
-### 2. Backend — `artifacts/api-server/src/routes/faucet.ts`
-
-যা যা সরানো হয়েছে:
-- `const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET_KEY;` — top-এ
-- `verifyCaptcha()` async function সম্পূর্ণ
-- `POST /faucet/claim` route-এ captcha verification block:
-```ts
-const captchaValid = await verifyCaptcha(captchaToken);
-if (!captchaValid) {
-  res.status(400).json({ error: "CAPTCHA verification failed. Please try again." });
-  return;
-}
-```
-
-### 3. Env vars প্রয়োজন
-- `VITE_RECAPTCHA_SITE_KEY` — frontend site key (Google reCAPTCHA console থেকে)
-- `RECAPTCHA_SECRET_KEY` — backend secret key (Replit Secrets-এ)
-- Domain whitelist: Google reCAPTCHA admin-এ current Replit domain যোগ করতে হবে
+### Domain whitelist
+Google reCAPTCHA admin-এ Replit domain (`*.replit.dev`, `*.replit.app`) যোগ করতে হবে।
 
 ## Gotchas
 

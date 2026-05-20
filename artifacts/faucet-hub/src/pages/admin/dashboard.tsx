@@ -70,7 +70,7 @@ export default function AdminDashboard() {
 
       <main className="flex-1 container mx-auto px-4 py-8">
         <Tabs defaultValue="stats" className="w-full space-y-8">
-          <TabsList className="bg-card border border-border h-auto p-1 flex-wrap w-full gap-0.5">
+          <TabsList className="bg-card border border-border h-auto p-1 w-full gap-0.5 flex flex-wrap overflow-x-auto scrollbar-none md:flex-wrap">
             <TabsTrigger value="stats" className={TAB}>
               <LayoutDashboard className="w-3 h-3" /> Stats
             </TabsTrigger>

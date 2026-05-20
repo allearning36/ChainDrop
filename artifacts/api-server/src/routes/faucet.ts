@@ -1,8 +1,9 @@
 import { Router, type IRouter, type Request } from "express";
-import { desc, eq, and, count, sum } from "drizzle-orm";
+import { desc, eq, and } from "drizzle-orm";
 import { db, claimsTable, chainsTable, blockedAddressesTable, ipBlocksTable, settingsTable } from "@workspace/db";
 import { ClaimFaucetBody, GetFaucetStatusParams } from "@workspace/api-zod";
 import { sendTokens, isValidAddress, type ChainType } from "../lib/chains/index";
+import { claimLimiter } from "../lib/rateLimiters";
 
 function getClientIp(req: Request): string {
   const fwd = req.headers["x-forwarded-for"];
@@ -10,9 +11,26 @@ function getClientIp(req: Request): string {
   return req.socket.remoteAddress ?? "unknown";
 }
 
+const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET_KEY;
+
+async function verifyCaptcha(token: string): Promise<boolean> {
+  if (!RECAPTCHA_SECRET) return true; // skip if secret not configured (dev mode)
+  if (!token) return false;
+  try {
+    const res = await fetch(
+      `https://www.google.com/recaptcha/api/siteverify?secret=${RECAPTCHA_SECRET}&response=${encodeURIComponent(token)}`,
+      { method: "POST" }
+    );
+    const data = await res.json() as { success: boolean };
+    return data.success === true;
+  } catch {
+    return false;
+  }
+}
+
 const router: IRouter = Router();
 
-router.post("/faucet/claim", async (req, res): Promise<void> => {
+router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
   const parsed = ClaimFaucetBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -20,6 +38,13 @@ router.post("/faucet/claim", async (req, res): Promise<void> => {
   }
 
   const { chainId, address, captchaToken } = parsed.data;
+
+  // CAPTCHA verification
+  const captchaValid = await verifyCaptcha(captchaToken ?? "");
+  if (!captchaValid) {
+    res.status(400).json({ error: "CAPTCHA verification failed. Please try again." });
+    return;
+  }
 
   // Check maintenance mode
   const [maintenanceSetting] = await db.select().from(settingsTable).where(eq(settingsTable.key, "maintenanceMode")).limit(1);
@@ -41,7 +66,7 @@ router.post("/faucet/claim", async (req, res): Promise<void> => {
     return;
   }
 
-  // Fetch chain first (needed for chainType-aware address validation)
+  // Fetch chain (needed for chainType-aware address validation)
   const [chain] = await db
     .select()
     .from(chainsTable)
@@ -99,8 +124,6 @@ router.post("/faucet/claim", async (req, res): Promise<void> => {
     return;
   }
 
-  void captchaToken; // reserved for future CAPTCHA re-integration
-
   let txHash: string;
   try {
     const result = await sendTokens(
@@ -155,7 +178,6 @@ router.get("/faucet/status/:chainId/:address", async (req, res): Promise<void> =
     return;
   }
 
-  // Validate address format for this chain type
   const chainType = chain.chainType as ChainType;
   const addressValid = await isValidAddress(chainType, address);
   if (!addressValid) {

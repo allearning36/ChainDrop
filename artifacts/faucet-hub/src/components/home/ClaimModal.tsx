@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ChainPublic, useGetFaucetStatus, useClaimFaucet, getGetChainQueryKey, getGetFaucetStatusQueryKey } from "@workspace/api-client-react";
@@ -6,6 +6,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, ExternalLink, Clock, Zap, ShoppingCart, CheckCircle2, Copy, Check, AlertCircle } from "lucide-react";
 import { BuyModal } from "./BuyModal";
 import { formatDistanceToNow } from "date-fns";
+import ReCAPTCHA from "react-google-recaptcha";
+
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
 
 // ── Address helpers ──────────────────────────────────────────────────────────
 
@@ -70,6 +73,7 @@ interface ClaimModalProps {
 export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [address, setAddress] = useState("");
   const [debouncedAddress, setDebouncedAddress] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
   const [step, setStep] = useState<"input" | "ad" | "result">("input");
   const [adCountdown, setAdCountdown] = useState(5);
   const [txHash, setTxHash] = useState("");
@@ -77,6 +81,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [errorMsg, setErrorMsg] = useState("");
   const [buyOpen, setBuyOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   const queryClient = useQueryClient();
   const claimMutation = useClaimFaucet();
@@ -109,16 +114,20 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   }, [step, adCountdown]);
 
   const handleClaim = () => {
-    if (!chain || !debouncedAddress) return;
+    if (!chain || !debouncedAddress || !captchaToken) return;
     setErrorMsg("");
-    claimMutation.mutate({ data: { chainId: chain.id, address: debouncedAddress, captchaToken: "" } }, {
+    claimMutation.mutate({ data: { chainId: chain.id, address: debouncedAddress, captchaToken } }, {
       onSuccess: (res) => {
         setTxHash(res.txHash);
         setClaimedAmount(res.amount);
+        setCaptchaToken("");
+        recaptchaRef.current?.reset();
         setStep("ad");
         queryClient.invalidateQueries({ queryKey: getGetChainQueryKey(chain.id) });
       },
       onError: (err: any) => {
+        setCaptchaToken("");
+        recaptchaRef.current?.reset();
         setErrorMsg(err?.data?.error || err.message || "Failed to claim");
       }
     });
@@ -134,7 +143,8 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
     if (!open) {
       setTimeout(() => {
         setStep("input"); setAddress(""); setDebouncedAddress("");
-        setAdCountdown(5); setErrorMsg("");
+        setAdCountdown(5); setErrorMsg(""); setCaptchaToken("");
+        recaptchaRef.current?.reset();
       }, 300);
       onClose();
     }
@@ -145,7 +155,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   // Derived states
   const addressValid = isValidAddressForChain(address, chainType);
   const inCooldown = !!debouncedAddress && !!status && !status.canClaim;
-  const canSubmit = addressValid && !inCooldown && !isStatusLoading;
+  const canSubmit = addressValid && !inCooldown && !isStatusLoading && !!captchaToken;
 
   const explorerUrl = getTxExplorerUrl(chainType, chain.isTestnet, txHash);
 
@@ -258,6 +268,21 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                 {errorMsg && (
                   <div className="flex items-center gap-2 text-xs font-mono px-3 py-2 rounded-lg" style={{ background: "rgba(239,68,68,0.08)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {errorMsg}
+                  </div>
+                )}
+
+                {/* reCAPTCHA — shown when address is valid and not in cooldown */}
+                {addressValid && !inCooldown && (
+                  <div className="flex justify-center">
+                    <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+                      <ReCAPTCHA
+                        ref={recaptchaRef}
+                        sitekey={RECAPTCHA_SITE_KEY}
+                        onChange={(val) => setCaptchaToken(val || "")}
+                        onExpired={() => setCaptchaToken("")}
+                        theme="dark"
+                      />
+                    </div>
                   </div>
                 )}
 

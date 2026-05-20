@@ -5,6 +5,7 @@ export const supportConversationsTable = pgTable("support_conversations", {
   userName: text("user_name").notNull(),
   userEmail: text("user_email").notNull(),
   status: text("status").notNull().default("open"),
+  userToken: text("user_token"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

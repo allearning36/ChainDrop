@@ -6,6 +6,7 @@ import {
   StartSupportConversationBody,
   SendSupportMessageBody,
 } from "@workspace/api-zod";
+import { supportLimiter } from "../lib/rateLimiters";
 
 const router: IRouter = Router();
 
@@ -17,7 +18,6 @@ const formatMsg = (m: typeof supportMessagesTable.$inferSelect, forAdmin = false
   conversationId: m.conversationId,
   content: m.content,
   isAdmin: m.isAdmin,
-  // Only expose userSeen to admin (so admin knows if user read their message)
   ...(forAdmin ? { userSeen: m.userSeen } : {}),
   createdAt: m.createdAt.toISOString(),
 });
@@ -37,8 +37,21 @@ const formatConv = (
   updatedAt: c.updatedAt.toISOString(),
 });
 
-// ── User: start a new conversation ──
-router.post("/support/conversations", async (req, res): Promise<void> => {
+// ── Helper: validate user token from header ───────────────────────────────────
+async function validateUserToken(convId: number, token: string | undefined): Promise<boolean> {
+  if (!token) return false;
+  const [conv] = await db.select({ userToken: supportConversationsTable.userToken })
+    .from(supportConversationsTable)
+    .where(eq(supportConversationsTable.id, convId))
+    .limit(1);
+  if (!conv) return false;
+  // If no token stored (legacy rows), allow access
+  if (!conv.userToken) return true;
+  return conv.userToken === token;
+}
+
+// ── User: start a new conversation ──────────────────────────────────────────
+router.post("/support/conversations", supportLimiter, async (req, res): Promise<void> => {
   const parsed = StartSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid input" });
@@ -46,9 +59,12 @@ router.post("/support/conversations", async (req, res): Promise<void> => {
   }
   const { userName, userEmail, message } = parsed.data;
 
+  const userToken = crypto.randomUUID();
+
   const [conv] = await db.insert(supportConversationsTable).values({
     userName,
     userEmail,
+    userToken,
   }).returning();
 
   await db.insert(supportMessagesTable).values({
@@ -59,18 +75,24 @@ router.post("/support/conversations", async (req, res): Promise<void> => {
     userSeen: false,
   });
 
-  res.status(201).json(formatConv(conv, message));
+  // Return userToken to client — they must store and send it on subsequent requests
+  res.status(201).json({ ...formatConv(conv, message), userToken });
 });
 
-// ── User: get messages for a conversation (auto-marks admin messages as userSeen) ──
+// ── User: get messages ────────────────────────────────────────────────────────
 router.get("/support/conversations/:id/messages", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  const conv = await db.select().from(supportConversationsTable).where(eq(supportConversationsTable.id, id)).limit(1);
-  if (!conv[0]) { res.status(404).json({ error: "Conversation not found" }); return; }
+  const token = req.headers["x-user-token"] as string | undefined;
+  if (!await validateUserToken(id, token)) {
+    res.status(403).json({ error: "Unauthorized" });
+    return;
+  }
 
-  // Mark all admin messages as seen by user (user is reading now)
+  const [conv] = await db.select().from(supportConversationsTable).where(eq(supportConversationsTable.id, id)).limit(1);
+  if (!conv) { res.status(404).json({ error: "Conversation not found" }); return; }
+
   await db.update(supportMessagesTable)
     .set({ userSeen: true })
     .where(and(
@@ -82,20 +104,25 @@ router.get("/support/conversations/:id/messages", async (req, res): Promise<void
     .where(eq(supportMessagesTable.conversationId, id))
     .orderBy(asc(supportMessagesTable.createdAt));
 
-  // Do NOT expose userSeen/adminSeen to user side
-  res.json({ conversation: formatConv(conv[0]), messages: messages.map(m => formatMsg(m, false)) });
+  res.json({ conversation: formatConv(conv), messages: messages.map(m => formatMsg(m, false)) });
 });
 
-// ── User: send a message ──
+// ── User: send a message ──────────────────────────────────────────────────────
 router.post("/support/conversations/:id/messages", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
+  const token = req.headers["x-user-token"] as string | undefined;
+  if (!await validateUserToken(id, token)) {
+    res.status(403).json({ error: "Unauthorized" });
+    return;
+  }
+
   const parsed = MessageSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid input" }); return; }
 
-  const conv = await db.select().from(supportConversationsTable).where(eq(supportConversationsTable.id, id)).limit(1);
-  if (!conv[0]) { res.status(404).json({ error: "Conversation not found" }); return; }
+  const [conv] = await db.select().from(supportConversationsTable).where(eq(supportConversationsTable.id, id)).limit(1);
+  if (!conv) { res.status(404).json({ error: "Conversation not found" }); return; }
 
   const [msg] = await db.insert(supportMessagesTable).values({
     conversationId: id,
@@ -108,9 +135,8 @@ router.post("/support/conversations/:id/messages", async (req, res): Promise<voi
   res.status(201).json(formatMsg(msg, false));
 });
 
-// ── Admin: unread conversation count ──
+// ── Admin: unread conversation count ─────────────────────────────────────────
 router.get("/admin/support/unread-count", requireAdmin, async (_req, res): Promise<void> => {
-  // Count distinct conversations that have at least one unread user message
   const rows = await db
     .selectDistinct({ conversationId: supportMessagesTable.conversationId })
     .from(supportMessagesTable)
@@ -121,7 +147,7 @@ router.get("/admin/support/unread-count", requireAdmin, async (_req, res): Promi
   res.json({ count: rows.length });
 });
 
-// ── Admin: list all conversations ──
+// ── Admin: list all conversations ─────────────────────────────────────────────
 router.get("/admin/support", requireAdmin, async (_req, res): Promise<void> => {
   const convs = await db.select().from(supportConversationsTable)
     .orderBy(desc(supportConversationsTable.updatedAt));
@@ -132,7 +158,6 @@ router.get("/admin/support", requireAdmin, async (_req, res): Promise<void> => {
       .orderBy(desc(supportMessagesTable.createdAt))
       .limit(1);
 
-    // Check if any user message is unseen by admin
     const [unreadRow] = await db
       .select({ cnt: count() })
       .from(supportMessagesTable)
@@ -149,7 +174,7 @@ router.get("/admin/support", requireAdmin, async (_req, res): Promise<void> => {
   res.json(result);
 });
 
-// ── Admin: get a conversation with all messages (auto-marks user messages as adminSeen) ──
+// ── Admin: get a conversation with messages ───────────────────────────────────
 router.get("/admin/support/:id", requireAdmin, async (req, res): Promise<void> => {
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
@@ -157,7 +182,6 @@ router.get("/admin/support/:id", requireAdmin, async (req, res): Promise<void> =
   const [conv] = await db.select().from(supportConversationsTable).where(eq(supportConversationsTable.id, id)).limit(1);
   if (!conv) { res.status(404).json({ error: "Not found" }); return; }
 
-  // Mark all user messages as seen by admin
   await db.update(supportMessagesTable)
     .set({ adminSeen: true })
     .where(and(
@@ -172,7 +196,7 @@ router.get("/admin/support/:id", requireAdmin, async (req, res): Promise<void> =
   res.json({ ...formatConv(conv), messages: messages.map(m => formatMsg(m, true)) });
 });
 
-// ── Admin: reply to a conversation ──
+// ── Admin: reply to a conversation ───────────────────────────────────────────
 router.post("/admin/support/:id/reply", requireAdmin, async (req, res): Promise<void> => {
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
@@ -187,14 +211,14 @@ router.post("/admin/support/:id/reply", requireAdmin, async (req, res): Promise<
     conversationId: id,
     content: parsed.data.content,
     isAdmin: true,
-    adminSeen: true,  // admin wrote it, so admin has seen it
-    userSeen: false,  // user hasn't seen it yet
+    adminSeen: true,
+    userSeen: false,
   }).returning();
 
   res.status(201).json(formatMsg(msg, true));
 });
 
-// ── Admin: update conversation status ──
+// ── Admin: update conversation status ────────────────────────────────────────
 router.patch("/admin/support/:id", requireAdmin, async (req, res): Promise<void> => {
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
