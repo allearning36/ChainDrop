@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X, ShoppingCart, Pin, PinOff } from "lucide-react";
+import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X, ShoppingCart, Pin, PinOff, Server, Shield, Droplets, Globe, Settings2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getToken } from "@/lib/auth";
 import { formatCooldown, secondsToHms, hmsToSeconds } from "@/lib/utils";
@@ -421,279 +421,287 @@ export function ChainManagement() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-            {/* Basic Info */}
-            <div className="space-y-2">
-              <Label>Network Name *</Label>
-              <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Sepolia" className="font-mono" />
-            </div>
-            <div className="space-y-2">
-              <Label>Token Symbol *</Label>
-              <Input value={formData.symbol} onChange={e => setFormData({...formData, symbol: e.target.value})} placeholder="e.g. ETH" className="font-mono" />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Chain Type *</Label>
-              <Select value={formData.chainType ?? "evm"} onValueChange={(val) => setFormData({...formData, chainType: val, walletAddress: "", privateKey: ""})}>
-                <SelectTrigger className="font-mono"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {CHAIN_TYPE_OPTIONS.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-[11px] text-muted-foreground font-mono">Changing chain type will clear address & private key fields.</p>
-            </div>
-            <div className="space-y-2">
-              <Label>Chain ID (EVM)</Label>
-              <Input type="number" min="1" value={formData.chainId} onChange={e => setFormData({...formData, chainId: e.target.value})} placeholder="e.g. 11155111" className="font-mono" />
-              <p className="text-[11px] text-muted-foreground font-mono">1=ETH · 137=Polygon · 11155111=Sepolia</p>
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>RPC URL *</Label>
-              <Input value={formData.rpcUrl} onChange={e => setFormData({...formData, rpcUrl: e.target.value})} placeholder="https://..." className="font-mono" />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Faucet Wallet Address *</Label>
-              <Input value={formData.walletAddress} onChange={e => setFormData({...formData, walletAddress: e.target.value})} placeholder={getAddressPlaceholder(formData.chainType ?? "evm")} className="font-mono" />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Private Key {editingChain && "(Leave empty to keep current)"} <span className="text-destructive">*</span></Label>
-              <Input type="password" value={formData.privateKey} onChange={e => setFormData({...formData, privateKey: e.target.value})} placeholder={getPrivateKeyPlaceholder(formData.chainType ?? "evm")} className="font-mono" />
-            </div>
-            <div className="space-y-2">
-              <Label>Claim Amount *</Label>
-              <Input type="number" step="0.0001" value={formData.claimAmount} onChange={e => setFormData({...formData, claimAmount: e.target.value})} className="font-mono" />
-            </div>
-            <div className="space-y-2">
-              <Label>Cooldown *</Label>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <div className="relative">
-                    <Input type="number" min="0" value={cdH} onChange={e => setCdH(Math.max(0, Number(e.target.value)))} className="font-mono pr-7" />
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">h</span>
-                  </div>
-                </div>
-                <div>
-                  <div className="relative">
-                    <Input type="number" min="0" max="59" value={cdM} onChange={e => setCdM(Math.min(59, Math.max(0, Number(e.target.value))))} className="font-mono pr-7" />
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">m</span>
-                  </div>
-                </div>
-                <div>
-                  <div className="relative">
-                    <Input type="number" min="0" max="59" value={cdS} onChange={e => setCdS(Math.min(59, Math.max(0, Number(e.target.value))))} className="font-mono pr-7" />
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">s</span>
-                  </div>
-                </div>
+          <div className="space-y-4 py-2">
+
+            {/* ── SECTION 1: Identity ── */}
+            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div className="flex items-center gap-2.5 px-4 py-2.5" style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                <Settings2 className="w-3.5 h-3.5" style={{ color: "#a78bfa" }} />
+                <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: "#a78bfa" }}>Identity</span>
               </div>
-              <p className="text-[11px] text-muted-foreground font-mono">Total: <span className="text-primary">{cdPreview}</span></p>
-            </div>
-            <div className="space-y-2">
-              <Label>CoinGecko ID</Label>
-              <Input value={formData.coingeckoId} onChange={e => setFormData({...formData, coingeckoId: e.target.value})} placeholder="e.g. ethereum" className="font-mono" />
-            </div>
-            <div className="space-y-2">
-              <Label>Token Price (USD)</Label>
-              <Input type="number" step="0.0001" value={formData.tokenPrice} onChange={e => setFormData({...formData, tokenPrice: e.target.value})} placeholder="e.g. 0.0012" className="font-mono" />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Block Explorer URL</Label>
-              <Input value={formData.explorerUrl} onChange={e => setFormData({...formData, explorerUrl: e.target.value})} placeholder="https://explorer.example.com (optional — used for tx links)" className="font-mono text-sm" />
-              <p className="text-[11px] font-mono" style={{ color: formData.explorerUrl ? undefined : "rgba(251,191,36,0.8)" }}>
-                {formData.explorerUrl
-                  ? <span className="text-primary">Preview: {formData.explorerUrl.replace(/\/$/, "")}/tx/0x...</span>
-                  : "⚠ Required for TX links in Recent Drops — without this, no TX link will appear for this chain"}
-              </p>
-            </div>
-
-            {/* Logo */}
-            <div className="space-y-2 md:col-span-2">
-              <Label>Chain Logo</Label>
-              <div className="flex items-center gap-3">
-                {formData.logoUrl && (
-                  <div className="relative w-12 h-12 rounded-full overflow-hidden border border-border bg-muted flex-shrink-0">
-                    <img src={formData.logoUrl} alt="Logo" className="w-full h-full object-cover" />
-                    <button type="button" onClick={() => setFormData((p: any) => ({ ...p, logoUrl: "" }))} className="absolute top-0 right-0 w-4 h-4 bg-destructive/80 text-white flex items-center justify-center rounded-bl">
-                      <X className="w-2.5 h-2.5" />
-                    </button>
-                  </div>
-                )}
-                <div className="flex-1 space-y-2">
-                  <div className="flex gap-2">
-                    <Input value={formData.logoUrl} onChange={e => setFormData({...formData, logoUrl: e.target.value})} placeholder="Paste URL or upload..." className="font-mono text-sm" />
-                    <Button type="button" variant="outline" size="sm" className="shrink-0 font-mono" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
-                      {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                      <span className="ml-1.5 hidden sm:inline">Upload</span>
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground font-mono">PNG/JPG/SVG · Max 5MB</p>
+              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Network Name <span className="text-destructive">*</span></Label>
+                  <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Ethereum Sepolia" className="font-mono text-sm h-9" />
                 </div>
-              </div>
-              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ""; }} />
-            </div>
-
-            {/* Availability + Order */}
-            <div className="space-y-2">
-              <Label>Availability Status</Label>
-              <Select value={formData.availableStatus} onValueChange={(val) => setFormData({...formData, availableStatus: val})}>
-                <SelectTrigger className="font-mono"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="YES">YES (Green)</SelectItem>
-                  <SelectItem value="NO">NO (Red)</SelectItem>
-                  <SelectItem value="SOON">SOON (Yellow)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Sort Order</Label>
-              <Input type="number" value={formData.sortOrder} onChange={e => setFormData({...formData, sortOrder: e.target.value})} className="font-mono" />
-            </div>
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5">
-                ⛽ Gas Price Override <span className="text-muted-foreground font-normal">(gwei)</span>
-              </Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.1"
-                value={formData.gasPriceGwei}
-                onChange={e => setFormData({...formData, gasPriceGwei: e.target.value})}
-                placeholder="Leave blank to use network default"
-                className="font-mono"
-              />
-              <p className="text-[11px] text-muted-foreground font-mono">
-                Set a fixed gas price in gwei for this chain. Use this if the auto-detected gas price is too high and causes "insufficient for gas" errors.
-              </p>
-            </div>
-
-            {/* SOON message — only shown when status is SOON */}
-            {formData.availableStatus === "SOON" && (
-              <div className="space-y-2 md:col-span-2">
-                <Label className="flex items-center gap-1.5">
-                  <span>⏳</span> Coming Soon Message
-                </Label>
-                <textarea
-                  rows={3}
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground"
-                  value={formData.soonMessage}
-                  onChange={e => setFormData({...formData, soonMessage: e.target.value})}
-                  placeholder="e.g. This faucet will be live very soon. Stay tuned!"
-                />
-                <p className="text-[11px] text-muted-foreground font-mono">
-                  This message pops up when a user clicks the SOON button on the chain card.
-                </p>
-              </div>
-            )}
-
-            {/* Toggles */}
-            <div className="space-y-2 md:col-span-2 pt-4 border-t border-border">
-              <h4 className="font-medium text-sm mb-4">Toggles & Features</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="flex items-center justify-between p-3 border border-border rounded-md bg-muted/20">
-                  <Label className="cursor-pointer">Enabled</Label>
-                  <Switch checked={formData.isEnabled} onCheckedChange={c => setFormData({...formData, isEnabled: c})} />
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Token Symbol <span className="text-destructive">*</span></Label>
+                  <Input value={formData.symbol} onChange={e => setFormData({...formData, symbol: e.target.value})} placeholder="e.g. ETH" className="font-mono text-sm h-9" />
                 </div>
-                <div className="flex items-center justify-between p-3 border border-border rounded-md bg-muted/20">
-                  <Label className="cursor-pointer">Is Testnet</Label>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label className="text-xs">Chain Type <span className="text-destructive">*</span></Label>
+                  <Select value={formData.chainType ?? "evm"} onValueChange={(val) => setFormData({...formData, chainType: val, walletAddress: "", privateKey: ""})}>
+                    <SelectTrigger className="font-mono text-sm h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CHAIN_TYPE_OPTIONS.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value} className="font-mono text-sm">{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground font-mono">Changing chain type will clear address & private key fields.</p>
+                </div>
+                <div className="space-y-1.5 flex items-center justify-between p-3 rounded-lg sm:col-span-1" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div>
+                    <Label className="text-xs cursor-pointer">Testnet</Label>
+                    <p className="text-[10px] text-muted-foreground font-mono">Mark as test network</p>
+                  </div>
                   <Switch checked={formData.isTestnet} onCheckedChange={c => setFormData({...formData, isTestnet: c})} />
                 </div>
-                <div className="flex items-center justify-between p-3 border border-border rounded-md bg-muted/20">
-                  <Label className="cursor-pointer">Buy Enabled</Label>
+                <div className="space-y-1.5 flex items-center justify-between p-3 rounded-lg" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div>
+                    <Label className="text-xs cursor-pointer">Chain Enabled</Label>
+                    <p className="text-[10px] text-muted-foreground font-mono">Show on the faucet hub</p>
+                  </div>
+                  <Switch checked={formData.isEnabled} onCheckedChange={c => setFormData({...formData, isEnabled: c})} />
+                </div>
+              </div>
+            </div>
+
+            {/* ── SECTION 2: Network & RPC ── */}
+            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div className="flex items-center gap-2.5 px-4 py-2.5" style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                <Server className="w-3.5 h-3.5" style={{ color: "#38bdf8" }} />
+                <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: "#38bdf8" }}>Network & RPC</span>
+              </div>
+              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label className="text-xs">RPC URL <span className="text-destructive">*</span></Label>
+                  <Input value={formData.rpcUrl} onChange={e => setFormData({...formData, rpcUrl: e.target.value})} placeholder="https://rpc.example.com" className="font-mono text-sm h-9" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Chain ID <span className="text-muted-foreground font-normal">(EVM only)</span></Label>
+                  <Input type="number" min="1" value={formData.chainId} onChange={e => setFormData({...formData, chainId: e.target.value})} placeholder="e.g. 11155111" className="font-mono text-sm h-9" />
+                  <p className="text-[10px] text-muted-foreground font-mono">1=ETH · 137=Polygon · 11155111=Sepolia</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">⛽ Gas Price Override <span className="text-muted-foreground font-normal">(gwei)</span></Label>
+                  <Input type="number" min="0" step="0.1" value={formData.gasPriceGwei} onChange={e => setFormData({...formData, gasPriceGwei: e.target.value})} placeholder="Auto (leave blank)" className="font-mono text-sm h-9" />
+                  <p className="text-[10px] text-muted-foreground font-mono">Override if auto gas causes errors</p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── SECTION 3: Wallet & Security ── */}
+            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(239,68,68,0.2)" }}>
+              <div className="flex items-center gap-2.5 px-4 py-2.5" style={{ background: "rgba(239,68,68,0.06)", borderBottom: "1px solid rgba(239,68,68,0.15)" }}>
+                <Shield className="w-3.5 h-3.5" style={{ color: "#f87171" }} />
+                <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: "#f87171" }}>Wallet & Security</span>
+              </div>
+              <div className="p-4 grid grid-cols-1 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Faucet Wallet Address <span className="text-destructive">*</span></Label>
+                  <Input value={formData.walletAddress} onChange={e => setFormData({...formData, walletAddress: e.target.value})} placeholder={getAddressPlaceholder(formData.chainType ?? "evm")} className="font-mono text-sm h-9" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">
+                    Private Key <span className="text-destructive">*</span>
+                    {editingChain && <span className="text-muted-foreground font-normal ml-1">(leave empty to keep current)</span>}
+                  </Label>
+                  <Input type="password" value={formData.privateKey} onChange={e => setFormData({...formData, privateKey: e.target.value})} placeholder={getPrivateKeyPlaceholder(formData.chainType ?? "evm")} className="font-mono text-sm h-9" />
+                  <p className="text-[10px] font-mono" style={{ color: "#f87171", opacity: 0.7 }}>Never share this key. It controls the faucet wallet.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── SECTION 4: Faucet Drop Settings ── */}
+            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(34,197,94,0.2)" }}>
+              <div className="flex items-center gap-2.5 px-4 py-2.5" style={{ background: "rgba(34,197,94,0.05)", borderBottom: "1px solid rgba(34,197,94,0.15)" }}>
+                <Droplets className="w-3.5 h-3.5" style={{ color: "#4ade80" }} />
+                <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: "#4ade80" }}>Faucet Drop Settings</span>
+              </div>
+              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Claim Amount <span className="text-destructive">*</span></Label>
+                  <div className="relative">
+                    <Input type="number" step="0.0001" value={formData.claimAmount} onChange={e => setFormData({...formData, claimAmount: e.target.value})} className="font-mono text-sm h-9 pr-16" />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono text-muted-foreground">{formData.symbol || "TOKEN"}</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground font-mono">Amount sent per claim</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center gap-1.5"><Clock className="w-3 h-3" /> Cooldown <span className="text-destructive">*</span></Label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <div className="relative">
+                      <Input type="number" min="0" value={cdH} onChange={e => setCdH(Math.max(0, Number(e.target.value)))} className="font-mono text-sm h-9 pr-6 text-center" />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground font-mono">h</span>
+                    </div>
+                    <div className="relative">
+                      <Input type="number" min="0" max="59" value={cdM} onChange={e => setCdM(Math.min(59, Math.max(0, Number(e.target.value))))} className="font-mono text-sm h-9 pr-6 text-center" />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground font-mono">m</span>
+                    </div>
+                    <div className="relative">
+                      <Input type="number" min="0" max="59" value={cdS} onChange={e => setCdS(Math.min(59, Math.max(0, Number(e.target.value))))} className="font-mono text-sm h-9 pr-6 text-center" />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground font-mono">s</span>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground font-mono">Total: <span className="text-primary font-bold">{cdPreview}</span></p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── SECTION 5: Buy Feature ── */}
+            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(129,140,248,0.2)" }}>
+              <div className="flex items-center justify-between px-4 py-2.5" style={{ background: "rgba(129,140,248,0.05)", borderBottom: "1px solid rgba(129,140,248,0.15)" }}>
+                <div className="flex items-center gap-2.5">
+                  <ShoppingCart className="w-3.5 h-3.5" style={{ color: "#818cf8" }} />
+                  <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: "#818cf8" }}>Buy Feature</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-muted-foreground">{formData.buyEnabled ? "ON" : "OFF"}</span>
                   <Switch checked={formData.buyEnabled} onCheckedChange={c => setFormData({...formData, buyEnabled: c})} />
                 </div>
               </div>
-            </div>
-
-            {/* Buy Settings — only shown when buyEnabled */}
-            {formData.buyEnabled && (
-              <div className="md:col-span-2 rounded-xl p-4 space-y-4" style={{ background: "rgba(129,140,248,0.05)", border: "1px solid rgba(129,140,248,0.15)" }}>
-                <div className="flex items-center gap-2 mb-1">
-                  <ShoppingCart className="w-4 h-4" style={{ color: "#818cf8" }} />
-                  <h4 className="font-mono font-bold text-sm uppercase tracking-wide" style={{ color: "#818cf8" }}>Buy Settings</h4>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {formData.buyEnabled ? (
+                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Exchange Rate</Label>
                     <div className="relative">
-                      <Input
-                        type="number"
-                        step="1"
-                        min="1"
-                        value={formData.buyRate}
-                        onChange={e => setFormData({...formData, buyRate: e.target.value})}
-                        className="font-mono pr-24"
-                        placeholder="1000"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono text-muted-foreground">
-                        {formData.symbol || "tokens"}/ETH
-                      </span>
+                      <Input type="number" step="1" min="1" value={formData.buyRate} onChange={e => setFormData({...formData, buyRate: e.target.value})} className="font-mono text-sm h-9 pr-20" placeholder="1000" />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground">{formData.symbol || "TKN"}/ETH</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground font-mono">
-                      1 ETH → {parseFloat(formData.buyRate || "1000").toLocaleString()} {formData.symbol || "tokens"}
-                    </p>
+                    <p className="text-[10px] text-muted-foreground font-mono">1 ETH → {parseFloat(formData.buyRate || "1000").toLocaleString()} {formData.symbol || "tokens"}</p>
                   </div>
-
                   <div className="space-y-1.5">
                     <Label className="text-xs">Minimum Purchase (ETH)</Label>
-                    <Input
-                      type="number"
-                      step="0.0001"
-                      min="0.0001"
-                      value={formData.buyMinAmount}
-                      onChange={e => setFormData({...formData, buyMinAmount: e.target.value})}
-                      className="font-mono"
-                      placeholder="0.0005"
-                    />
-                    <p className="text-[11px] text-muted-foreground font-mono">
-                      Min: {formData.buyMinAmount || "0.0005"} ETH → {((parseFloat(formData.buyMinAmount || "0.0005") || 0) * parseFloat(formData.buyRate || "1000")).toFixed(4)} {formData.symbol || "tokens"}
+                    <Input type="number" step="0.0001" min="0.0001" value={formData.buyMinAmount} onChange={e => setFormData({...formData, buyMinAmount: e.target.value})} className="font-mono text-sm h-9" placeholder="0.0005" />
+                    <p className="text-[10px] text-muted-foreground font-mono">
+                      Min {formData.buyMinAmount || "0.0005"} ETH = {((parseFloat(formData.buyMinAmount || "0.0005") || 0) * parseFloat(formData.buyRate || "1000")).toFixed(4)} {formData.symbol || "tokens"}
                     </p>
                   </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Receive Address (mainnet — leave blank to use faucet wallet)</Label>
-                  <Input
-                    value={formData.receiveAddress}
-                    onChange={e => setFormData({...formData, receiveAddress: e.target.value})}
-                    placeholder="0x... (optional, defaults to faucet wallet)"
-                    className="font-mono text-sm"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs">Accepted Payment Networks</Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {ALL_PAYMENT_NETWORKS.map((net) => {
-                      const isOn = enabledCurrencies.includes(net.id);
-                      return (
-                        <button
-                          key={net.id}
-                          type="button"
-                          onClick={() => toggleCurrency(net.id)}
-                          className="flex items-center gap-2.5 p-2.5 rounded-lg transition-all text-left"
-                          style={{
-                            background: isOn ? "rgba(129,140,248,0.1)" : "rgba(255,255,255,0.03)",
-                            border: `1px solid ${isOn ? "rgba(129,140,248,0.35)" : "rgba(255,255,255,0.08)"}`,
-                          }}
-                        >
-                          <div className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0" style={{ background: isOn ? "#818cf8" : "rgba(255,255,255,0.1)", border: isOn ? "none" : "1px solid rgba(255,255,255,0.2)" }}>
-                            {isOn && <span className="text-white text-[10px] font-bold">✓</span>}
-                          </div>
-                          <div>
-                            <p className="text-xs font-mono font-medium text-foreground">{net.name}</p>
-                            <p className="text-[10px] font-mono text-muted-foreground">Chain ID {net.chainId}</p>
-                          </div>
-                        </button>
-                      );
-                    })}
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label className="text-xs">Receive Address <span className="text-muted-foreground font-normal">(mainnet payment address — blank = faucet wallet)</span></Label>
+                    <Input value={formData.receiveAddress} onChange={e => setFormData({...formData, receiveAddress: e.target.value})} placeholder="0x... (optional)" className="font-mono text-sm h-9" />
                   </div>
-                  <p className="text-[11px] text-muted-foreground font-mono">
-                    Selected: {enabledCurrencies.length === 0 ? "None" : enabledCurrencies.join(", ")}
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label className="text-xs">Accepted Payment Networks</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {ALL_PAYMENT_NETWORKS.map((net) => {
+                        const isOn = enabledCurrencies.includes(net.id);
+                        return (
+                          <button key={net.id} type="button" onClick={() => toggleCurrency(net.id)}
+                            className="flex items-center gap-2 p-2.5 rounded-lg transition-all text-left"
+                            style={{ background: isOn ? "rgba(129,140,248,0.1)" : "rgba(255,255,255,0.03)", border: `1px solid ${isOn ? "rgba(129,140,248,0.4)" : "rgba(255,255,255,0.08)"}` }}
+                          >
+                            <div className="w-4 h-4 rounded flex items-center justify-center shrink-0" style={{ background: isOn ? "#818cf8" : "rgba(255,255,255,0.08)", border: isOn ? "none" : "1px solid rgba(255,255,255,0.18)" }}>
+                              {isOn && <span className="text-white text-[9px] font-bold">✓</span>}
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-mono font-semibold text-foreground leading-tight">{net.name}</p>
+                              <p className="text-[9px] font-mono text-muted-foreground">ID: {net.chainId}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="px-4 py-3 text-[11px] font-mono text-muted-foreground">
+                  Enable Buy to let users purchase testnet tokens with real ETH.
+                </div>
+              )}
+            </div>
+
+            {/* ── SECTION 6: Appearance & Links ── */}
+            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div className="flex items-center gap-2.5 px-4 py-2.5" style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                <Globe className="w-3.5 h-3.5" style={{ color: "#fb923c" }} />
+                <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: "#fb923c" }}>Appearance & Links</span>
+              </div>
+              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Logo */}
+                <div className="space-y-2 sm:col-span-2">
+                  <Label className="text-xs">Chain Logo</Label>
+                  <div className="flex items-center gap-3">
+                    {formData.logoUrl ? (
+                      <div className="relative w-10 h-10 rounded-full overflow-hidden border border-border bg-muted shrink-0">
+                        <img src={formData.logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                        <button type="button" onClick={() => setFormData((p: any) => ({ ...p, logoUrl: "" }))} className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                          <X className="w-3 h-3 text-white" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-muted/30 border border-border flex items-center justify-center shrink-0">
+                        <span className="text-xs text-muted-foreground font-bold">{formData.symbol?.slice(0,2) || "?"}</span>
+                      </div>
+                    )}
+                    <div className="flex-1 flex gap-2">
+                      <Input value={formData.logoUrl} onChange={e => setFormData({...formData, logoUrl: e.target.value})} placeholder="Paste image URL or upload" className="font-mono text-sm h-9" />
+                      <Button type="button" variant="outline" size="sm" className="shrink-0 h-9" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+                        {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                      </Button>
+                    </div>
+                  </div>
+                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ""; }} />
+                </div>
+                {/* Explorer */}
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label className="text-xs">Block Explorer URL</Label>
+                  <Input value={formData.explorerUrl} onChange={e => setFormData({...formData, explorerUrl: e.target.value})} placeholder="https://explorer.example.com" className="font-mono text-sm h-9" />
+                  <p className="text-[10px] font-mono" style={{ color: formData.explorerUrl ? "#4ade80" : "rgba(251,191,36,0.8)" }}>
+                    {formData.explorerUrl
+                      ? `✓ TX link: ${formData.explorerUrl.replace(/\/$/, "")}/tx/0x...`
+                      : "⚠ Required for TX links in Recent Drops — no link will show without this"}
                   </p>
                 </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">CoinGecko ID</Label>
+                  <Input value={formData.coingeckoId} onChange={e => setFormData({...formData, coingeckoId: e.target.value})} placeholder="e.g. ethereum" className="font-mono text-sm h-9" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Token Price (USD)</Label>
+                  <Input type="number" step="0.0001" value={formData.tokenPrice} onChange={e => setFormData({...formData, tokenPrice: e.target.value})} placeholder="e.g. 0.0012" className="font-mono text-sm h-9" />
+                </div>
               </div>
-            )}
+            </div>
+
+            {/* ── SECTION 7: Availability ── */}
+            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div className="flex items-center gap-2.5 px-4 py-2.5" style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                <span className="text-xs font-mono font-bold uppercase tracking-widest text-muted-foreground">Availability & Display</span>
+              </div>
+              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Availability Status</Label>
+                  <Select value={formData.availableStatus} onValueChange={(val) => setFormData({...formData, availableStatus: val})}>
+                    <SelectTrigger className="font-mono text-sm h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="YES" className="font-mono">✅ YES — Faucet is live</SelectItem>
+                      <SelectItem value="NO" className="font-mono">🔴 NO — Faucet is down</SelectItem>
+                      <SelectItem value="SOON" className="font-mono">🟡 SOON — Coming soon</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Sort Order</Label>
+                  <Input type="number" value={formData.sortOrder} onChange={e => setFormData({...formData, sortOrder: e.target.value})} className="font-mono text-sm h-9" placeholder="0 = default" />
+                  <p className="text-[10px] text-muted-foreground font-mono">Lower number = shown first</p>
+                </div>
+                {formData.availableStatus === "SOON" && (
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label className="text-xs">⏳ Coming Soon Message</Label>
+                    <textarea
+                      rows={2}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground"
+                      value={formData.soonMessage}
+                      onChange={e => setFormData({...formData, soonMessage: e.target.value})}
+                      placeholder="e.g. This faucet will be live very soon. Stay tuned!"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
           </div>
 
           <DialogFooter className="pt-4 border-t border-border">
