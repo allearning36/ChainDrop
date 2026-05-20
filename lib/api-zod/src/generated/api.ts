@@ -39,6 +39,7 @@ export const GetChainsResponseItem = zod.object({
   "buyRate": zod.string().nullish(),
   "tokenPrice": zod.string().nullish(),
   "coingeckoId": zod.string().nullish(),
+  "soonMessage": zod.string().nullish(),
   "sortOrder": zod.number()
 })
 export const GetChainsResponse = zod.array(GetChainsResponseItem)
@@ -66,6 +67,7 @@ export const GetChainResponse = zod.object({
   "buyUrl": zod.string().nullish(),
   "tokenPrice": zod.string().nullish(),
   "coingeckoId": zod.string().nullish(),
+  "soonMessage": zod.string().nullish(),
   "sortOrder": zod.number(),
   "walletBalanceEth": zod.string().nullish()
 })
@@ -256,6 +258,7 @@ export const GetAdminChainsResponseItem = zod.object({
   "receiveAddress": zod.string().nullish(),
   "tokenPrice": zod.string().nullish(),
   "coingeckoId": zod.string().nullish(),
+  "soonMessage": zod.string().nullish(),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date()
 })
@@ -286,6 +289,7 @@ export const CreateChainBody = zod.object({
   "receiveAddress": zod.string().optional(),
   "tokenPrice": zod.string().optional(),
   "coingeckoId": zod.string().optional(),
+  "soonMessage": zod.string().optional(),
   "sortOrder": zod.number().optional()
 })
 
@@ -318,6 +322,7 @@ export const UpdateChainBody = zod.object({
   "receiveAddress": zod.string().optional(),
   "tokenPrice": zod.string().optional(),
   "coingeckoId": zod.string().optional(),
+  "soonMessage": zod.string().optional(),
   "sortOrder": zod.number().optional()
 })
 
@@ -342,6 +347,7 @@ export const UpdateChainResponse = zod.object({
   "receiveAddress": zod.string().nullish(),
   "tokenPrice": zod.string().nullish(),
   "coingeckoId": zod.string().nullish(),
+  "soonMessage": zod.string().nullish(),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date()
 })

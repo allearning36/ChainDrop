@@ -26,6 +26,8 @@ export interface ChainDetail {
   tokenPrice?: string | null;
   /** @nullable */
   coingeckoId?: string | null;
+  /** @nullable */
+  soonMessage?: string | null;
   sortOrder: number;
   /** @nullable */
   walletBalanceEth?: string | null;

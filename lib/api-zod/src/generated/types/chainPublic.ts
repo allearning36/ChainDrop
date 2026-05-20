@@ -28,5 +28,7 @@ export interface ChainPublic {
   tokenPrice?: string | null;
   /** @nullable */
   coingeckoId?: string | null;
+  /** @nullable */
+  soonMessage?: string | null;
   sortOrder: number;
 }

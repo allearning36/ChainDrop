@@ -34,6 +34,8 @@ export interface ChainAdmin {
   tokenPrice?: string | null;
   /** @nullable */
   coingeckoId?: string | null;
+  /** @nullable */
+  soonMessage?: string | null;
   sortOrder: number;
   createdAt: Date;
 }

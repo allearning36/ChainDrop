@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { ChainPublic, useGetChain, getGetChainQueryKey } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Droplet, Wallet } from "lucide-react";
+import { Droplet, Wallet, Zap, Clock } from "lucide-react";
 
 interface ChainCardProps {
   chain: ChainPublic;
@@ -9,11 +10,8 @@ interface ChainCardProps {
 }
 
 export function ChainCard({ chain, onClick }: ChainCardProps) {
-  // We can fetch live details if needed, but it might be heavy for the grid.
-  // Instead, maybe only fetch on hover or modal open, or just rely on the list data unless we need live balance.
-  // The spec says: "(from useGetChain per card, or show from list — keep it efficient)"
-  // We'll just fetch live balance if the card is visible/rendered, but maybe with a long stale time.
-  
+  const [soonPopover, setSoonPopover] = useState(false);
+
   const { data: detail } = useGetChain(chain.id, {
     query: {
       enabled: !!chain.id,
@@ -23,19 +21,19 @@ export function ChainCard({ chain, onClick }: ChainCardProps) {
   });
 
   const displayChain = detail || chain;
+  const isSoon = displayChain.availableStatus === "SOON";
+  const isYes  = displayChain.availableStatus === "YES";
 
-  const statusColors = {
-    YES: "bg-green-500/20 text-green-500 hover:bg-green-500/30",
-    NO: "bg-red-500/20 text-red-500 hover:bg-red-500/30",
-    SOON: "bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30"
-  };
+  const soonMsg: string =
+    ("soonMessage" in displayChain && typeof (displayChain as any).soonMessage === "string" && (displayChain as any).soonMessage.trim())
+      ? (displayChain as any).soonMessage
+      : "This faucet will be live very soon. Stay tuned!";
 
   return (
-    <Card 
-      className="group cursor-pointer hover:border-primary/50 transition-all duration-300 hover:shadow-[0_0_15px_rgba(var(--primary),0.1)] bg-card/50 backdrop-blur"
-      onClick={onClick}
-    >
-      <CardContent className="p-6 flex flex-col gap-4 h-full">
+    <Card className="bg-card/50 backdrop-blur border border-border/60 transition-all duration-300 hover:border-border hover:shadow-[0_0_18px_rgba(34,197,94,0.07)] flex flex-col">
+      <CardContent className="p-6 flex flex-col gap-4 flex-1">
+
+        {/* Chain header — NOT clickable */}
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-full overflow-hidden bg-muted flex items-center justify-center shrink-0 border border-border">
             {displayChain.logoUrl ? (
@@ -50,36 +48,103 @@ export function ChainCard({ chain, onClick }: ChainCardProps) {
           </div>
         </div>
 
-        <div className="mt-2 space-y-3 flex-1 flex flex-col justify-end">
+        {/* Stats */}
+        <div className="space-y-2.5 flex-1">
           <div className="flex justify-between items-center text-sm">
             <span className="text-muted-foreground flex items-center gap-1.5">
-              <Wallet className="w-4 h-4" /> Reserve
+              <Wallet className="w-3.5 h-3.5" /> Reserve
             </span>
-            <span className="font-mono">
-              {'walletBalanceEth' in displayChain && displayChain.walletBalanceEth 
+            <span className="font-mono text-xs">
+              {"walletBalanceEth" in displayChain && displayChain.walletBalanceEth
                 ? `${parseFloat(String(displayChain.walletBalanceEth)).toFixed(4)} ${displayChain.symbol}`
-                : '...'}
+                : "—"}
             </span>
           </div>
-          
+
           <div className="flex justify-between items-center text-sm">
             <span className="text-muted-foreground flex items-center gap-1.5">
-              <div className="w-4 text-center">⚙</div> Available
+              <Zap className="w-3.5 h-3.5" /> Drop
             </span>
-            <Badge variant="outline" className={`font-mono ${statusColors[displayChain.availableStatus as keyof typeof statusColors] || ""}`}>
-              {displayChain.availableStatus}
-            </Badge>
+            <span className="font-mono text-xs text-primary font-semibold">
+              {displayChain.claimAmount} {displayChain.symbol}
+            </span>
           </div>
-          
+
           <div className="flex justify-between items-center text-sm">
             <span className="text-muted-foreground flex items-center gap-1.5">
-              <Droplet className="w-4 h-4" /> Schedule
+              <Clock className="w-3.5 h-3.5" /> Cooldown
             </span>
-            <span className="font-mono text-primary">
-              {displayChain.cooldownHours}h
-            </span>
+            <span className="font-mono text-xs">{displayChain.cooldownHours}h</span>
           </div>
         </div>
+
+        {/* Action button */}
+        <div className="pt-2 border-t border-border/40 relative">
+          {isYes ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); onClick(); }}
+              className="w-full py-2.5 rounded-lg text-sm font-bold font-mono tracking-wider transition-all duration-200 active:scale-95"
+              style={{
+                background: "linear-gradient(135deg, #15803d 0%, #22c55e 100%)",
+                color: "#fff",
+                boxShadow: "0 0 12px rgba(34,197,94,0.35)",
+              }}
+            >
+              CLAIM
+            </button>
+          ) : isSoon ? (
+            <div className="relative">
+              <button
+                onClick={(e) => { e.stopPropagation(); setSoonPopover(p => !p); }}
+                className="w-full py-2.5 rounded-lg text-sm font-bold font-mono tracking-wider transition-all duration-200 active:scale-95"
+                style={{
+                  background: "linear-gradient(135deg, #92400e 0%, #f59e0b 100%)",
+                  color: "#fff",
+                  boxShadow: "0 0 12px rgba(245,158,11,0.3)",
+                }}
+              >
+                SOON
+              </button>
+
+              {/* SOON popover */}
+              {soonPopover && (
+                <>
+                  {/* Backdrop */}
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setSoonPopover(false)}
+                  />
+                  <div
+                    className="absolute bottom-full left-0 right-0 mb-2 z-50 rounded-xl p-4 text-sm font-mono shadow-2xl"
+                    style={{
+                      background: "#1a1a1a",
+                      border: "1px solid rgba(245,158,11,0.35)",
+                      boxShadow: "0 0 24px rgba(245,158,11,0.15)",
+                      color: "#fbbf24",
+                    }}
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="text-base shrink-0">⏳</span>
+                      <p className="leading-relaxed">{soonMsg}</p>
+                    </div>
+                    <div
+                      className="absolute left-1/2 -translate-x-1/2 bottom-[-6px] w-3 h-3 rotate-45"
+                      style={{ background: "#1a1a1a", border: "1px solid rgba(245,158,11,0.35)", borderTop: "none", borderLeft: "none" }}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div
+              className="w-full py-2.5 rounded-lg text-sm font-bold font-mono tracking-wider text-center"
+              style={{ background: "rgba(239,68,68,0.12)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)" }}
+            >
+              UNAVAILABLE
+            </div>
+          )}
+        </div>
+
       </CardContent>
     </Card>
   );

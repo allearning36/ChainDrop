@@ -28,5 +28,6 @@ export interface ChainUpdate {
   receiveAddress?: string;
   tokenPrice?: string;
   coingeckoId?: string;
+  soonMessage?: string;
   sortOrder?: number;
 }

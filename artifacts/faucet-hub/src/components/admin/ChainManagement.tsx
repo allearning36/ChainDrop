@@ -85,6 +85,7 @@ const DEFAULT_CHAIN = {
   receiveAddress: "",
   tokenPrice: "",
   coingeckoId: "",
+  soonMessage: "",
   sortOrder: 0
 };
 
@@ -158,6 +159,7 @@ export function ChainManagement() {
       buyUrl: chain.buyUrl ?? "",
       tokenPrice: chain.tokenPrice ?? "",
       coingeckoId: chain.coingeckoId ?? "",
+      soonMessage: chain.soonMessage ?? "",
       receiveAddress: chain.receiveAddress ?? "",
       buyRate: chain.buyRate || "1000",
       buyMinAmount: chain.buyMinAmount || "0.0005",
@@ -196,7 +198,7 @@ export function ChainManagement() {
     };
 
     // Strip empty strings and nulls for optional fields — backend Zod rejects null
-    const optionalFields = ["logoUrl", "buyUrl", "tokenPrice", "coingeckoId", "receiveAddress"];
+    const optionalFields = ["logoUrl", "buyUrl", "tokenPrice", "coingeckoId", "receiveAddress", "soonMessage"];
     for (const key of optionalFields) {
       if (payload[key] === null || payload[key] === "") delete payload[key];
     }
@@ -455,6 +457,25 @@ export function ChainManagement() {
               <Label>Sort Order</Label>
               <Input type="number" value={formData.sortOrder} onChange={e => setFormData({...formData, sortOrder: e.target.value})} className="font-mono" />
             </div>
+
+            {/* SOON message — only shown when status is SOON */}
+            {formData.availableStatus === "SOON" && (
+              <div className="space-y-2 md:col-span-2">
+                <Label className="flex items-center gap-1.5">
+                  <span>⏳</span> Coming Soon Message
+                </Label>
+                <textarea
+                  rows={3}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground"
+                  value={formData.soonMessage}
+                  onChange={e => setFormData({...formData, soonMessage: e.target.value})}
+                  placeholder="e.g. This faucet will be live very soon. Stay tuned!"
+                />
+                <p className="text-[11px] text-muted-foreground font-mono">
+                  This message pops up when a user clicks the SOON button on the chain card.
+                </p>
+              </div>
+            )}
 
             {/* Toggles */}
             <div className="space-y-2 md:col-span-2 pt-4 border-t border-border">

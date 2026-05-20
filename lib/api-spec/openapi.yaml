@@ -872,6 +872,8 @@ components:
           type: ["string", "null"]
         coingeckoId:
           type: ["string", "null"]
+        soonMessage:
+          type: ["string", "null"]
         sortOrder:
           type: integer
 
@@ -907,6 +909,8 @@ components:
         tokenPrice:
           type: ["string", "null"]
         coingeckoId:
+          type: ["string", "null"]
+        soonMessage:
           type: ["string", "null"]
         sortOrder:
           type: integer
@@ -959,6 +963,8 @@ components:
           type: ["string", "null"]
         coingeckoId:
           type: ["string", "null"]
+        soonMessage:
+          type: ["string", "null"]
         sortOrder:
           type: integer
         createdAt:
@@ -1010,6 +1016,8 @@ components:
           type: string
         coingeckoId:
           type: string
+        soonMessage:
+          type: string
         sortOrder:
           type: integer
 
@@ -1056,6 +1064,8 @@ components:
         tokenPrice:
           type: string
         coingeckoId:
+          type: string
+        soonMessage:
           type: string
         sortOrder:
           type: integer
