@@ -25,6 +25,7 @@ export interface ChainAdmin {
   cooldownSeconds: number;
   isTestnet: boolean;
   isEnabled: boolean;
+  isPinned?: boolean;
   availableStatus: string;
   buyEnabled: boolean;
   /** @nullable */

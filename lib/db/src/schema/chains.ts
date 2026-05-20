@@ -15,6 +15,7 @@ export const chainsTable = pgTable("chains", {
   cooldownSeconds: integer("cooldown_seconds").notNull().default(86400),
   isTestnet: boolean("is_testnet").notNull().default(true),
   isEnabled: boolean("is_enabled").notNull().default(true),
+  isPinned: boolean("is_pinned").notNull().default(false),
   availableStatus: text("available_status").notNull().default("YES"),
   buyEnabled: boolean("buy_enabled").notNull().default(false),
   buyUrl: text("buy_url"),

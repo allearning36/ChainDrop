@@ -121,6 +121,7 @@ router.get("/admin/chains", async (_req, res): Promise<void> => {
       cooldownSeconds: c.cooldownSeconds,
       isTestnet: c.isTestnet,
       isEnabled: c.isEnabled,
+      isPinned: c.isPinned,
       availableStatus: c.availableStatus,
       buyEnabled: c.buyEnabled,
       buyUrl: c.buyUrl,
@@ -219,6 +220,7 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     cooldownSeconds: chain.cooldownSeconds,
     isTestnet: chain.isTestnet,
     isEnabled: chain.isEnabled,
+    isPinned: chain.isPinned,
     availableStatus: chain.availableStatus,
     buyEnabled: chain.buyEnabled,
     buyUrl: chain.buyUrl,
@@ -232,6 +234,15 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     sortOrder: chain.sortOrder,
     createdAt: chain.createdAt.toISOString(),
   });
+});
+
+router.patch("/admin/chains/:id/pin", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) { res.status(400).json({ error: "Invalid chain id" }); return; }
+  const [existing] = await db.select({ isPinned: chainsTable.isPinned }).from(chainsTable).where(eq(chainsTable.id, id));
+  if (!existing) { res.status(404).json({ error: "Chain not found" }); return; }
+  const [updated] = await db.update(chainsTable).set({ isPinned: !existing.isPinned }).where(eq(chainsTable.id, id)).returning({ isPinned: chainsTable.isPinned });
+  res.json({ isPinned: updated!.isPinned });
 });
 
 router.delete("/admin/chains/:id", async (req, res): Promise<void> => {

@@ -21,6 +21,7 @@ export interface ChainUpdate {
   cooldownSeconds?: number;
   isTestnet?: boolean;
   isEnabled?: boolean;
+  isPinned?: boolean;
   availableStatus?: string;
   buyEnabled?: boolean;
   buyUrl?: string;

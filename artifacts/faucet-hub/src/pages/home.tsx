@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { SEOHead } from "@/components/layout/SEOHead";
@@ -9,11 +9,12 @@ import { ChainCard } from "@/components/home/ChainCard";
 import { RecentFeed } from "@/components/home/RecentFeed";
 import { ClaimModal } from "@/components/home/ClaimModal";
 import { useGetChains, getGetChainsQueryKey, ChainPublic } from "@workspace/api-client-react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search, X } from "lucide-react";
 
 export default function Home() {
   const [networkType, setNetworkType] = useState<"testnet" | "mainnet">("testnet");
   const [selectedChain, setSelectedChain] = useState<ChainPublic | null>(null);
+  const [search, setSearch] = useState("");
 
   const { data: chains = [], isLoading } = useGetChains({ type: networkType }, {
     query: {
@@ -21,9 +22,14 @@ export default function Home() {
     }
   });
 
-  const toggleNetwork = () => {
-    setNetworkType(prev => prev === "testnet" ? "mainnet" : "testnet");
-  };
+  const filteredChains = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return chains;
+    return chains.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      c.symbol.toLowerCase().includes(q)
+    );
+  }, [chains, search]);
 
   const coinIds = chains.map(c => c.coingeckoId).filter(Boolean) as string[];
 
@@ -32,6 +38,29 @@ export default function Home() {
       <SEOHead />
       <Navbar />
       <HeadlineBanner />
+
+      {/* Search bar */}
+      <div className="w-full bg-background/80 backdrop-blur-sm border-b border-border/50 px-4 py-3">
+        <div className="relative max-w-lg mx-auto">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search chains by name or symbol…"
+            className="w-full h-10 pl-9 pr-9 rounded-lg bg-muted/60 border border-border text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition"
+              aria-label="Clear search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8">
         <AdSlot id="home-top" className="my-2" />
@@ -127,20 +156,31 @@ export default function Home() {
           <div className="flex justify-center items-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
-        ) : chains.length === 0 ? (
+        ) : filteredChains.length === 0 ? (
           <div className="text-center py-20 border border-dashed border-border rounded-lg bg-card/20">
-            <p className="text-muted-foreground font-mono">No {networkType} chains available right now.</p>
+            {search.trim() ? (
+              <p className="text-muted-foreground font-mono">No chains match <span className="text-foreground">"{search.trim()}"</span>.</p>
+            ) : (
+              <p className="text-muted-foreground font-mono">No {networkType} chains available right now.</p>
+            )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {chains.map(chain => (
-              <ChainCard 
-                key={chain.id} 
-                chain={chain} 
-                onClick={() => setSelectedChain(chain)} 
-              />
-            ))}
-          </div>
+          <>
+            {search.trim() && (
+              <p className="text-xs text-muted-foreground font-mono mb-4">
+                {filteredChains.length} result{filteredChains.length !== 1 ? "s" : ""} for "{search.trim()}"
+              </p>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredChains.map(chain => (
+                <ChainCard
+                  key={chain.id}
+                  chain={chain}
+                  onClick={() => setSelectedChain(chain)}
+                />
+              ))}
+            </div>
+          </>
         )}
 
         <RecentFeed />

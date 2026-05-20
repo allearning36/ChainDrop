@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, desc } from "drizzle-orm";
 import { db, chainsTable } from "@workspace/db";
 import { GetChainsQueryParams, GetChainParams } from "@workspace/api-zod";
 import { getWalletBalance, type ChainType } from "../lib/chains/index";
@@ -13,7 +13,7 @@ router.get("/chains", async (req, res): Promise<void> => {
     .select()
     .from(chainsTable)
     .where(eq(chainsTable.isEnabled, true))
-    .orderBy(asc(chainsTable.sortOrder), asc(chainsTable.id));
+    .orderBy(desc(chainsTable.isPinned), asc(chainsTable.sortOrder), asc(chainsTable.id));
 
   if (query.success && query.data.type) {
     const isTestnet = query.data.type === "testnet";
@@ -32,6 +32,7 @@ router.get("/chains", async (req, res): Promise<void> => {
       cooldownSeconds: c.cooldownSeconds,
       isTestnet: c.isTestnet,
       isEnabled: c.isEnabled,
+      isPinned: c.isPinned,
       availableStatus: c.availableStatus,
       buyEnabled: c.isTestnet ? c.buyEnabled : false,
       buyUrl: c.isTestnet ? c.buyUrl : null,
@@ -80,6 +81,7 @@ router.get("/chains/:id", async (req, res): Promise<void> => {
     cooldownSeconds: chain.cooldownSeconds,
     isTestnet: chain.isTestnet,
     isEnabled: chain.isEnabled,
+    isPinned: chain.isPinned,
     availableStatus: chain.availableStatus,
     buyEnabled: chain.isTestnet ? chain.buyEnabled : false,
     buyUrl: chain.isTestnet ? chain.buyUrl : null,

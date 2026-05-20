@@ -23,6 +23,7 @@ export interface ChainDetail {
   cooldownSeconds: number;
   isTestnet: boolean;
   isEnabled: boolean;
+  isPinned?: boolean;
   availableStatus: string;
   buyEnabled: boolean;
   /** @nullable */

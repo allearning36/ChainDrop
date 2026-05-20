@@ -74,6 +74,7 @@ export interface ChainPublic {
   cooldownSeconds: number;
   isTestnet: boolean;
   isEnabled: boolean;
+  isPinned?: boolean;
   availableStatus: string;
   buyEnabled: boolean;
   /** @nullable */
@@ -118,6 +119,7 @@ export interface ChainDetail {
   cooldownSeconds: number;
   isTestnet: boolean;
   isEnabled: boolean;
+  isPinned?: boolean;
   availableStatus: string;
   buyEnabled: boolean;
   /** @nullable */
@@ -164,6 +166,7 @@ export interface ChainAdmin {
   cooldownSeconds: number;
   isTestnet: boolean;
   isEnabled: boolean;
+  isPinned?: boolean;
   availableStatus: string;
   buyEnabled: boolean;
   /** @nullable */
@@ -211,6 +214,7 @@ export interface ChainInput {
   cooldownSeconds?: number;
   isTestnet?: boolean;
   isEnabled?: boolean;
+  isPinned?: boolean;
   availableStatus?: string;
   buyEnabled?: boolean;
   buyUrl?: string;
@@ -250,6 +254,7 @@ export interface ChainUpdate {
   cooldownSeconds?: number;
   isTestnet?: boolean;
   isEnabled?: boolean;
+  isPinned?: boolean;
   availableStatus?: string;
   buyEnabled?: boolean;
   buyUrl?: string;

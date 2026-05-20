@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X, ShoppingCart } from "lucide-react";
+import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X, ShoppingCart, Pin, PinOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getToken } from "@/lib/auth";
 import { formatCooldown, secondsToHms, hmsToSeconds } from "@/lib/utils";
@@ -120,6 +120,28 @@ export function ChainManagement() {
   const createMutation = useCreateChain();
   const updateMutation = useUpdateChain();
   const deleteMutation = useDeleteChain();
+  const [pinningId, setPinningId] = useState<number | null>(null);
+
+  const handleTogglePin = async (chain: ChainAdmin) => {
+    setPinningId(chain.id);
+    try {
+      const token = getToken();
+      const res = await fetch(`/api/admin/chains/${chain.id}/pin`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to toggle pin");
+      const data = await res.json() as { isPinned: boolean };
+      queryClient.setQueryData(getGetAdminChainsQueryKey(), (old: ChainAdmin[] | undefined) =>
+        old ? old.map(c => c.id === chain.id ? { ...c, isPinned: data.isPinned } : c) : old
+      );
+      toast({ title: data.isPinned ? "Pinned" : "Unpinned", description: `${chain.name} is now ${data.isPinned ? "pinned to the top" : "unpinned"}.` });
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Could not toggle pin." });
+    } finally {
+      setPinningId(null);
+    }
+  };
 
   // Helpers for buy_currencies JSON array
   const getEnabledCurrencies = (): string[] => {
@@ -350,6 +372,21 @@ export function ChainManagement() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={`h-8 w-8 ${chain.isPinned ? "text-amber-400 hover:text-amber-300" : "text-muted-foreground hover:text-amber-400"}`}
+                          title={chain.isPinned ? "Unpin chain" : "Pin to top"}
+                          disabled={pinningId === chain.id}
+                          onClick={() => handleTogglePin(chain)}
+                        >
+                          {pinningId === chain.id
+                            ? <Loader2 className="w-4 h-4 animate-spin" />
+                            : chain.isPinned
+                              ? <Pin className="w-4 h-4 fill-current" />
+                              : <PinOff className="w-4 h-4" />
+                          }
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(chain)}>
                           <Edit2 className="w-4 h-4" />
                         </Button>
