@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { getToken } from "@/lib/auth";
 import { 
   useGetAdminBanners, 
   useCreateBanner, 
@@ -79,13 +80,12 @@ export function BannerManagement() {
 
     setUploading(true);
     try {
-      const adminPassword = sessionStorage.getItem("adminPassword") || "";
       const fd = new FormData();
       fd.append("image", file);
 
       const res = await fetch("/api/uploads/banner", {
         method: "POST",
-        headers: { "x-admin-password": adminPassword },
+        headers: { Authorization: `Bearer ${getToken() ?? ""}` },
         body: fd,
       });
 
