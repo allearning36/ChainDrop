@@ -19,7 +19,7 @@ import {
   UpdateAnnouncementParams,
   DeleteAnnouncementParams,
 } from "@workspace/api-zod";
-import { signAdminToken, requireAdmin } from "../lib/adminAuth";
+import { signAdminToken, requireAdmin, checkLoginRateLimit, recordFailedLogin, recordSuccessfulLogin } from "../lib/adminAuth";
 
 // Setup multer for image uploads
 const uploadsDir = path.join(process.cwd(), "uploads");
@@ -45,8 +45,16 @@ const router: IRouter = Router();
 
 // Auth
 router.post("/admin/auth", async (req, res): Promise<void> => {
+  // Rate-limit check — block IPs that have failed too many times
+  const blocked = checkLoginRateLimit(req);
+  if (blocked) {
+    res.status(429).json({ error: blocked });
+    return;
+  }
+
   const parsed = AdminAuthBody.safeParse(req.body);
   if (!parsed.success) {
+    recordFailedLogin(req);
     res.status(400).json({ error: parsed.error.message });
     return;
   }
@@ -58,10 +66,12 @@ router.post("/admin/auth", async (req, res): Promise<void> => {
   }
 
   if (parsed.data.password !== adminPassword) {
+    recordFailedLogin(req);
     res.status(401).json({ error: "Invalid password" });
     return;
   }
 
+  recordSuccessfulLogin(req);
   res.json({ token: signAdminToken() });
 });
 
