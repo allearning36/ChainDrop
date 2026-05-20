@@ -17,7 +17,12 @@ export async function sendTokens(
 
   logger.info({ txHash: tx.hash, toAddress }, "Transaction submitted, waiting for confirmation");
 
-  const receipt = await tx.wait(1);
+  const receipt = await Promise.race([
+    tx.wait(1),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Receipt polling timed out after 90s")), 90_000)
+    ),
+  ]);
   if (!receipt || receipt.status === 0) {
     throw new Error(`Transaction reverted on-chain: ${tx.hash}`);
   }
