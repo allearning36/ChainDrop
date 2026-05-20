@@ -3,9 +3,7 @@ export function Footer() {
     <footer className="border-t border-border mt-auto py-8">
       <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-primary text-primary-foreground flex items-center justify-center font-bold font-mono rounded text-xs">
-            CD
-          </div>
+          <img src="/logo.png" alt="ChainDrop" className="w-7 h-7 object-contain" />
           <span className="font-bold text-sm tracking-tight">ChainDrop</span>
         </div>
         

@@ -21,17 +21,13 @@ export function Navbar() {
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-3">
-          <div
-            className="w-10 h-10 flex items-center justify-center font-bold font-mono rounded text-sm shrink-0"
-            style={{
-              background: "linear-gradient(135deg, #15803d 0%, #22c55e 100%)",
-              color: "#ffffff",
-              boxShadow: "0 0 12px rgba(34,197,94,0.4)",
-            }}
-          >
-            CD
-          </div>
+        <Link href="/" className="flex items-center gap-2">
+          <img
+            src="/logo.png"
+            alt="ChainDrop"
+            className="h-10 w-10 object-contain shrink-0"
+            style={{ filter: "drop-shadow(0 0 8px rgba(34,197,94,0.5))" }}
+          />
           <div className="flex flex-col leading-none">
             <span
               className="font-black tracking-wider uppercase"
