@@ -70,7 +70,8 @@ export default function AdminDashboard() {
 
       <main className="flex-1 container mx-auto px-4 py-8">
         <Tabs defaultValue="stats" className="w-full space-y-8">
-          <TabsList className="bg-card border border-border h-auto p-1 w-full gap-0.5 flex flex-wrap overflow-x-auto scrollbar-none md:flex-wrap">
+          <div className="overflow-x-auto scrollbar-none -mx-4 px-4">
+          <TabsList className="bg-card border border-border h-10 p-1 gap-0.5 flex flex-nowrap w-max min-w-full md:w-full md:flex-wrap md:h-auto">
             <TabsTrigger value="stats" className={TAB}>
               <LayoutDashboard className="w-3 h-3" /> Stats
             </TabsTrigger>
@@ -124,6 +125,7 @@ export default function AdminDashboard() {
               <KeyRound className="w-3 h-3" /> Password
             </TabsTrigger>
           </TabsList>
+          </div>
 
           <TabsContent value="stats" className="mt-0 outline-none"><StatsOverview /></TabsContent>
           <TabsContent value="analytics" className="mt-0 outline-none"><Analytics /></TabsContent>
