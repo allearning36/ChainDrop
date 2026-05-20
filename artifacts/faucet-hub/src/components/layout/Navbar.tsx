@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { Bell, MessageCircle } from "lucide-react";
+import { Bell, MessageCircle, ChevronDown, ChevronRight, Megaphone } from "lucide-react";
 import { useGetAnnouncements, getGetAnnouncementsQueryKey } from "@workspace/api-client-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ export function Navbar() {
     query: { queryKey: getGetAnnouncementsQueryKey() }
   });
   const [open, setOpen] = useState(false);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
   const [supportOpen, setSupportOpen] = useState(false);
   const [logo, setLogo] = useState<LogoSettings>({ logoUrl: "/logo.svg", logoGlow: "medium", logoSize: "medium" });
 
@@ -93,7 +94,7 @@ export function Navbar() {
             Support
           </Button>
 
-          <Popover open={open} onOpenChange={setOpen}>
+          <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setExpandedId(null); }}>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-5 w-5" />
@@ -102,24 +103,66 @@ export function Navbar() {
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80" align="end">
-              <div className="flex flex-col gap-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium leading-none">Announcements</h4>
-                  <p className="text-sm text-muted-foreground">Latest news and updates.</p>
+            <PopoverContent className="w-80 p-0 overflow-hidden" align="end">
+              {/* Header */}
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-card">
+                <Megaphone className="w-4 h-4 text-primary shrink-0" />
+                <div>
+                  <p className="text-sm font-bold font-mono leading-none">Announcements</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {activeAnnouncements.length === 0
+                      ? "No new announcements"
+                      : `${activeAnnouncements.length} active`}
+                  </p>
                 </div>
-                <div className="grid gap-2">
-                  {activeAnnouncements.length === 0 ? (
-                    <div className="text-sm text-muted-foreground text-center py-4">No new announcements</div>
-                  ) : (
-                    activeAnnouncements.map((a) => (
-                      <div key={a.id} className="text-sm border-b border-border pb-2 last:border-0 last:pb-0">
-                        <div className="font-medium">{a.title}</div>
-                        <div className="text-muted-foreground mt-1 whitespace-pre-wrap">{a.content}</div>
+              </div>
+
+              {/* List */}
+              <div className="max-h-[360px] overflow-y-auto divide-y divide-border">
+                {activeAnnouncements.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
+                    <Bell className="w-7 h-7 opacity-30" />
+                    <span className="text-xs font-mono">Nothing new right now</span>
+                  </div>
+                ) : (
+                  activeAnnouncements.map((a) => {
+                    const isOpen = expandedId === a.id;
+                    return (
+                      <div key={a.id} className="bg-background hover:bg-card/60 transition-colors">
+                        {/* Title row — clickable */}
+                        <button
+                          className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left"
+                          onClick={() => setExpandedId(isOpen ? null : a.id)}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className="shrink-0 w-1.5 h-1.5 rounded-full bg-primary mt-px"
+                            />
+                            <span className="text-sm font-semibold font-mono truncate leading-snug">
+                              {a.title}
+                            </span>
+                          </div>
+                          {isOpen
+                            ? <ChevronDown className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                            : <ChevronRight className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                          }
+                        </button>
+
+                        {/* Expanded content */}
+                        {isOpen && (
+                          <div className="px-4 pb-4 pt-0">
+                            <div
+                              className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap rounded-lg p-3"
+                              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+                            >
+                              {a.content}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    ))
-                  )}
-                </div>
+                    );
+                  })
+                )}
               </div>
             </PopoverContent>
           </Popover>
