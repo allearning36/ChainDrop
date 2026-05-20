@@ -145,9 +145,16 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
     let currentChainHex: string = "0x1";
     try {
       const chainId = await activeProvider.request({ method: "eth_chainId" });
-      currentChainHex = typeof chainId === "number"
-        ? "0x" + chainId.toString(16)
-        : String(chainId);
+      if (typeof chainId === "number") {
+        currentChainHex = "0x" + chainId.toString(16);
+      } else {
+        const raw = String(chainId);
+        // WalletConnect returns "eip155:1" format — extract numeric part
+        const numeric = raw.includes(":") ? raw.split(":")[1] : raw;
+        currentChainHex = numeric.startsWith("0x")
+          ? numeric
+          : "0x" + parseInt(numeric, 10).toString(16);
+      }
     } catch { /* ignore */ }
 
     // Switch chain if needed
@@ -180,7 +187,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
       const amountWei = BigInt(Math.round(ethAmountNum * 1e18));
       txHash = await activeProvider.request({
         method: "eth_sendTransaction",
-        params: [{ from: walletAddress, to: receiveAddress, value: "0x" + amountWei.toString(16), chainId: targetChainHex }],
+        params: [{ from: walletAddress, to: receiveAddress, value: "0x" + amountWei.toString(16) }],
       }) as string;
     } catch (err: any) {
       setErrorMsg(err?.message || "Transaction rejected or failed");
