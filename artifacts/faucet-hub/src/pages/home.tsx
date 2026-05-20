@@ -16,20 +16,30 @@ export default function Home() {
   const [selectedChain, setSelectedChain] = useState<ChainPublic | null>(null);
   const [search, setSearch] = useState("");
 
-  const { data: chains = [], isLoading } = useGetChains({ type: networkType }, {
-    query: {
-      queryKey: getGetChainsQueryKey({ type: networkType })
-    }
+  const { data: testnetChains = [], isLoading: loadingTestnet } = useGetChains({ type: "testnet" }, {
+    query: { queryKey: getGetChainsQueryKey({ type: "testnet" }) }
   });
+  const { data: mainnetChains = [], isLoading: loadingMainnet } = useGetChains({ type: "mainnet" }, {
+    query: { queryKey: getGetChainsQueryKey({ type: "mainnet" }) }
+  });
+
+  const isLoading = loadingTestnet || loadingMainnet;
+  const chains = networkType === "testnet" ? testnetChains : mainnetChains;
+
+  const isSearching = search.trim().length > 0;
 
   const filteredChains = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return chains;
-    return chains.filter(c =>
-      c.name.toLowerCase().includes(q) ||
-      c.symbol.toLowerCase().includes(q)
-    );
-  }, [chains, search]);
+    // Search across ALL chains (both testnet & mainnet)
+    const all = [...testnetChains, ...mainnetChains];
+    const seen = new Set<number>();
+    return all.filter(c => {
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      return c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q);
+    });
+  }, [chains, testnetChains, mainnetChains, search]);
 
   const coinIds = chains.map(c => c.coingeckoId).filter(Boolean) as string[];
 
@@ -262,6 +272,7 @@ export default function Home() {
                   key={chain.id}
                   chain={chain}
                   onClick={() => setSelectedChain(chain)}
+                  showNetworkBadge={isSearching}
                 />
               ))}
             </div>

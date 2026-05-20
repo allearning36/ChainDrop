@@ -6,9 +6,10 @@ import { formatCooldown } from "@/lib/utils";
 interface ChainCardProps {
   chain: ChainPublic;
   onClick: () => void;
+  showNetworkBadge?: boolean;
 }
 
-export function ChainCard({ chain, onClick }: ChainCardProps) {
+export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) {
   const [soonPopover, setSoonPopover] = useState(false);
 
   const { data: detail } = useGetChain(chain.id, {
@@ -92,12 +93,25 @@ export function ChainCard({ chain, onClick }: ChainCardProps) {
 
           <div className="min-w-0">
             <h3 className="font-bold text-base leading-tight truncate text-white/90">{displayChain.name}</h3>
-            <p
-              className="text-xs font-mono mt-0.5 font-semibold"
-              style={{ color: "rgba(34,197,94,0.7)", letterSpacing: "0.06em" }}
-            >
-              {displayChain.symbol}
-            </p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <p
+                className="text-xs font-mono font-semibold"
+                style={{ color: "rgba(34,197,94,0.7)", letterSpacing: "0.06em" }}
+              >
+                {displayChain.symbol}
+              </p>
+              {showNetworkBadge && (
+                <span
+                  className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded"
+                  style={displayChain.isTestnet
+                    ? { background: "rgba(34,197,94,0.1)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)" }
+                    : { background: "rgba(168,85,247,0.1)", color: "#c084fc", border: "1px solid rgba(168,85,247,0.25)" }
+                  }
+                >
+                  {displayChain.isTestnet ? "Testnet" : "Mainnet"}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Status dot */}
