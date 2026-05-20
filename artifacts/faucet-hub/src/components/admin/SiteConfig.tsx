@@ -5,31 +5,42 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, Globe, Search, Wrench, Shield, AlertTriangle } from "lucide-react";
+import { Loader2, Save, Globe, Search, Wrench, Shield, AlertTriangle, Puzzle } from "lucide-react";
 
 function authHeaders() {
   return { "Content-Type": "application/json", Authorization: `Bearer ${getToken() ?? ""}` };
 }
 
-type Tab = "social" | "seo" | "maintenance" | "ratelimit";
+type Tab = "social" | "seo" | "maintenance" | "ratelimit" | "integrations";
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "social", label: "Social Links", icon: Globe },
   { id: "seo", label: "SEO Settings", icon: Search },
   { id: "maintenance", label: "Maintenance", icon: Wrench },
   { id: "ratelimit", label: "Rate Limit", icon: Shield },
+  { id: "integrations", label: "Integrations", icon: Puzzle },
 ];
 
 interface SocialLinks { twitter: string; telegram: string; discord: string; github: string; }
 interface SEOSettings { title: string; description: string; ogImage: string; }
 interface MaintenanceMode { enabled: boolean; message: string; }
 interface RateLimitConfig { maxAttempts: number; lockoutMinutes: number; }
-interface SiteConfigData { socialLinks: SocialLinks; seoSettings: SEOSettings; maintenanceMode: MaintenanceMode; rateLimitConfig: RateLimitConfig; }
+interface IntegrationsConfig {
+  googleAds: { enabled: boolean; publisherId: string; slots: { header: string; inContent: string; footer: string } };
+  googleAnalytics: { enabled: boolean; measurementId: string };
+  googleSearchConsole: { verificationCode: string };
+}
+interface SiteConfigData { socialLinks: SocialLinks; seoSettings: SEOSettings; maintenanceMode: MaintenanceMode; rateLimitConfig: RateLimitConfig; integrations: IntegrationsConfig; }
 
 const DEFAULT: SiteConfigData = {
   socialLinks: { twitter: "", telegram: "", discord: "", github: "" },
   seoSettings: { title: "ChainDrop — Multi-Chain Crypto Faucet Hub", description: "Get free testnet crypto tokens from ChainDrop.", ogImage: "" },
   maintenanceMode: { enabled: false, message: "We're currently performing maintenance. Please check back soon." },
   rateLimitConfig: { maxAttempts: 5, lockoutMinutes: 15 },
+  integrations: {
+    googleAds: { enabled: false, publisherId: "", slots: { header: "", inContent: "", footer: "" } },
+    googleAnalytics: { enabled: false, measurementId: "" },
+    googleSearchConsole: { verificationCode: "" },
+  },
 };
 
 type SaveFn = (section: keyof SiteConfigData, value: object) => Promise<void>;
@@ -143,6 +154,98 @@ function RateLimitTab({ data, onSave, saving }: { data: RateLimitConfig; onSave:
   );
 }
 
+function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
+  return (
+    <button onClick={onToggle}
+      className={`relative w-12 h-6 rounded-full transition-colors ${enabled ? "bg-primary" : "bg-muted"}`}>
+      <span className={`absolute top-1 left-0 w-4 h-4 rounded-full bg-white transition-transform ${enabled ? "translate-x-7" : "translate-x-1"}`} />
+    </button>
+  );
+}
+
+function IntegrationsTab({ data, onSave, saving }: { data: IntegrationsConfig; onSave: SaveFn; saving: boolean }) {
+  const [form, setForm] = useState(data);
+  useEffect(() => setForm(data), [data]);
+
+  const setAds = (patch: Partial<IntegrationsConfig["googleAds"]>) =>
+    setForm(p => ({ ...p, googleAds: { ...p.googleAds, ...patch } }));
+  const setSlot = (slot: keyof IntegrationsConfig["googleAds"]["slots"], val: string) =>
+    setForm(p => ({ ...p, googleAds: { ...p.googleAds, slots: { ...p.googleAds.slots, [slot]: val } } }));
+  const setGA = (patch: Partial<IntegrationsConfig["googleAnalytics"]>) =>
+    setForm(p => ({ ...p, googleAnalytics: { ...p.googleAnalytics, ...patch } }));
+  const setGSC = (val: string) =>
+    setForm(p => ({ ...p, googleSearchConsole: { verificationCode: val } }));
+
+  return (
+    <div className="space-y-8 max-w-lg">
+      <p className="text-sm text-muted-foreground">Configure third-party services. Changes apply site-wide after saving.</p>
+
+      {/* Google Ads */}
+      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-mono font-semibold text-sm">Google AdSense</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Display ads to monetise your faucet.</p>
+          </div>
+          <Toggle enabled={form.googleAds.enabled} onToggle={() => setAds({ enabled: !form.googleAds.enabled })} />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="font-mono text-xs">Publisher ID</Label>
+          <Input value={form.googleAds.publisherId} onChange={e => setAds({ publisherId: e.target.value })}
+            placeholder="ca-pub-XXXXXXXXXXXXXXXX" className="font-mono bg-background border-border" />
+          <p className="text-xs text-muted-foreground">Found in AdSense → Account → Account information.</p>
+        </div>
+        <div className="space-y-3">
+          <Label className="font-mono text-xs">Ad Unit IDs (optional)</Label>
+          {([["header", "Header (below navbar)"], ["inContent", "In-content (between chain cards)"], ["footer", "Footer (above bottom)"]] as const).map(([slot, label]) => (
+            <div key={slot} className="space-y-1">
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <Input value={form.googleAds.slots[slot]} onChange={e => setSlot(slot, e.target.value)}
+                placeholder="XXXXXXXXXX" className="font-mono bg-background border-border text-xs" />
+            </div>
+          ))}
+          <p className="text-xs text-muted-foreground">Leave blank to skip that slot. Get slot IDs from AdSense → Ads → By ad unit.</p>
+        </div>
+      </div>
+
+      {/* Google Analytics */}
+      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-mono font-semibold text-sm">Google Analytics 4</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Track visitor behaviour and traffic sources.</p>
+          </div>
+          <Toggle enabled={form.googleAnalytics.enabled} onToggle={() => setGA({ enabled: !form.googleAnalytics.enabled })} />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="font-mono text-xs">Measurement ID</Label>
+          <Input value={form.googleAnalytics.measurementId} onChange={e => setGA({ measurementId: e.target.value })}
+            placeholder="G-XXXXXXXXXX" className="font-mono bg-background border-border" />
+          <p className="text-xs text-muted-foreground">Found in GA4 → Admin → Data Streams → your stream.</p>
+        </div>
+      </div>
+
+      {/* Google Search Console */}
+      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <div>
+          <p className="font-mono font-semibold text-sm">Google Search Console</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Verify site ownership for search indexing.</p>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="font-mono text-xs">Verification Code</Label>
+          <Input value={form.googleSearchConsole.verificationCode} onChange={e => setGSC(e.target.value)}
+            placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="font-mono bg-background border-border text-xs" />
+          <p className="text-xs text-muted-foreground">
+            In Search Console → Add property → HTML tag → copy only the <code className="bg-muted px-1 rounded">content="..."</code> value.
+          </p>
+        </div>
+      </div>
+
+      <SaveBtn onClick={() => onSave("integrations", form)} saving={saving} />
+    </div>
+  );
+}
+
 export function SiteConfig() {
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>("social");
@@ -192,6 +295,7 @@ export function SiteConfig() {
       {tab === "seo" && <SEOTab data={cfg.seoSettings} onSave={save} saving={saving} />}
       {tab === "maintenance" && <MaintenanceTab data={cfg.maintenanceMode} onSave={save} saving={saving} />}
       {tab === "ratelimit" && <RateLimitTab data={cfg.rateLimitConfig} onSave={save} saving={saving} />}
+      {tab === "integrations" && <IntegrationsTab data={cfg.integrations} onSave={save} saving={saving} />}
     </div>
   );
 }

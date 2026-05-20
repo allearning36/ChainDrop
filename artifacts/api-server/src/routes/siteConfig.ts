@@ -21,13 +21,19 @@ const DEFAULT_SOCIAL = { twitter: "", telegram: "", discord: "", github: "" };
 const DEFAULT_SEO = { title: "ChainDrop — Multi-Chain Crypto Faucet Hub", description: "Get free testnet crypto tokens from ChainDrop. Supports multiple EVM-compatible chains including Sepolia and more.", ogImage: "" };
 const DEFAULT_MAINTENANCE = { enabled: false, message: "We're currently performing maintenance. Please check back soon." };
 const DEFAULT_RATELIMIT = { maxAttempts: 5, lockoutMinutes: 15 };
+const DEFAULT_INTEGRATIONS = {
+  googleAds: { enabled: false, publisherId: "", slots: { header: "", inContent: "", footer: "" } },
+  googleAnalytics: { enabled: false, measurementId: "" },
+  googleSearchConsole: { verificationCode: "" },
+};
 
 // ── Public endpoint (for footer social links, SEO meta, maintenance banner) ────
 router.get("/site-config/public", async (_req, res): Promise<void> => {
-  const [social, seo, maintenance] = await Promise.all([
+  const [social, seo, maintenance, integrations] = await Promise.all([
     getSetting("socialLinks", DEFAULT_SOCIAL),
     getSetting("seoSettings", DEFAULT_SEO),
     getSetting("maintenanceMode", DEFAULT_MAINTENANCE),
+    getSetting("integrations", DEFAULT_INTEGRATIONS),
   ]);
   res.json({
     socialLinks: social,
@@ -36,18 +42,20 @@ router.get("/site-config/public", async (_req, res): Promise<void> => {
     seoOgImage: seo.ogImage,
     maintenanceEnabled: maintenance.enabled,
     maintenanceMessage: maintenance.message,
+    integrations,
   });
 });
 
 // ── Admin: get all config ─────────────────────────────────────────────────────
 router.get("/admin/site-config", requireAdmin, async (_req, res): Promise<void> => {
-  const [socialLinks, seoSettings, maintenanceMode, rateLimitConfig] = await Promise.all([
+  const [socialLinks, seoSettings, maintenanceMode, rateLimitConfig, integrations] = await Promise.all([
     getSetting("socialLinks", DEFAULT_SOCIAL),
     getSetting("seoSettings", DEFAULT_SEO),
     getSetting("maintenanceMode", DEFAULT_MAINTENANCE),
     getSetting("rateLimitConfig", DEFAULT_RATELIMIT),
+    getSetting("integrations", DEFAULT_INTEGRATIONS),
   ]);
-  res.json({ socialLinks, seoSettings, maintenanceMode, rateLimitConfig });
+  res.json({ socialLinks, seoSettings, maintenanceMode, rateLimitConfig, integrations });
 });
 
 // ── Admin: update sections ────────────────────────────────────────────────────
@@ -86,6 +94,33 @@ router.patch("/admin/site-config/rateLimitConfig", requireAdmin, async (req, res
   await setSetting("rateLimitConfig", {
     maxAttempts: Math.max(1, Math.min(20, Number(maxAttempts) || 5)),
     lockoutMinutes: Math.max(1, Math.min(1440, Number(lockoutMinutes) || 15)),
+  });
+  res.json({ ok: true });
+});
+
+router.patch("/admin/site-config/integrations", requireAdmin, async (req, res): Promise<void> => {
+  const body = req.body as Record<string, unknown>;
+  const ga = (body.googleAds ?? {}) as Record<string, unknown>;
+  const gaSlots = (typeof ga.slots === "object" && ga.slots !== null ? ga.slots : {}) as Record<string, unknown>;
+  const analytics = (body.googleAnalytics ?? {}) as Record<string, unknown>;
+  const gsc = (body.googleSearchConsole ?? {}) as Record<string, unknown>;
+  await setSetting("integrations", {
+    googleAds: {
+      enabled: ga.enabled === true,
+      publisherId: typeof ga.publisherId === "string" ? ga.publisherId.trim() : "",
+      slots: {
+        header: typeof gaSlots.header === "string" ? gaSlots.header.trim() : "",
+        inContent: typeof gaSlots.inContent === "string" ? gaSlots.inContent.trim() : "",
+        footer: typeof gaSlots.footer === "string" ? gaSlots.footer.trim() : "",
+      },
+    },
+    googleAnalytics: {
+      enabled: analytics.enabled === true,
+      measurementId: typeof analytics.measurementId === "string" ? analytics.measurementId.trim() : "",
+    },
+    googleSearchConsole: {
+      verificationCode: typeof gsc.verificationCode === "string" ? gsc.verificationCode.trim() : "",
+    },
   });
   res.json({ ok: true });
 });
