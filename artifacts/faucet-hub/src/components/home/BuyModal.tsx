@@ -134,6 +134,15 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
 
   const activeProvider = walletProvider || window.ethereum;
 
+  /** Parse any chainId format (number, hex string, "eip155:X") to lowercase hex */
+  const parseChainHex = (chainId: unknown): string => {
+    if (typeof chainId === "number") return "0x" + chainId.toString(16);
+    const raw = String(chainId);
+    const numeric = raw.includes(":") ? raw.split(":").pop()! : raw;
+    if (numeric.startsWith("0x")) return numeric.toLowerCase();
+    return "0x" + parseInt(numeric, 10).toString(16);
+  };
+
   const sendEth = async () => {
     if (!activeProvider || !walletAddress || !receiveAddress || !amountValid || !selectedNetwork) return;
     setStep("sending");
@@ -145,40 +154,52 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
     let currentChainHex: string = "0x1";
     try {
       const chainId = await activeProvider.request({ method: "eth_chainId" });
-      if (typeof chainId === "number") {
-        currentChainHex = "0x" + chainId.toString(16);
-      } else {
-        const raw = String(chainId);
-        // WalletConnect returns "eip155:1" format — extract numeric part
-        const numeric = raw.includes(":") ? raw.split(":")[1] : raw;
-        currentChainHex = numeric.startsWith("0x")
-          ? numeric
-          : "0x" + parseInt(numeric, 10).toString(16);
-      }
+      currentChainHex = parseChainHex(chainId);
     } catch { /* ignore */ }
 
     // Switch chain if needed
     if (currentChainHex.toLowerCase() !== targetChainHex.toLowerCase()) {
+      let switched = false;
       try {
         await activeProvider.request({
           method: "wallet_switchEthereumChain",
           params: [{ chainId: targetChainHex }],
         });
+        // Verify the switch actually happened
+        try {
+          const newId = await activeProvider.request({ method: "eth_chainId" });
+          switched = parseChainHex(newId).toLowerCase() === targetChainHex.toLowerCase();
+        } catch { switched = true; /* assume ok */ }
       } catch (switchErr: any) {
-        // Chain not added in wallet — try adding it first
-        if (switchErr?.code === 4902 || switchErr?.message?.includes("Unrecognized")) {
+        const code = switchErr?.code;
+        const msg = String(switchErr?.message || "");
+        // Chain not added in wallet — try wallet_addEthereumChain
+        if (code === 4902 || msg.includes("Unrecognized") || msg.includes("wallet_addEthereumChain")) {
           try {
             await activeProvider.request({
               method: "wallet_addEthereumChain",
-              params: [{ chainId: targetChainHex, chainName: selectedNetwork.name, rpcUrls: [NETWORK_RPC[selectedNetwork.id] || ""] }],
+              params: [{
+                chainId: targetChainHex,
+                chainName: selectedNetwork.name,
+                rpcUrls: [NETWORK_RPC[selectedNetwork.id] || ""],
+              }],
             });
-          } catch { /* ignore */ }
-        } else {
-          // Show friendly message if switch failed
-          setErrorMsg(`Please switch your wallet to ${selectedNetwork.name} network manually, then try again.`);
+            switched = true;
+          } catch { /* ignore, let eth_sendTransaction fail naturally */ }
+        }
+        // For all other errors (including WalletConnect eip155 errors): show friendly message
+        if (!switched) {
+          setErrorMsg(`Please switch to ${selectedNetwork.name} network in your wallet, then tap Send again.`);
           setStep("info");
           return;
         }
+      }
+
+      // If switch didn't take effect, warn and abort
+      if (!switched) {
+        setErrorMsg(`Please switch to ${selectedNetwork.name} network in your wallet, then tap Send again.`);
+        setStep("info");
+        return;
       }
     }
 
@@ -190,7 +211,15 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
         params: [{ from: walletAddress, to: receiveAddress, value: "0x" + amountWei.toString(16) }],
       }) as string;
     } catch (err: any) {
-      setErrorMsg(err?.message || "Transaction rejected or failed");
+      const msg = String(err?.message || "");
+      const code = err?.code;
+      if (code === 4001 || msg.toLowerCase().includes("rejected") || msg.toLowerCase().includes("denied")) {
+        setErrorMsg("Transaction rejected by user.");
+      } else if (msg.includes("eip155") || msg.includes("Missing or invalid") || msg.toLowerCase().includes("chain")) {
+        setErrorMsg(`Wrong network. Please switch to ${selectedNetwork.name} in your wallet and try again.`);
+      } else {
+        setErrorMsg(msg || "Transaction failed. Please try again.");
+      }
       setStep("info");
       return;
     }
