@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   LogOut, LayoutDashboard, Link as LinkIcon, Image, Megaphone,
   HeadphonesIcon, Paintbrush, ClipboardList, ShieldOff, Wallet, KeyRound,
-  FileText, BarChart2, Settings2, Globe
+  FileText, BarChart2, Settings2, Globe, Type
 } from "lucide-react";
 import { StatsOverview } from "@/components/admin/Stats";
 import { ChainManagement } from "@/components/admin/ChainManagement";
@@ -22,6 +22,7 @@ import { PagesManagement } from "@/components/admin/PagesManagement";
 import { Analytics } from "@/components/admin/Analytics";
 import { SiteConfig } from "@/components/admin/SiteConfig";
 import { IPBlocking } from "@/components/admin/IPBlocking";
+import { HeadlineManagement } from "@/components/admin/HeadlineManagement";
 
 async function fetchUnreadCount(): Promise<number> {
   try {
@@ -91,6 +92,9 @@ export default function AdminDashboard() {
             <TabsTrigger value="ipblocks" className={TAB}>
               <Globe className="w-3 h-3" /> IP Block
             </TabsTrigger>
+            <TabsTrigger value="headline" className={TAB}>
+              <Type className="w-3 h-3" /> Headline
+            </TabsTrigger>
             <TabsTrigger value="banners" className={TAB}>
               <Image className="w-3 h-3" /> Banners
             </TabsTrigger>
@@ -128,6 +132,7 @@ export default function AdminDashboard() {
           <TabsContent value="claims" className="mt-0 outline-none"><ClaimsLog /></TabsContent>
           <TabsContent value="blocked" className="mt-0 outline-none"><BlockedAddresses /></TabsContent>
           <TabsContent value="ipblocks" className="mt-0 outline-none"><IPBlocking /></TabsContent>
+          <TabsContent value="headline" className="mt-0 outline-none"><HeadlineManagement /></TabsContent>
           <TabsContent value="banners" className="mt-0 outline-none"><BannerManagement /></TabsContent>
           <TabsContent value="announcements" className="mt-0 outline-none"><AnnouncementManagement /></TabsContent>
           <TabsContent value="support" className="mt-0 outline-none">

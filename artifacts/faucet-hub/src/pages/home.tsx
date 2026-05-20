@@ -3,7 +3,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { SEOHead } from "@/components/layout/SEOHead";
 import { AdSlot } from "@/components/layout/AdSlot";
-import { PriceMarquee } from "@/components/home/PriceMarquee";
+import { HeadlineBanner } from "@/components/home/HeadlineBanner";
 import { Banners } from "@/components/home/Banners";
 import { ChainCard } from "@/components/home/ChainCard";
 import { RecentFeed } from "@/components/home/RecentFeed";
@@ -31,9 +31,9 @@ export default function Home() {
     <div className="min-h-[100dvh] flex flex-col bg-background selection:bg-primary selection:text-primary-foreground">
       <SEOHead />
       <Navbar />
-      
+      <HeadlineBanner />
+
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8">
-        <PriceMarquee coinIds={coinIds} />
         <AdSlot id="home-top" className="my-2" />
         <Banners />
 
