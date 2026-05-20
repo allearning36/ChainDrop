@@ -147,15 +147,10 @@ export default function Home() {
           <h2
             className="text-2xl font-bold font-mono tracking-tight uppercase mb-2"
             style={{
-              background: networkType === "testnet"
-                ? "linear-gradient(135deg, #4ade80 0%, #22c55e 50%, #86efac 100%)"
-                : "linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #d8b4fe 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-              filter: networkType === "testnet"
-                ? "drop-shadow(0 0 12px rgba(34,197,94,0.35))"
-                : "drop-shadow(0 0 12px rgba(168,85,247,0.35))",
+              color: networkType === "testnet" ? "#22c55e" : "#a855f7",
+              textShadow: networkType === "testnet"
+                ? "0 0 24px rgba(34,197,94,0.45), 0 0 8px rgba(34,197,94,0.25)"
+                : "0 0 24px rgba(168,85,247,0.45), 0 0 8px rgba(168,85,247,0.25)",
             }}
           >
             {networkType} Faucets
