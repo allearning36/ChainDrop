@@ -66,7 +66,7 @@ export interface ChainPublic {
   /** @nullable */
   logoUrl?: string | null;
   claimAmount: string;
-  cooldownHours: number;
+  cooldownSeconds: number;
   isTestnet: boolean;
   isEnabled: boolean;
   availableStatus: string;
@@ -103,7 +103,7 @@ export interface ChainDetail {
   /** @nullable */
   logoUrl?: string | null;
   claimAmount: string;
-  cooldownHours: number;
+  cooldownSeconds: number;
   isTestnet: boolean;
   isEnabled: boolean;
   availableStatus: string;
@@ -142,7 +142,7 @@ export interface ChainAdmin {
   rpcUrl: string;
   walletAddress: string;
   claimAmount: string;
-  cooldownHours: number;
+  cooldownSeconds: number;
   isTestnet: boolean;
   isEnabled: boolean;
   availableStatus: string;
@@ -185,7 +185,7 @@ export interface ChainInput {
   privateKey: string;
   walletAddress: string;
   claimAmount?: string;
-  cooldownHours?: number;
+  cooldownSeconds?: number;
   isTestnet?: boolean;
   isEnabled?: boolean;
   availableStatus?: string;
@@ -221,7 +221,7 @@ export interface ChainUpdate {
   privateKey?: string;
   walletAddress?: string;
   claimAmount?: string;
-  cooldownHours?: number;
+  cooldownSeconds?: number;
   isTestnet?: boolean;
   isEnabled?: boolean;
   availableStatus?: string;

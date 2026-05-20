@@ -36,7 +36,7 @@ const ROOT_CAUSE_FIX: Record<string, string> = {
   CAPTCHA_FAILED: "User reCAPTCHA সঠিকভাবে complete করেনি",
   RATE_LIMITED: "IP rate limit hit — স্বাভাবিক",
   ADDRESS_BLOCKED: "Admin কর্তৃক blocked",
-  COOLDOWN_ACTIVE: "24h cooldown এখনো শেষ হয়নি",
+  COOLDOWN_ACTIVE: "Cooldown এখনো শেষ হয়নি",
   UNKNOWN: "Server log দেখো বিস্তারিত জানতে",
 };
 

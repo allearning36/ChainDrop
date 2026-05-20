@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { 
   useGetAdminChains, 
   useCreateChain, 
@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X, ShoppingCart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getToken } from "@/lib/auth";
+import { formatCooldown, secondsToHms, hmsToSeconds } from "@/lib/utils";
 
 const ALL_PAYMENT_NETWORKS = [
   { id: "eth",      name: "Ethereum Mainnet", chainId: 1 },
@@ -73,7 +74,7 @@ const DEFAULT_CHAIN = {
   privateKey: "",
   walletAddress: "",
   claimAmount: "0.01",
-  cooldownHours: 24,
+  cooldownSeconds: 86400,
   isTestnet: true,
   isEnabled: true,
   availableStatus: "YES",
@@ -104,6 +105,15 @@ export function ChainManagement() {
   const [formError, setFormError] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Cooldown H/M/S state (source of truth for the form)
+  const [cdH, setCdH] = useState(24);
+  const [cdM, setCdM] = useState(0);
+  const [cdS, setCdS] = useState(0);
+  const cdPreview = useMemo(() => {
+    const total = hmsToSeconds(cdH, cdM, cdS);
+    return total > 0 ? formatCooldown(total) : "0s";
+  }, [cdH, cdM, cdS]);
 
   const createMutation = useCreateChain();
   const updateMutation = useUpdateChain();
@@ -144,12 +154,15 @@ export function ChainManagement() {
   const handleOpenCreate = () => {
     setEditingChain(null);
     setFormData(DEFAULT_CHAIN);
+    setCdH(24); setCdM(0); setCdS(0);
     setFormError("");
     setIsFormOpen(true);
   };
 
   const handleOpenEdit = (chain: ChainAdmin) => {
     setEditingChain(chain);
+    const { h, m, s } = secondsToHms(chain.cooldownSeconds ?? 86400);
+    setCdH(h); setCdM(m); setCdS(s);
     setFormData({
       ...chain,
       // Never pre-fill private key
@@ -191,7 +204,7 @@ export function ChainManagement() {
 
     const payload: Record<string, unknown> = {
       ...formData,
-      cooldownHours: Number(formData.cooldownHours),
+      cooldownSeconds: hmsToSeconds(Number(cdH), Number(cdM), Number(cdS)),
       sortOrder: Number(formData.sortOrder),
       buyRate: formData.buyRate || "1000",
       buyMinAmount: formData.buyMinAmount || "0.0005",
@@ -317,7 +330,7 @@ export function ChainManagement() {
                         </Badge>
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono text-sm">{chain.claimAmount} / {chain.cooldownHours}h</TableCell>
+                    <TableCell className="font-mono text-sm">{chain.claimAmount} / {formatCooldown(chain.cooldownSeconds)}</TableCell>
                     <TableCell>
                       {chain.buyEnabled ? (
                         <div className="flex flex-col gap-0.5">
@@ -403,8 +416,28 @@ export function ChainManagement() {
               <Input type="number" step="0.0001" value={formData.claimAmount} onChange={e => setFormData({...formData, claimAmount: e.target.value})} className="font-mono" />
             </div>
             <div className="space-y-2">
-              <Label>Cooldown (Hours) *</Label>
-              <Input type="number" min="0" value={formData.cooldownHours} onChange={e => setFormData({...formData, cooldownHours: e.target.value})} className="font-mono" />
+              <Label>Cooldown *</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <div className="relative">
+                    <Input type="number" min="0" value={cdH} onChange={e => setCdH(Math.max(0, Number(e.target.value)))} className="font-mono pr-7" />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">h</span>
+                  </div>
+                </div>
+                <div>
+                  <div className="relative">
+                    <Input type="number" min="0" max="59" value={cdM} onChange={e => setCdM(Math.min(59, Math.max(0, Number(e.target.value))))} className="font-mono pr-7" />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">m</span>
+                  </div>
+                </div>
+                <div>
+                  <div className="relative">
+                    <Input type="number" min="0" max="59" value={cdS} onChange={e => setCdS(Math.min(59, Math.max(0, Number(e.target.value))))} className="font-mono pr-7" />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">s</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground font-mono">Total: <span className="text-primary">{cdPreview}</span></p>
             </div>
             <div className="space-y-2">
               <Label>CoinGecko ID</Label>

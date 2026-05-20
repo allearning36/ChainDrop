@@ -16,7 +16,7 @@ export interface ChainInput {
   privateKey: string;
   walletAddress: string;
   claimAmount?: string;
-  cooldownHours?: number;
+  cooldownSeconds?: number;
   isTestnet?: boolean;
   isEnabled?: boolean;
   availableStatus?: string;

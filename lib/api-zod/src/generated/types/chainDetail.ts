@@ -15,7 +15,7 @@ export interface ChainDetail {
   /** @nullable */
   logoUrl?: string | null;
   claimAmount: string;
-  cooldownHours: number;
+  cooldownSeconds: number;
   isTestnet: boolean;
   isEnabled: boolean;
   availableStatus: string;

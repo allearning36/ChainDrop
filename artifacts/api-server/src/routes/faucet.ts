@@ -104,7 +104,7 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
     return;
   }
 
-  const cooldownMs = chain.cooldownHours * 60 * 60 * 1000;
+  const cooldownMs = chain.cooldownSeconds * 1000;
   const since = new Date(Date.now() - cooldownMs);
 
   const [recent] = await db
@@ -197,7 +197,7 @@ router.get("/faucet/status/:chainId/:address", async (req, res): Promise<void> =
     return;
   }
 
-  const cooldownMs = chain.cooldownHours * 60 * 60 * 1000;
+  const cooldownMs = chain.cooldownSeconds * 1000;
   const since = new Date(Date.now() - cooldownMs);
 
   const [recent] = await db

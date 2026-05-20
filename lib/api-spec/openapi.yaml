@@ -839,7 +839,7 @@ components:
 
     ChainPublic:
       type: object
-      required: [id, name, symbol, chainType, claimAmount, cooldownHours, isTestnet, isEnabled, availableStatus, buyEnabled, sortOrder]
+      required: [id, name, symbol, chainType, claimAmount, cooldownSeconds, isTestnet, isEnabled, availableStatus, buyEnabled, sortOrder]
       properties:
         id:
           type: integer
@@ -854,7 +854,7 @@ components:
           type: ["string", "null"]
         claimAmount:
           type: string
-        cooldownHours:
+        cooldownSeconds:
           type: integer
         isTestnet:
           type: boolean
@@ -879,7 +879,7 @@ components:
 
     ChainDetail:
       type: object
-      required: [id, name, symbol, chainType, claimAmount, cooldownHours, isTestnet, isEnabled, availableStatus, buyEnabled, sortOrder]
+      required: [id, name, symbol, chainType, claimAmount, cooldownSeconds, isTestnet, isEnabled, availableStatus, buyEnabled, sortOrder]
       properties:
         id:
           type: integer
@@ -894,7 +894,7 @@ components:
           type: ["string", "null"]
         claimAmount:
           type: string
-        cooldownHours:
+        cooldownSeconds:
           type: integer
         isTestnet:
           type: boolean
@@ -919,7 +919,7 @@ components:
 
     ChainAdmin:
       type: object
-      required: [id, name, symbol, chainType, rpcUrl, walletAddress, claimAmount, cooldownHours, isTestnet, isEnabled, availableStatus, buyEnabled, buyRate, buyMinAmount, buyCurrencies, sortOrder, createdAt]
+      required: [id, name, symbol, chainType, rpcUrl, walletAddress, claimAmount, cooldownSeconds, isTestnet, isEnabled, availableStatus, buyEnabled, buyRate, buyMinAmount, buyCurrencies, sortOrder, createdAt]
       properties:
         id:
           type: integer
@@ -938,7 +938,7 @@ components:
           type: string
         claimAmount:
           type: string
-        cooldownHours:
+        cooldownSeconds:
           type: integer
         isTestnet:
           type: boolean
@@ -992,7 +992,7 @@ components:
           type: string
         claimAmount:
           type: string
-        cooldownHours:
+        cooldownSeconds:
           type: integer
         isTestnet:
           type: boolean
@@ -1041,7 +1041,7 @@ components:
           type: string
         claimAmount:
           type: string
-        cooldownHours:
+        cooldownSeconds:
           type: integer
         isTestnet:
           type: boolean

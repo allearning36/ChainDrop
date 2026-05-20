@@ -3,6 +3,7 @@ import { ChainPublic, useGetChain, getGetChainQueryKey } from "@workspace/api-cl
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Droplet, Wallet, Zap, Clock } from "lucide-react";
+import { formatCooldown } from "@/lib/utils";
 
 interface ChainCardProps {
   chain: ChainPublic;
@@ -74,7 +75,7 @@ export function ChainCard({ chain, onClick }: ChainCardProps) {
             <span className="text-muted-foreground flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" /> Cooldown
             </span>
-            <span className="font-mono text-xs">{displayChain.cooldownHours}h</span>
+            <span className="font-mono text-xs">{formatCooldown(displayChain.cooldownSeconds)}</span>
           </div>
         </div>
 

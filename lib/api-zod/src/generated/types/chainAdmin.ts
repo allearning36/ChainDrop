@@ -17,7 +17,7 @@ export interface ChainAdmin {
   rpcUrl: string;
   walletAddress: string;
   claimAmount: string;
-  cooldownHours: number;
+  cooldownSeconds: number;
   isTestnet: boolean;
   isEnabled: boolean;
   availableStatus: string;

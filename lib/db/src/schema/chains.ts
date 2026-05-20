@@ -11,7 +11,7 @@ export const chainsTable = pgTable("chains", {
   privateKey: text("private_key").notNull(),
   walletAddress: text("wallet_address").notNull(),
   claimAmount: numeric("claim_amount", { precision: 18, scale: 8 }).notNull().default("0.05"),
-  cooldownHours: integer("cooldown_hours").notNull().default(24),
+  cooldownSeconds: integer("cooldown_seconds").notNull().default(86400),
   isTestnet: boolean("is_testnet").notNull().default(true),
   isEnabled: boolean("is_enabled").notNull().default(true),
   availableStatus: text("available_status").notNull().default("YES"),

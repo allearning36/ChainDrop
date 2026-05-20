@@ -4,6 +4,7 @@ import { Footer } from "@/components/layout/Footer";
 import { SEOHead } from "@/components/layout/SEOHead";
 import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatCooldown } from "@/lib/utils";
 
 interface ChainStatus {
   id: number;
@@ -13,7 +14,7 @@ interface ChainStatus {
   isTestnet: boolean;
   isEnabled: boolean;
   availableStatus: string;
-  cooldownHours: number;
+  cooldownSeconds: number;
   claimAmount: string;
 }
 
@@ -133,7 +134,7 @@ export default function StatusPage() {
                     : <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-xs font-mono font-bold text-muted-foreground">{chain.symbol.slice(0, 3)}</div>}
                   <div>
                     <p className="font-mono font-semibold text-sm">{chain.name}</p>
-                    <p className="text-xs text-muted-foreground">{chain.claimAmount} {chain.symbol} · {chain.cooldownHours}h cooldown</p>
+                    <p className="text-xs text-muted-foreground">{chain.claimAmount} {chain.symbol} · {formatCooldown(chain.cooldownSeconds)} cooldown</p>
                   </div>
                 </div>
                 <StatusBadge isEnabled={chain.isEnabled} available={chain.availableStatus} />

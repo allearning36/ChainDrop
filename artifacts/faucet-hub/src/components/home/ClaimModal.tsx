@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ChainPublic, useGetFaucetStatus, useClaimFaucet, getGetChainQueryKey, getGetFaucetStatusQueryKey } from "@workspace/api-client-react";
+import { formatCooldown } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, ExternalLink, Clock, Zap, ShoppingCart, CheckCircle2, Copy, Check, AlertCircle } from "lucide-react";
 import { BuyModal } from "./BuyModal";
@@ -201,7 +202,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                   </span>
                 </div>
                 <p className="text-xs font-mono mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>
-                  {chain.claimAmount} {chain.symbol} · {chain.cooldownHours}h cooldown
+                  {chain.claimAmount} {chain.symbol} · {formatCooldown(chain.cooldownSeconds)} cooldown
                 </p>
               </div>
               <button
@@ -297,7 +298,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                       cursor: "not-allowed",
                     }}
                   >
-                    <Clock className="w-4 h-4" /> Come Back in {chain.cooldownHours}h
+                    <Clock className="w-4 h-4" /> Come Back in {formatCooldown(chain.cooldownSeconds)}
                   </button>
                 ) : (
                   <button
@@ -351,7 +352,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                   </div>
                   <div className="rounded-xl px-4 py-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
                     <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>Cooldown</p>
-                    <p className="text-sm font-bold font-mono" style={{ color: "#a855f7" }}>{chain.cooldownHours}h</p>
+                    <p className="text-sm font-bold font-mono" style={{ color: "#a855f7" }}>{formatCooldown(chain.cooldownSeconds)}</p>
                   </div>
                 </div>
               </div>
@@ -441,7 +442,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                     cursor: "not-allowed",
                   }}
                 >
-                  <Clock className="w-4 h-4" /> Come Back in {chain.cooldownHours}h
+                  <Clock className="w-4 h-4" /> Come Back in {formatCooldown(chain.cooldownSeconds)}
                 </button>
 
                 {chain.buyEnabled && (
