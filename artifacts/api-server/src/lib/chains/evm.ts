@@ -45,35 +45,44 @@ export async function sendEvm(
 
     logger.info({ toAddress, amount }, "Sending EVM tokens");
 
-    // ── Pre-flight: check balance before spending gas on doomed txs ──────────
-    const balanceWei = await withTimeout(
-      provider.getBalance(wallet.address),
-      RPC_TIMEOUT_MS,
-      "getBalance"
-    );
-    // Require at least 105 % of the claim amount to cover gas
-    const minRequired = (amountWei * 105n) / 100n;
-    if (balanceWei < minRequired) {
-      const balanceEth = ethers.formatEther(balanceWei);
-      const requiredEth = ethers.formatEther(minRequired);
-      logger.warn({ balance: balanceEth, required: requiredEth, walletAddress: wallet.address }, "Insufficient faucet wallet balance");
+    // ── Fetch balance and fee data in parallel ────────────────────────────────
+    const [balanceWei, feeData] = await Promise.all([
+      withTimeout(provider.getBalance(wallet.address), RPC_TIMEOUT_MS, "getBalance"),
+      withTimeout(provider.getFeeData(), RPC_TIMEOUT_MS, "getFeeData"),
+    ]);
+
+    // ── Build tx overrides with explicit gasLimit for native transfers ─────────
+    // Native ETH transfers always use exactly 21 000 gas; setting this explicitly
+    // prevents the node from running (and mis-estimating) gas, and lets us
+    // accurately predict the maximum fee before sending.
+    const GAS_LIMIT = 21_000n;
+    const txOverrides: Record<string, unknown> = { to: toAddress, value: amountWei, gasLimit: GAS_LIMIT };
+    let effectiveGasPrice: bigint;
+    if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
+      const inflatedMax      = (feeData.maxFeePerGas      * 120n) / 100n;
+      const inflatedPriority = (feeData.maxPriorityFeePerGas * 120n) / 100n;
+      txOverrides.maxFeePerGas = inflatedMax;
+      txOverrides.maxPriorityFeePerGas = inflatedPriority;
+      effectiveGasPrice = inflatedMax;
+    } else {
+      const inflatedGasPrice = ((feeData.gasPrice ?? 1n) * 120n) / 100n;
+      txOverrides.gasPrice = inflatedGasPrice;
+      effectiveGasPrice = inflatedGasPrice;
+    }
+
+    // ── Pre-flight: verify wallet can cover amount + max gas cost ─────────────
+    const maxGasCost = GAS_LIMIT * effectiveGasPrice;
+    const totalRequired = amountWei + maxGasCost;
+    if (balanceWei < totalRequired) {
+      const balanceEth  = ethers.formatEther(balanceWei);
+      const requiredEth = ethers.formatEther(totalRequired);
+      logger.warn(
+        { balance: balanceEth, required: requiredEth, gasPrice: effectiveGasPrice.toString(), walletAddress: wallet.address },
+        "Insufficient faucet wallet balance (amount + gas)"
+      );
       throw new EvmInsufficientBalanceError(balanceEth, requiredEth);
     }
-    // ────────────────────────────────────────────────────────────────────────
-
-    const feeData = await withTimeout(
-      provider.getFeeData(),
-      RPC_TIMEOUT_MS,
-      "getFeeData"
-    );
-
-    const txOverrides: Record<string, unknown> = { to: toAddress, value: amountWei };
-    if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
-      txOverrides.maxFeePerGas = (feeData.maxFeePerGas * 130n) / 100n;
-      txOverrides.maxPriorityFeePerGas = (feeData.maxPriorityFeePerGas * 130n) / 100n;
-    } else if (feeData.gasPrice) {
-      txOverrides.gasPrice = (feeData.gasPrice * 130n) / 100n;
-    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     const tx = await withTimeout(
       wallet.sendTransaction(txOverrides),
