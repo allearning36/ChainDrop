@@ -152,7 +152,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   return (
     <>
       <Dialog open={!!chain} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-md w-full p-0 overflow-hidden border-0 bg-transparent shadow-none">
+        <DialogContent className="sm:max-w-md w-full p-0 overflow-hidden border-0 bg-transparent shadow-none [&>button]:hidden">
           <div
             className="relative w-full rounded-2xl overflow-hidden"
             style={{
