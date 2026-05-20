@@ -33,7 +33,7 @@ async function fetchUnreadCount(): Promise<number> {
   } catch { return 0; }
 }
 
-const TAB = "font-mono text-xs data-[state=active]:bg-primary/20 data-[state=active]:text-primary gap-1 h-9 px-2.5";
+const TAB = "font-mono text-xs data-[state=active]:bg-primary/20 data-[state=active]:text-primary gap-1 h-9 px-0 w-9 sm:w-auto sm:px-2.5 flex-shrink-0";
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
@@ -68,41 +68,40 @@ export default function AdminDashboard() {
 
       <main className="flex-1 container mx-auto px-4 py-8">
         <Tabs defaultValue="stats" className="w-full space-y-8">
-          <div className="overflow-x-auto scrollbar-none -mx-4 px-4">
-          <TabsList className="bg-card border border-border h-10 p-1 gap-0.5 flex flex-nowrap w-max min-w-full md:w-full md:flex-wrap md:h-auto">
-            <TabsTrigger value="live" className={TAB}>
-              <Radio className="w-3 h-3" /> Live
+          <TabsList className="bg-card border border-border p-1 gap-0.5 flex flex-wrap h-auto w-full">
+            <TabsTrigger value="live" className={TAB} title="Live">
+              <Radio className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Live</span>
             </TabsTrigger>
-            <TabsTrigger value="stats" className={TAB}>
-              <LayoutDashboard className="w-3 h-3" /> Stats
+            <TabsTrigger value="stats" className={TAB} title="Stats">
+              <LayoutDashboard className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Stats</span>
             </TabsTrigger>
-            <TabsTrigger value="analytics" className={TAB}>
-              <BarChart2 className="w-3 h-3" /> Analytics
+            <TabsTrigger value="analytics" className={TAB} title="Analytics">
+              <BarChart2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Analytics</span>
             </TabsTrigger>
-            <TabsTrigger value="audience" className={TAB}>
-              <Users className="w-3 h-3" /> Audience
+            <TabsTrigger value="audience" className={TAB} title="Audience">
+              <Users className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Audience</span>
             </TabsTrigger>
-            <TabsTrigger value="chains" className={TAB}>
-              <LinkIcon className="w-3 h-3" /> Chains
+            <TabsTrigger value="chains" className={TAB} title="Chains">
+              <LinkIcon className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Chains</span>
             </TabsTrigger>
-            <TabsTrigger value="wallets" className={TAB}>
-              <Wallet className="w-3 h-3" /> Wallets
+            <TabsTrigger value="wallets" className={TAB} title="Wallets">
+              <Wallet className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Wallets</span>
             </TabsTrigger>
-            <TabsTrigger value="claims" className={TAB}>
-              <ClipboardList className="w-3 h-3" /> Claims
+            <TabsTrigger value="claims" className={TAB} title="Claims">
+              <ClipboardList className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Claims</span>
             </TabsTrigger>
-            <TabsTrigger value="blocked" className={TAB}>
-              <ShieldOff className="w-3 h-3" /> Blocked
+            <TabsTrigger value="blocked" className={TAB} title="Blocked">
+              <ShieldOff className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Blocked</span>
             </TabsTrigger>
-            <TabsTrigger value="ipblocks" className={TAB}>
-              <Globe className="w-3 h-3" /> IP Block
+            <TabsTrigger value="ipblocks" className={TAB} title="IP Block">
+              <Globe className="w-3.5 h-3.5" /> <span className="hidden sm:inline">IP Block</span>
             </TabsTrigger>
-            <TabsTrigger value="post" className={TAB}>
-              <Send className="w-3 h-3" /> Post
+            <TabsTrigger value="post" className={TAB} title="Post">
+              <Send className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Post</span>
             </TabsTrigger>
-            <TabsTrigger value="support" className={TAB}>
-              <HeadphonesIcon className="w-3 h-3" />
-              Support
+            <TabsTrigger value="support" className={TAB} title="Support">
+              <HeadphonesIcon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Support</span>
               {supportUnread > 0 && (
                 <span className="inline-flex items-center justify-center font-mono font-bold text-white rounded-full text-[9px] px-1 min-w-[14px] h-[14px] leading-none"
                   style={{ background: "#ef4444", boxShadow: "0 0 6px rgba(239,68,68,0.8)" }}>
@@ -110,14 +109,13 @@ export default function AdminDashboard() {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="pages" className={TAB}>
-              <FileText className="w-3 h-3" /> Pages
+            <TabsTrigger value="pages" className={TAB} title="Pages">
+              <FileText className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Pages</span>
             </TabsTrigger>
-            <TabsTrigger value="siteconfig" className={TAB}>
-              <Settings2 className="w-3 h-3" /> Settings
+            <TabsTrigger value="siteconfig" className={TAB} title="Settings">
+              <Settings2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Settings</span>
             </TabsTrigger>
           </TabsList>
-          </div>
 
           <TabsContent value="live" className="mt-0 outline-none"><LiveMonitor /></TabsContent>
           <TabsContent value="stats" className="mt-0 outline-none"><StatsOverview /></TabsContent>
