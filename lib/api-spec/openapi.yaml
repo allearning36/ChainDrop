@@ -1182,6 +1182,8 @@ components:
           type: string
         logoUrl:
           type: ["string", "null"]
+        explorerUrl:
+          type: ["string", "null"]
         address:
           type: string
         txHash:

@@ -245,6 +245,7 @@ router.get("/faucet/history", async (_req, res): Promise<void> => {
       chainName: chainsTable.name,
       symbol: chainsTable.symbol,
       logoUrl: chainsTable.logoUrl,
+      explorerUrl: chainsTable.explorerUrl,
       address: claimsTable.address,
       txHash: claimsTable.txHash,
       amount: claimsTable.amount,
@@ -261,6 +262,7 @@ router.get("/faucet/history", async (_req, res): Promise<void> => {
       chainName: chainsTable.name,
       symbol: chainsTable.symbol,
       logoUrl: chainsTable.logoUrl,
+      explorerUrl: chainsTable.explorerUrl,
       address: purchasesTable.userAddress,
       txHash: purchasesTable.testnetTxHash,
       amount: purchasesTable.testnetAmountSent,
@@ -276,14 +278,16 @@ router.get("/faucet/history", async (_req, res): Promise<void> => {
   const combined = [
     ...claims.map((c) => ({
       id: c.id, chainId: c.chainId, chainName: c.chainName, symbol: c.symbol,
-      logoUrl: c.logoUrl ?? null, address: c.address, txHash: c.txHash,
+      logoUrl: c.logoUrl ?? null, explorerUrl: c.explorerUrl ?? null,
+      address: c.address, txHash: c.txHash,
       amount: c.amount, claimedAt: c.claimedAt.toISOString(), type: "claim" as const,
     })),
     ...purchases
       .filter((p) => p.txHash && p.amount)
       .map((p) => ({
         id: p.id, chainId: p.chainId, chainName: p.chainName, symbol: p.symbol,
-        logoUrl: p.logoUrl ?? null, address: p.address, txHash: p.txHash!,
+        logoUrl: p.logoUrl ?? null, explorerUrl: p.explorerUrl ?? null,
+        address: p.address, txHash: p.txHash!,
         amount: p.amount!, claimedAt: p.claimedAt.toISOString(), type: "buy" as const,
       })),
   ]

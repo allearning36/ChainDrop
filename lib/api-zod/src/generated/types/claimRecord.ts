@@ -14,6 +14,8 @@ export interface ClaimRecord {
   symbol: string;
   /** @nullable */
   logoUrl?: string | null;
+  /** @nullable */
+  explorerUrl?: string | null;
   address: string;
   txHash: string;
   amount: string;

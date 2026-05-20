@@ -2,7 +2,12 @@ import { useGetFaucetHistory, getGetFaucetHistoryQueryKey } from "@workspace/api
 import { formatDistanceToNow } from "date-fns";
 import { ExternalLink, ShoppingCart, Droplets } from "lucide-react";
 
-function getExplorerUrl(chainName: string, txHash: string): string {
+function getExplorerUrl(chainName: string, txHash: string, explorerUrl?: string | null): string {
+  // Use chain's configured explorer URL first
+  if (explorerUrl) {
+    return `${explorerUrl.replace(/\/$/, "")}/tx/${txHash}`;
+  }
+  // Fall back to well-known explorers by chain name
   const name = chainName.toLowerCase();
   if (name.includes("sepolia"))    return `https://sepolia.etherscan.io/tx/${txHash}`;
   if (name.includes("ethereum"))   return `https://etherscan.io/tx/${txHash}`;
@@ -128,7 +133,7 @@ export function RecentFeed() {
                 </span>
 
                 <a
-                  href={getExplorerUrl(record.chainName, record.txHash)}
+                  href={getExplorerUrl(record.chainName, record.txHash, record.explorerUrl)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 text-[11px] font-mono transition-colors hover:opacity-80"

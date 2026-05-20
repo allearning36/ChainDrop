@@ -167,6 +167,7 @@ export const GetFaucetHistoryResponseItem = zod.object({
   "chainName": zod.string(),
   "symbol": zod.string(),
   "logoUrl": zod.string().nullish(),
+  "explorerUrl": zod.string().nullish(),
   "address": zod.string(),
   "txHash": zod.string(),
   "amount": zod.string(),
