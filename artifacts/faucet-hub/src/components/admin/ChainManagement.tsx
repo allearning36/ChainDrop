@@ -450,30 +450,6 @@ export function ChainManagement() {
                   </Select>
                   <p className="text-[10px] text-muted-foreground font-mono">Changing chain type will clear address & private key fields.</p>
                 </div>
-                <div className="space-y-1.5 flex items-center justify-between p-3 rounded-lg sm:col-span-1" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                  <div>
-                    <Label className="text-xs cursor-pointer">Testnet</Label>
-                    <p className="text-[10px] text-muted-foreground font-mono">Mark as test network</p>
-                  </div>
-                  <Switch checked={formData.isTestnet} onCheckedChange={c => setFormData({...formData, isTestnet: c})} />
-                </div>
-                <div className="space-y-1.5 flex items-center justify-between p-3 rounded-lg" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                  <div>
-                    <Label className="text-xs cursor-pointer">Chain Enabled</Label>
-                    <p className="text-[10px] text-muted-foreground font-mono">Show on the faucet hub</p>
-                  </div>
-                  <Switch checked={formData.isEnabled} onCheckedChange={c => setFormData({...formData, isEnabled: c})} />
-                </div>
-              </div>
-            </div>
-
-            {/* ── SECTION 2: Network & RPC ── */}
-            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-              <div className="flex items-center gap-2.5 px-4 py-2.5" style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-                <Server className="w-3.5 h-3.5" style={{ color: "#38bdf8" }} />
-                <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: "#38bdf8" }}>Network & RPC</span>
-              </div>
-              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label className="text-xs">RPC URL <span className="text-destructive">*</span></Label>
                   <Input value={formData.rpcUrl} onChange={e => setFormData({...formData, rpcUrl: e.target.value})} placeholder="https://rpc.example.com" className="font-mono text-sm h-9" />
@@ -484,9 +460,27 @@ export function ChainManagement() {
                   <p className="text-[10px] text-muted-foreground font-mono">1=ETH · 137=Polygon · 11155111=Sepolia</p>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">⛽ Gas Price Override <span className="text-muted-foreground font-normal">(gwei)</span></Label>
-                  <Input type="number" min="0" step="0.1" value={formData.gasPriceGwei} onChange={e => setFormData({...formData, gasPriceGwei: e.target.value})} placeholder="Auto (leave blank)" className="font-mono text-sm h-9" />
-                  <p className="text-[10px] text-muted-foreground font-mono">Override if auto gas causes errors</p>
+                  <Label className="text-xs">Block Explorer URL</Label>
+                  <Input value={formData.explorerUrl} onChange={e => setFormData({...formData, explorerUrl: e.target.value})} placeholder="https://explorer.example.com" className="font-mono text-sm h-9" />
+                  <p className="text-[10px] font-mono" style={{ color: formData.explorerUrl ? "#4ade80" : "rgba(251,191,36,0.8)" }}>
+                    {formData.explorerUrl
+                      ? `✓ ${formData.explorerUrl.replace(/\/$/, "")}/tx/0x...`
+                      : "⚠ No TX link will show without this"}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg sm:col-span-1" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div>
+                    <Label className="text-xs cursor-pointer">Testnet</Label>
+                    <p className="text-[10px] text-muted-foreground font-mono">Mark as test network</p>
+                  </div>
+                  <Switch checked={formData.isTestnet} onCheckedChange={c => setFormData({...formData, isTestnet: c})} />
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div>
+                    <Label className="text-xs cursor-pointer">Chain Enabled</Label>
+                    <p className="text-[10px] text-muted-foreground font-mono">Show on the faucet hub</p>
+                  </div>
+                  <Switch checked={formData.isEnabled} onCheckedChange={c => setFormData({...formData, isEnabled: c})} />
                 </div>
               </div>
             </div>
@@ -643,16 +637,6 @@ export function ChainManagement() {
                     </div>
                   </div>
                   <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ""; }} />
-                </div>
-                {/* Explorer */}
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label className="text-xs">Block Explorer URL</Label>
-                  <Input value={formData.explorerUrl} onChange={e => setFormData({...formData, explorerUrl: e.target.value})} placeholder="https://explorer.example.com" className="font-mono text-sm h-9" />
-                  <p className="text-[10px] font-mono" style={{ color: formData.explorerUrl ? "#4ade80" : "rgba(251,191,36,0.8)" }}>
-                    {formData.explorerUrl
-                      ? `✓ TX link: ${formData.explorerUrl.replace(/\/$/, "")}/tx/0x...`
-                      : "⚠ Required for TX links in Recent Drops — no link will show without this"}
-                  </p>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">CoinGecko ID</Label>
