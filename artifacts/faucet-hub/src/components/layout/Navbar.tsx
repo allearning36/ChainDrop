@@ -60,19 +60,10 @@ export function Navbar() {
             variant="ghost"
             size="sm"
             onClick={() => setSupportOpen(true)}
-            className="h-9 gap-2 text-xs font-mono font-semibold text-muted-foreground hover:text-foreground hidden sm:flex"
+            className="h-9 gap-1.5 text-xs font-mono font-semibold text-muted-foreground hover:text-foreground flex"
           >
-            <MessageCircle className="h-4 w-4" />
+            <MessageCircle className="h-4 w-4 shrink-0" />
             Support
-          </Button>
-          {/* Mobile support icon */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSupportOpen(true)}
-            className="sm:hidden"
-          >
-            <MessageCircle className="h-5 w-5" />
           </Button>
 
           {/* Announcements bell */}
