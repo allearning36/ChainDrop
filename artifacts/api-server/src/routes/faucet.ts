@@ -136,7 +136,14 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
     txHash = result.txHash;
   } catch (err) {
     req.log.error({ err }, "Failed to send tokens");
-    res.status(500).json({ error: "Transaction failed. Please try again later." });
+    const msg = err instanceof Error ? err.message : "";
+    if (msg.includes("timed out") || msg.includes("timeout") || msg.includes("network") || msg.includes("ECONNREFUSED") || msg.includes("ENOTFOUND")) {
+      res.status(503).json({ error: "Could not connect to the network. The RPC node may be down — please try again later." });
+    } else if (msg.includes("insufficient funds") || msg.includes("insufficient balance")) {
+      res.status(503).json({ error: "Faucet wallet has insufficient funds. Please try again later." });
+    } else {
+      res.status(500).json({ error: "Transaction failed. Please try again later." });
+    }
     return;
   }
 
