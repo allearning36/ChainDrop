@@ -3,6 +3,20 @@ import { formatDistanceToNow } from "date-fns";
 import { ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
+function getExplorerUrl(chainName: string, txHash: string): string {
+  const name = chainName.toLowerCase();
+  if (name.includes("sepolia"))    return `https://sepolia.etherscan.io/tx/${txHash}`;
+  if (name.includes("ethereum"))   return `https://etherscan.io/tx/${txHash}`;
+  if (name.includes("polygon"))    return `https://polygonscan.com/tx/${txHash}`;
+  if (name.includes("base"))       return `https://basescan.org/tx/${txHash}`;
+  if (name.includes("arbitrum"))   return `https://arbiscan.io/tx/${txHash}`;
+  if (name.includes("optimism") || name.includes("op mainnet")) return `https://optimistic.etherscan.io/tx/${txHash}`;
+  if (name.includes("bsc") || name.includes("binance")) return `https://bscscan.com/tx/${txHash}`;
+  if (name.includes("avalanche"))  return `https://snowtrace.io/tx/${txHash}`;
+  if (name.includes("fantom"))     return `https://ftmscan.com/tx/${txHash}`;
+  return `https://blockscan.com/tx/${txHash}`;
+}
+
 export function RecentFeed() {
   const { data: history = [] } = useGetFaucetHistory({
     query: { 
@@ -43,8 +57,9 @@ export function RecentFeed() {
               <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono">
                 <span>{formatDistanceToNow(new Date(record.claimedAt), { addSuffix: true })}</span>
                 <a 
-                  href={`#tx-${record.txHash}`} 
+                  href={getExplorerUrl(record.chainName, record.txHash)}
                   target="_blank"
+                  rel="noopener noreferrer"
                   className="hover:text-primary transition-colors flex items-center gap-1"
                 >
                   <ExternalLink className="w-3 h-3" />
