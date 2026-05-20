@@ -75,6 +75,8 @@ export interface ChainPublic {
   isTestnet: boolean;
   isEnabled: boolean;
   isPinned?: boolean;
+  /** @nullable */
+  gasPriceGwei?: string | null;
   availableStatus: string;
   buyEnabled: boolean;
   /** @nullable */
@@ -120,6 +122,8 @@ export interface ChainDetail {
   isTestnet: boolean;
   isEnabled: boolean;
   isPinned?: boolean;
+  /** @nullable */
+  gasPriceGwei?: string | null;
   availableStatus: string;
   buyEnabled: boolean;
   /** @nullable */
@@ -167,6 +171,8 @@ export interface ChainAdmin {
   isTestnet: boolean;
   isEnabled: boolean;
   isPinned?: boolean;
+  /** @nullable */
+  gasPriceGwei?: string | null;
   availableStatus: string;
   buyEnabled: boolean;
   /** @nullable */
@@ -215,6 +221,8 @@ export interface ChainInput {
   isTestnet?: boolean;
   isEnabled?: boolean;
   isPinned?: boolean;
+  /** @nullable */
+  gasPriceGwei?: string | null;
   availableStatus?: string;
   buyEnabled?: boolean;
   buyUrl?: string;
@@ -255,6 +263,8 @@ export interface ChainUpdate {
   isTestnet?: boolean;
   isEnabled?: boolean;
   isPinned?: boolean;
+  /** @nullable */
+  gasPriceGwei?: string | null;
   availableStatus?: string;
   buyEnabled?: boolean;
   buyUrl?: string;

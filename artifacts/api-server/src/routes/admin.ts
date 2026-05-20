@@ -132,6 +132,7 @@ router.get("/admin/chains", async (_req, res): Promise<void> => {
       explorerUrl: c.explorerUrl,
       tokenPrice: c.tokenPrice,
       coingeckoId: c.coingeckoId,
+      gasPriceGwei: c.gasPriceGwei,
       sortOrder: c.sortOrder,
       createdAt: c.createdAt.toISOString(),
     }))
@@ -231,6 +232,7 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     explorerUrl: chain.explorerUrl,
     tokenPrice: chain.tokenPrice,
     coingeckoId: chain.coingeckoId,
+    gasPriceGwei: chain.gasPriceGwei,
     sortOrder: chain.sortOrder,
     createdAt: chain.createdAt.toISOString(),
   });

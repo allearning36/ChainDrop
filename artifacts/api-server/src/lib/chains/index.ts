@@ -33,12 +33,13 @@ export async function sendTokens(
   rpcUrl: string,
   privateKey: string,
   toAddress: string,
-  amount: string
+  amount: string,
+  options?: { gasPriceGwei?: string | null }
 ): Promise<{ txHash: string }> {
   switch (chainType) {
     case "evm": {
       const { sendEvm } = await import("./evm");
-      return sendEvm(rpcUrl, privateKey, toAddress, amount);
+      return sendEvm(rpcUrl, privateKey, toAddress, amount, options?.gasPriceGwei);
     }
     case "solana": {
       const { sendSolana } = await import("./solana");

@@ -89,6 +89,7 @@ const DEFAULT_CHAIN = {
   tokenPrice: "",
   coingeckoId: "",
   soonMessage: "",
+  gasPriceGwei: "",
   sortOrder: 0
 };
 
@@ -199,6 +200,7 @@ export function ChainManagement() {
       tokenPrice: chain.tokenPrice ?? "",
       coingeckoId: chain.coingeckoId ?? "",
       soonMessage: chain.soonMessage ?? "",
+      gasPriceGwei: chain.gasPriceGwei ?? "",
       receiveAddress: chain.receiveAddress ?? "",
       buyRate: chain.buyRate || "1000",
       buyMinAmount: chain.buyMinAmount || "0.0005",
@@ -238,7 +240,7 @@ export function ChainManagement() {
     };
 
     // Strip empty strings and nulls for optional fields — backend Zod rejects null
-    const optionalFields = ["logoUrl", "buyUrl", "explorerUrl", "tokenPrice", "coingeckoId", "receiveAddress", "soonMessage"];
+    const optionalFields = ["logoUrl", "buyUrl", "explorerUrl", "tokenPrice", "coingeckoId", "receiveAddress", "soonMessage", "gasPriceGwei"];
     for (const key of optionalFields) {
       if (payload[key] === null || payload[key] === "") delete payload[key];
     }
@@ -541,6 +543,23 @@ export function ChainManagement() {
             <div className="space-y-2">
               <Label>Sort Order</Label>
               <Input type="number" value={formData.sortOrder} onChange={e => setFormData({...formData, sortOrder: e.target.value})} className="font-mono" />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                ⛽ Gas Price Override <span className="text-muted-foreground font-normal">(gwei)</span>
+              </Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.1"
+                value={formData.gasPriceGwei}
+                onChange={e => setFormData({...formData, gasPriceGwei: e.target.value})}
+                placeholder="Leave blank to use network default"
+                className="font-mono"
+              />
+              <p className="text-[11px] text-muted-foreground font-mono">
+                Set a fixed gas price in gwei for this chain. Use this if the auto-detected gas price is too high and causes "insufficient for gas" errors.
+              </p>
             </div>
 
             {/* SOON message — only shown when status is SOON */}

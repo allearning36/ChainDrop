@@ -28,6 +28,7 @@ export const chainsTable = pgTable("chains", {
   coingeckoId: text("coingecko_id"),
   chainType: text("chain_type").notNull().default("evm"),
   soonMessage: text("soon_message"),
+  gasPriceGwei: numeric("gas_price_gwei", { precision: 18, scale: 4 }),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

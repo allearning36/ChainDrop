@@ -29,6 +29,7 @@ function classifyError(err: unknown): string {
   const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
 
   // Ethers.js v6 native error codes (most reliable signal)
+  if (code === "WALLET_GAS_LOW") return "WALLET_GAS_LOW";
   if (code === "INSUFFICIENT_FUNDS") return "WALLET_EMPTY";
   if (code === "NONCE_EXPIRED" || code === "NONCE_TOO_LOW") return "NONCE_CONFLICT";
   if (code === "REPLACEMENT_UNDERPRICED") return "TX_UNDERPRICED";
@@ -87,6 +88,7 @@ function getErrorMeta(cause: string): ErrorMeta {
     RPC_WRONG_NETWORK:       { detail: "RPC নেটওয়ার্ক detect করা যাচ্ছে না — সম্ভবত ভুল chain-এর RPC",              hint: "নিশ্চিত করুন RPC URL সঠিক chain-এর জন্য" },
     RPC_BAD_RESPONSE:        { detail: "RPC সার্ভার invalid বা malformed response পাঠিয়েছে",                          hint: "RPC node-টি ঠিকমতো কাজ করছে না — ভিন্ন endpoint ব্যবহার করুন" },
     WALLET_EMPTY:            { detail: "Faucet wallet-এ পর্যাপ্ত balance নেই",                                        hint: "Admin → Wallet Health থেকে balance দেখুন এবং faucet wallet-এ টাকা পাঠান" },
+    WALLET_GAS_LOW:          { detail: "Faucet wallet-এ token আছে কিন্তু gas fee দেওয়ার জন্য যথেষ্ট নয়",             hint: "Admin → Chain Management → এই chain-এর Gas Price Override কমিয়ে দিন, অথবা faucet wallet-এ আরো token পাঠান" },
     NONCE_CONFLICT:          { detail: "Transaction nonce conflict — আগের transaction pending বা nonce mismatch",     hint: "কিছুক্ষণ অপেক্ষা করুন; pending transaction clear হলে আবার হবে" },
     TX_UNDERPRICED:          { detail: "Transaction gas price খুব কম — নেটওয়ার্ক accept করেনি",                     hint: "সার্ভার restart করুন অথবা gas multiplier বাড়ান" },
     TX_REVERTED:             { detail: "Transaction on-chain revert হয়েছে — smart contract বা নেটওয়ার্ক সমস্যা",    hint: "Chain-এর explorer-এ tx hash দেখুন কারণ জানতে" },

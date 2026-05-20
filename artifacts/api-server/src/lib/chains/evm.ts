@@ -22,13 +22,13 @@ function makeProvider(rpcUrl: string): ethers.JsonRpcProvider {
 export class EvmInsufficientBalanceError extends Error {
   public readonly balance: string = "";
   public readonly required: string = "";
-  constructor(balance: string, required: string) {
-    super(`Faucet wallet has insufficient funds — balance: ${balance} ETH, required ≥ ${required} ETH (includes gas buffer)`);
+  constructor(balance: string, required: string, gasRelated = false) {
+    super(`Faucet wallet has insufficient funds — balance: ${balance}, required ≥ ${required} (including gas)`);
     this.name = "EvmInsufficientBalanceError";
     this.balance = balance;
     this.required = required;
-    // Set ethers-compatible code so classifyError picks it up reliably
-    (this as unknown as Record<string, unknown>).code = "INSUFFICIENT_FUNDS";
+    // gasRelated = true means wallet has tokens but not enough to cover gas on top of the send amount
+    (this as unknown as Record<string, unknown>).code = gasRelated ? "WALLET_GAS_LOW" : "INSUFFICIENT_FUNDS";
   }
 }
 
@@ -36,51 +36,65 @@ export async function sendEvm(
   rpcUrl: string,
   privateKey: string,
   toAddress: string,
-  amount: string
+  amount: string,
+  gasPriceGwei?: string | null
 ): Promise<{ txHash: string }> {
   const provider = makeProvider(rpcUrl);
   try {
     const wallet = new ethers.Wallet(privateKey, provider);
     const amountWei = ethers.parseEther(amount);
 
-    logger.info({ toAddress, amount }, "Sending EVM tokens");
-
-    // ── Fetch balance and fee data in parallel ────────────────────────────────
-    const [balanceWei, feeData] = await Promise.all([
-      withTimeout(provider.getBalance(wallet.address), RPC_TIMEOUT_MS, "getBalance"),
-      withTimeout(provider.getFeeData(), RPC_TIMEOUT_MS, "getFeeData"),
-    ]);
-
-    // ── Build tx overrides with explicit gasLimit for native transfers ─────────
-    // Native ETH transfers always use exactly 21 000 gas; setting this explicitly
-    // prevents the node from running (and mis-estimating) gas, and lets us
-    // accurately predict the maximum fee before sending.
     const GAS_LIMIT = 21_000n;
-    const txOverrides: Record<string, unknown> = { to: toAddress, value: amountWei, gasLimit: GAS_LIMIT };
+    logger.info({ toAddress, amount, gasPriceGwei: gasPriceGwei ?? "auto" }, "Sending EVM tokens");
+
+    let balanceWei: bigint;
     let effectiveGasPrice: bigint;
-    if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
-      const inflatedMax      = (feeData.maxFeePerGas      * 120n) / 100n;
-      const inflatedPriority = (feeData.maxPriorityFeePerGas * 120n) / 100n;
-      txOverrides.maxFeePerGas = inflatedMax;
-      txOverrides.maxPriorityFeePerGas = inflatedPriority;
-      effectiveGasPrice = inflatedMax;
+    const txOverrides: Record<string, unknown> = { to: toAddress, value: amountWei, gasLimit: GAS_LIMIT };
+
+    if (gasPriceGwei) {
+      // ── Manual gas price override (set by admin per chain) ──────────────────
+      const customWei = ethers.parseUnits(gasPriceGwei, "gwei");
+      txOverrides.gasPrice = customWei;
+      effectiveGasPrice = customWei;
+      balanceWei = await withTimeout(provider.getBalance(wallet.address), RPC_TIMEOUT_MS, "getBalance");
     } else {
-      const inflatedGasPrice = ((feeData.gasPrice ?? 1n) * 120n) / 100n;
-      txOverrides.gasPrice = inflatedGasPrice;
-      effectiveGasPrice = inflatedGasPrice;
+      // ── Auto: fetch balance and fee data in parallel ─────────────────────────
+      const [bal, feeData] = await Promise.all([
+        withTimeout(provider.getBalance(wallet.address), RPC_TIMEOUT_MS, "getBalance"),
+        withTimeout(provider.getFeeData(), RPC_TIMEOUT_MS, "getFeeData"),
+      ]);
+      balanceWei = bal;
+
+      // Native ETH transfers always use 21 000 gas; explicit limit prevents
+      // the node mis-estimating and lets us predict the maximum cost upfront.
+      if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
+        const inflatedMax      = (feeData.maxFeePerGas      * 120n) / 100n;
+        const inflatedPriority = (feeData.maxPriorityFeePerGas * 120n) / 100n;
+        txOverrides.maxFeePerGas = inflatedMax;
+        txOverrides.maxPriorityFeePerGas = inflatedPriority;
+        effectiveGasPrice = inflatedMax;
+      } else {
+        const inflatedGasPrice = ((feeData.gasPrice ?? 1n) * 120n) / 100n;
+        txOverrides.gasPrice = inflatedGasPrice;
+        effectiveGasPrice = inflatedGasPrice;
+      }
     }
 
-    // ── Pre-flight: verify wallet can cover amount + max gas cost ─────────────
-    const maxGasCost = GAS_LIMIT * effectiveGasPrice;
+    // ── Pre-flight: wallet must cover amount + worst-case gas ─────────────────
+    const maxGasCost    = GAS_LIMIT * effectiveGasPrice;
     const totalRequired = amountWei + maxGasCost;
     if (balanceWei < totalRequired) {
       const balanceEth  = ethers.formatEther(balanceWei);
       const requiredEth = ethers.formatEther(totalRequired);
+      // gasRelated=true when the wallet has SOME balance but gas tips it over
+      const gasRelated = balanceWei >= amountWei;
       logger.warn(
-        { balance: balanceEth, required: requiredEth, gasPrice: effectiveGasPrice.toString(), walletAddress: wallet.address },
-        "Insufficient faucet wallet balance (amount + gas)"
+        { balance: balanceEth, required: requiredEth, gasPrice: effectiveGasPrice.toString(), gasRelated, walletAddress: wallet.address },
+        gasRelated
+          ? "Faucet balance too low to cover gas on top of send amount"
+          : "Faucet wallet is empty / insufficient"
       );
-      throw new EvmInsufficientBalanceError(balanceEth, requiredEth);
+      throw new EvmInsufficientBalanceError(balanceEth, requiredEth, gasRelated);
     }
     // ─────────────────────────────────────────────────────────────────────────
 

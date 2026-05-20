@@ -865,6 +865,8 @@ components:
           type: boolean
         isPinned:
           type: boolean
+        gasPriceGwei:
+          type: ["string", "null"]
         availableStatus:
           type: string
         buyEnabled:
@@ -912,6 +914,8 @@ components:
           type: boolean
         isPinned:
           type: boolean
+        gasPriceGwei:
+          type: ["string", "null"]
         availableStatus:
           type: string
         buyEnabled:
@@ -963,6 +967,8 @@ components:
           type: boolean
         isPinned:
           type: boolean
+        gasPriceGwei:
+          type: ["string", "null"]
         availableStatus:
           type: string
         buyEnabled:
@@ -1024,6 +1030,8 @@ components:
           type: boolean
         isPinned:
           type: boolean
+        gasPriceGwei:
+          type: ["string", "null"]
         availableStatus:
           type: string
         buyEnabled:
@@ -1080,6 +1088,8 @@ components:
           type: boolean
         isPinned:
           type: boolean
+        gasPriceGwei:
+          type: ["string", "null"]
         availableStatus:
           type: string
         buyEnabled:

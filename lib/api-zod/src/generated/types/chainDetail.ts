@@ -24,6 +24,8 @@ export interface ChainDetail {
   isTestnet: boolean;
   isEnabled: boolean;
   isPinned?: boolean;
+  /** @nullable */
+  gasPriceGwei?: string | null;
   availableStatus: string;
   buyEnabled: boolean;
   /** @nullable */

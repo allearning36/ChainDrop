@@ -122,7 +122,7 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
 
   let txHash: string;
   try {
-    const result = await sendTokens(chainType, chain.rpcUrl, chain.privateKey, address, chain.claimAmount);
+    const result = await sendTokens(chainType, chain.rpcUrl, chain.privateKey, address, chain.claimAmount, { gasPriceGwei: chain.gasPriceGwei });
     txHash = result.txHash;
   } catch (err) {
     req.log.error({ err }, "Failed to send tokens");
@@ -147,6 +147,7 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
       RPC_WRONG_NETWORK:     { status: 503, msg: "RPC network mismatch. Please try again later." },
       RPC_BAD_RESPONSE:      { status: 503, msg: "Received an invalid response from the network. Please try again." },
       WALLET_EMPTY:          { status: 503, msg: "The faucet is temporarily out of funds. Please try again later." },
+      WALLET_GAS_LOW:        { status: 503, msg: "The faucet wallet has enough tokens but cannot cover the gas fee for this transaction. Please contact the admin to adjust the gas price setting." },
       NONCE_CONFLICT:        { status: 503, msg: "Transaction conflict — please wait a moment and try again." },
       TX_UNDERPRICED:        { status: 503, msg: "Gas price too low for current network conditions. Please try again." },
       TX_REVERTED:           { status: 500, msg: "Transaction was rejected by the network. Please try again." },
