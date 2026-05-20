@@ -139,21 +139,46 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
     setStep("sending");
     setErrorMsg("");
 
-    // Switch network (best effort — may not work with all WalletConnect wallets)
+    const targetChainHex = "0x" + selectedNetwork.chainId.toString(16);
+
+    // Check current chain
+    let currentChainHex: string = "0x1";
     try {
-      await activeProvider.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x" + selectedNetwork.chainId.toString(16) }],
-      });
+      currentChainHex = await activeProvider.request({ method: "eth_chainId" }) as string;
     } catch { /* ignore */ }
+
+    // Switch chain if needed
+    if (currentChainHex.toLowerCase() !== targetChainHex.toLowerCase()) {
+      try {
+        await activeProvider.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: targetChainHex }],
+        });
+      } catch (switchErr: any) {
+        // Chain not added in wallet — try adding it first
+        if (switchErr?.code === 4902 || switchErr?.message?.includes("Unrecognized")) {
+          try {
+            await activeProvider.request({
+              method: "wallet_addEthereumChain",
+              params: [{ chainId: targetChainHex, chainName: selectedNetwork.name, rpcUrls: [NETWORK_RPC[selectedNetwork.id] || ""] }],
+            });
+          } catch { /* ignore */ }
+        } else {
+          // Show friendly message if switch failed
+          setErrorMsg(`Please switch your wallet to ${selectedNetwork.name} network manually, then try again.`);
+          setStep("info");
+          return;
+        }
+      }
+    }
 
     let txHash: string;
     try {
       const amountWei = BigInt(Math.round(ethAmountNum * 1e18));
       txHash = await activeProvider.request({
         method: "eth_sendTransaction",
-        params: [{ from: walletAddress, to: receiveAddress, value: "0x" + amountWei.toString(16) }],
-      });
+        params: [{ from: walletAddress, to: receiveAddress, value: "0x" + amountWei.toString(16), chainId: targetChainHex }],
+      }) as string;
     } catch (err: any) {
       setErrorMsg(err?.message || "Transaction rejected or failed");
       setStep("info");

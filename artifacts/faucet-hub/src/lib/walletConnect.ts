@@ -21,6 +21,13 @@ export async function initWalletConnectProvider(): Promise<{
     projectId: PROJECT_ID,
     chains: [1],
     optionalChains: [8453, 42161, 10, 137],
+    methods: [
+      "eth_sendTransaction",
+      "personal_sign",
+      "eth_signTypedData_v4",
+      "wallet_switchEthereumChain",
+      "wallet_addEthereumChain",
+    ],
     showQrModal: false,
     metadata: {
       name: "ChainDrop Faucet",
