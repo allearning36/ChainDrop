@@ -2,14 +2,13 @@ import { Router, type IRouter, type Request } from "express";
 import { desc, eq, and, count, sum } from "drizzle-orm";
 import { db, claimsTable, chainsTable, blockedAddressesTable, ipBlocksTable, settingsTable } from "@workspace/db";
 import { ClaimFaucetBody, GetFaucetStatusParams } from "@workspace/api-zod";
-import { sendTokens, isValidEvmAddress } from "../lib/faucet";
+import { sendTokens, isValidAddress, type ChainType } from "../lib/chains/index";
 
 function getClientIp(req: Request): string {
   const fwd = req.headers["x-forwarded-for"];
   if (typeof fwd === "string") return fwd.split(",")[0]!.trim();
   return req.socket.remoteAddress ?? "unknown";
 }
-
 
 const router: IRouter = Router();
 
@@ -42,11 +41,7 @@ router.post("/faucet/claim", async (req, res): Promise<void> => {
     return;
   }
 
-  if (!isValidEvmAddress(address)) {
-    res.status(400).json({ error: "Invalid EVM address" });
-    return;
-  }
-
+  // Fetch chain first (needed for chainType-aware address validation)
   const [chain] = await db
     .select()
     .from(chainsTable)
@@ -59,6 +54,14 @@ router.post("/faucet/claim", async (req, res): Promise<void> => {
 
   if (chain.availableStatus === "NO") {
     res.status(429).json({ error: "This faucet is currently unavailable" });
+    return;
+  }
+
+  // Validate address for this chain's type
+  const chainType = chain.chainType as ChainType;
+  const addressValid = await isValidAddress(chainType, address);
+  if (!addressValid) {
+    res.status(400).json({ error: `Invalid ${chain.name} address format` });
     return;
   }
 
@@ -96,9 +99,12 @@ router.post("/faucet/claim", async (req, res): Promise<void> => {
     return;
   }
 
+  void captchaToken; // reserved for future CAPTCHA re-integration
+
   let txHash: string;
   try {
     const result = await sendTokens(
+      chainType,
       chain.rpcUrl,
       chain.privateKey,
       address,
@@ -143,14 +149,17 @@ router.get("/faucet/status/:chainId/:address", async (req, res): Promise<void> =
 
   const { chainId, address } = params.data;
 
-  if (!isValidEvmAddress(address)) {
-    res.status(400).json({ error: "Invalid EVM address" });
-    return;
-  }
-
   const [chain] = await db.select().from(chainsTable).where(eq(chainsTable.id, chainId));
   if (!chain) {
     res.status(404).json({ error: "Chain not found" });
+    return;
+  }
+
+  // Validate address format for this chain type
+  const chainType = chain.chainType as ChainType;
+  const addressValid = await isValidAddress(chainType, address);
+  if (!addressValid) {
+    res.status(400).json({ error: `Invalid ${chain.name} address format` });
     return;
   }
 

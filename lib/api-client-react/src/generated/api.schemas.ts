@@ -47,10 +47,22 @@ export interface BuyResult {
   chainName: string;
 }
 
+export type ChainPublicChainType = typeof ChainPublicChainType[keyof typeof ChainPublicChainType];
+
+
+export const ChainPublicChainType = {
+  evm: 'evm',
+  solana: 'solana',
+  ton: 'ton',
+  sui: 'sui',
+  aptos: 'aptos',
+} as const;
+
 export interface ChainPublic {
   id: number;
   name: string;
   symbol: string;
+  chainType: ChainPublicChainType;
   /** @nullable */
   logoUrl?: string | null;
   claimAmount: string;
@@ -70,10 +82,22 @@ export interface ChainPublic {
   sortOrder: number;
 }
 
+export type ChainDetailChainType = typeof ChainDetailChainType[keyof typeof ChainDetailChainType];
+
+
+export const ChainDetailChainType = {
+  evm: 'evm',
+  solana: 'solana',
+  ton: 'ton',
+  sui: 'sui',
+  aptos: 'aptos',
+} as const;
+
 export interface ChainDetail {
   id: number;
   name: string;
   symbol: string;
+  chainType: ChainDetailChainType;
   /** @nullable */
   logoUrl?: string | null;
   claimAmount: string;
@@ -93,10 +117,22 @@ export interface ChainDetail {
   walletBalanceEth?: string | null;
 }
 
+export type ChainAdminChainType = typeof ChainAdminChainType[keyof typeof ChainAdminChainType];
+
+
+export const ChainAdminChainType = {
+  evm: 'evm',
+  solana: 'solana',
+  ton: 'ton',
+  sui: 'sui',
+  aptos: 'aptos',
+} as const;
+
 export interface ChainAdmin {
   id: number;
   name: string;
   symbol: string;
+  chainType: ChainAdminChainType;
   /** @nullable */
   logoUrl?: string | null;
   rpcUrl: string;
@@ -123,9 +159,21 @@ export interface ChainAdmin {
   createdAt: string;
 }
 
+export type ChainInputChainType = typeof ChainInputChainType[keyof typeof ChainInputChainType];
+
+
+export const ChainInputChainType = {
+  evm: 'evm',
+  solana: 'solana',
+  ton: 'ton',
+  sui: 'sui',
+  aptos: 'aptos',
+} as const;
+
 export interface ChainInput {
   name: string;
   symbol: string;
+  chainType?: ChainInputChainType;
   logoUrl?: string;
   rpcUrl: string;
   privateKey: string;
@@ -146,9 +194,21 @@ export interface ChainInput {
   sortOrder?: number;
 }
 
+export type ChainUpdateChainType = typeof ChainUpdateChainType[keyof typeof ChainUpdateChainType];
+
+
+export const ChainUpdateChainType = {
+  evm: 'evm',
+  solana: 'solana',
+  ton: 'ton',
+  sui: 'sui',
+  aptos: 'aptos',
+} as const;
+
 export interface ChainUpdate {
   name?: string;
   symbol?: string;
+  chainType?: ChainUpdateChainType;
   logoUrl?: string;
   rpcUrl?: string;
   privateKey?: string;

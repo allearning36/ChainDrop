@@ -7,7 +7,60 @@ import { Loader2, ExternalLink, Clock, Zap, ShoppingCart, CheckCircle2, Copy, Ch
 import { BuyModal } from "./BuyModal";
 import { formatDistanceToNow } from "date-fns";
 
+// ── Address helpers ──────────────────────────────────────────────────────────
 
+function isValidAddressForChain(addr: string, chainType: string): boolean {
+  switch (chainType) {
+    case "solana":
+      return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr);
+    case "ton":
+      // TON user-friendly (48-char base64url) or raw (-1:hex / 0:hex)
+      return /^[A-Za-z0-9+/_\-=]{48}$/.test(addr) || /^-?[01]:[0-9a-fA-F]{64}$/.test(addr);
+    case "sui":
+      return /^0x[0-9a-fA-F]{64}$/.test(addr);
+    case "aptos":
+      return /^0x[0-9a-fA-F]{1,64}$/.test(addr);
+    default: // evm
+      return /^0x[a-fA-F0-9]{40}$/.test(addr);
+  }
+}
+
+function getAddressPlaceholder(chainType: string): string {
+  switch (chainType) {
+    case "solana": return "7EcDhSYG... (Solana public key)";
+    case "ton":    return "EQA... (TON user-friendly address)";
+    case "sui":    return "0x + 64 hex chars (Sui address)";
+    case "aptos":  return "0x... (Aptos account address)";
+    default:       return "0x... (EVM address)";
+  }
+}
+
+function getTxExplorerUrl(chainType: string, isTestnet: boolean, txHash: string): string {
+  switch (chainType) {
+    case "solana":
+      return isTestnet
+        ? `https://explorer.solana.com/tx/${txHash}?cluster=devnet`
+        : `https://explorer.solana.com/tx/${txHash}`;
+    case "ton":
+      return isTestnet
+        ? `https://testnet.tonscan.org/tx/${txHash}`
+        : `https://tonscan.org/tx/${txHash}`;
+    case "sui":
+      return isTestnet
+        ? `https://testnet.suivision.xyz/txblock/${txHash}`
+        : `https://suivision.xyz/txblock/${txHash}`;
+    case "aptos":
+      return isTestnet
+        ? `https://explorer.aptoslabs.com/txn/${txHash}?network=testnet`
+        : `https://explorer.aptoslabs.com/txn/${txHash}`;
+    default: // evm
+      return isTestnet
+        ? `https://sepolia.etherscan.io/tx/${txHash}`
+        : `https://etherscan.io/tx/${txHash}`;
+  }
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
 
 interface ClaimModalProps {
   chain: ChainPublic | null;
@@ -28,14 +81,14 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const queryClient = useQueryClient();
   const claimMutation = useClaimFaucet();
 
-  const isValidEvmAddress = (addr: string) => /^0x[a-fA-F0-9]{40}$/.test(addr);
+  const chainType = chain?.chainType ?? "evm";
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedAddress(isValidEvmAddress(address) ? address : "");
+      setDebouncedAddress(isValidAddressForChain(address, chainType) ? address : "");
     }, 500);
     return () => clearTimeout(timer);
-  }, [address]);
+  }, [address, chainType]);
 
   const { data: status, isLoading: isStatusLoading } = useGetFaucetStatus(
     chain?.id || 0,
@@ -90,13 +143,11 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   if (!chain) return null;
 
   // Derived states
-  const addressValid = isValidEvmAddress(address);
+  const addressValid = isValidAddressForChain(address, chainType);
   const inCooldown = !!debouncedAddress && !!status && !status.canClaim;
   const canSubmit = addressValid && !inCooldown && !isStatusLoading;
 
-  const explorerUrl = chain.isTestnet
-    ? `https://sepolia.etherscan.io/tx/${txHash}`
-    : `https://etherscan.io/tx/${txHash}`;
+  const explorerUrl = getTxExplorerUrl(chainType, chain.isTestnet, txHash);
 
   return (
     <>
@@ -163,7 +214,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                   </label>
                   <div className="relative">
                     <Input
-                      placeholder="0x..."
+                      placeholder={getAddressPlaceholder(chainType)}
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
                       className="font-mono text-sm h-11 pl-4 pr-10"

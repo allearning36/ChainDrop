@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, asc } from "drizzle-orm";
 import { db, chainsTable } from "@workspace/db";
 import { GetChainsQueryParams, GetChainParams } from "@workspace/api-zod";
-import { getWalletBalance } from "../lib/faucet";
+import { getWalletBalance, type ChainType } from "../lib/chains/index";
 
 const router: IRouter = Router();
 
@@ -25,6 +25,7 @@ router.get("/chains", async (req, res): Promise<void> => {
       id: c.id,
       name: c.name,
       symbol: c.symbol,
+      chainType: c.chainType,
       logoUrl: c.logoUrl,
       claimAmount: c.claimAmount,
       cooldownHours: c.cooldownHours,
@@ -33,6 +34,7 @@ router.get("/chains", async (req, res): Promise<void> => {
       availableStatus: c.availableStatus,
       buyEnabled: c.isTestnet ? c.buyEnabled : false,
       buyUrl: c.isTestnet ? c.buyUrl : null,
+      buyRate: c.isTestnet ? c.buyRate : null,
       tokenPrice: c.tokenPrice,
       coingeckoId: c.coingeckoId,
       sortOrder: c.sortOrder,
@@ -59,12 +61,17 @@ router.get("/chains/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const walletBalanceEth = await getWalletBalance(chain.rpcUrl, chain.walletAddress);
+  const walletBalanceEth = await getWalletBalance(
+    chain.chainType as ChainType,
+    chain.rpcUrl,
+    chain.walletAddress
+  );
 
   res.json({
     id: chain.id,
     name: chain.name,
     symbol: chain.symbol,
+    chainType: chain.chainType,
     logoUrl: chain.logoUrl,
     claimAmount: chain.claimAmount,
     cooldownHours: chain.cooldownHours,

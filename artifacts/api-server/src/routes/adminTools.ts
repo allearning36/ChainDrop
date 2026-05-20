@@ -3,7 +3,7 @@ import { eq, desc, asc, and, ilike, count as drizzleCount, sql, gte } from "driz
 import crypto from "crypto";
 import { db, claimsTable, chainsTable, blockedAddressesTable, settingsTable } from "@workspace/db";
 import { requireAdmin } from "../lib/adminAuth";
-import { getWalletBalance } from "../lib/faucet";
+import { getWalletBalance, type ChainType } from "../lib/chains/index";
 
 const router: IRouter = Router();
 
@@ -163,12 +163,13 @@ router.get("/admin/wallet-health", requireAdmin, async (_req, res): Promise<void
       id: c.id,
       name: c.name,
       symbol: c.symbol,
+      chainType: c.chainType,
       logoUrl: c.logoUrl,
       isTestnet: c.isTestnet,
       isEnabled: c.isEnabled,
       walletAddress: c.walletAddress,
       claimAmount: c.claimAmount,
-      balance: await getWalletBalance(c.rpcUrl, c.walletAddress),
+      balance: await getWalletBalance(c.chainType as ChainType, c.rpcUrl, c.walletAddress),
     }))
   );
 
@@ -176,7 +177,7 @@ router.get("/admin/wallet-health", requireAdmin, async (_req, res): Promise<void
     results.map((r, i) =>
       r.status === "fulfilled"
         ? r.value
-        : { id: chains[i]!.id, name: chains[i]!.name, symbol: chains[i]!.symbol, logoUrl: chains[i]!.logoUrl, isTestnet: chains[i]!.isTestnet, isEnabled: chains[i]!.isEnabled, walletAddress: chains[i]!.walletAddress, claimAmount: chains[i]!.claimAmount, balance: null }
+        : { id: chains[i]!.id, name: chains[i]!.name, symbol: chains[i]!.symbol, chainType: chains[i]!.chainType, logoUrl: chains[i]!.logoUrl, isTestnet: chains[i]!.isTestnet, isEnabled: chains[i]!.isEnabled, walletAddress: chains[i]!.walletAddress, claimAmount: chains[i]!.claimAmount, balance: null }
     )
   );
 });

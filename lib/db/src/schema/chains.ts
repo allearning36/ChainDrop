@@ -23,6 +23,7 @@ export const chainsTable = pgTable("chains", {
   receiveAddress: text("receive_address"),
   tokenPrice: numeric("token_price", { precision: 18, scale: 8 }),
   coingeckoId: text("coingecko_id"),
+  chainType: text("chain_type").notNull().default("evm"),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

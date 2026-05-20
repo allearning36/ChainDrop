@@ -28,9 +28,46 @@ const ALL_PAYMENT_NETWORKS = [
   { id: "polygon",  name: "Polygon",          chainId: 137 },
 ];
 
+const CHAIN_TYPE_OPTIONS = [
+  { value: "evm",    label: "EVM (Ethereum / BSC / Polygon / etc.)" },
+  { value: "solana", label: "Solana" },
+  { value: "ton",    label: "TON (Toncoin)" },
+  { value: "sui",    label: "Sui" },
+  { value: "aptos",  label: "Aptos" },
+] as const;
+
+const CHAIN_TYPE_BADGE: Record<string, { label: string; color: string }> = {
+  evm:    { label: "EVM",  color: "#6366f1" },
+  solana: { label: "SOL",  color: "#9945ff" },
+  ton:    { label: "TON",  color: "#0088cc" },
+  sui:    { label: "SUI",  color: "#4da2ff" },
+  aptos:  { label: "APT",  color: "#00c2a8" },
+};
+
+function getAddressPlaceholder(chainType: string): string {
+  switch (chainType) {
+    case "solana": return "7EcDhSYG... (Solana base58 public key)";
+    case "ton":    return "EQA... (TON user-friendly address)";
+    case "sui":    return "0x + 64 hex chars (Sui address)";
+    case "aptos":  return "0x... (Aptos account address)";
+    default:       return "0x... (EVM address, 20 bytes)";
+  }
+}
+
+function getPrivateKeyPlaceholder(chainType: string): string {
+  switch (chainType) {
+    case "solana": return "Base58 secret key or JSON array [1,2,3,...]";
+    case "ton":    return "24-word mnemonic (space-separated)";
+    case "sui":    return "0x-prefixed hex private key (32 bytes)";
+    case "aptos":  return "0x-prefixed hex private key (32 bytes)";
+    default:       return "0x-prefixed hex private key (EVM)";
+  }
+}
+
 const DEFAULT_CHAIN = {
   name: "",
   symbol: "",
+  chainType: "evm",
   logoUrl: "",
   rpcUrl: "",
   privateKey: "",
@@ -263,9 +300,20 @@ export function ChainManagement() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
-                        {chain.isTestnet ? "TESTNET" : "MAINNET"}
-                      </Badge>
+                      <div className="flex flex-col gap-1">
+                        {(() => {
+                          const ct = CHAIN_TYPE_BADGE[chain.chainType] ?? { label: chain.chainType.toUpperCase(), color: "#888" };
+                          return (
+                            <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded w-fit"
+                              style={{ background: ct.color + "22", color: ct.color, border: `1px solid ${ct.color}44` }}>
+                              {ct.label}
+                            </span>
+                          );
+                        })()}
+                        <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20 w-fit">
+                          {chain.isTestnet ? "TESTNET" : "MAINNET"}
+                        </Badge>
+                      </div>
                     </TableCell>
                     <TableCell className="font-mono text-sm">{chain.claimAmount} / {chain.cooldownHours}h</TableCell>
                     <TableCell>
@@ -325,16 +373,28 @@ export function ChainManagement() {
               <Input value={formData.symbol} onChange={e => setFormData({...formData, symbol: e.target.value})} placeholder="e.g. ETH" className="font-mono" />
             </div>
             <div className="space-y-2 md:col-span-2">
+              <Label>Chain Type *</Label>
+              <Select value={formData.chainType ?? "evm"} onValueChange={(val) => setFormData({...formData, chainType: val, walletAddress: "", privateKey: ""})}>
+                <SelectTrigger className="font-mono"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CHAIN_TYPE_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground font-mono">Changing chain type will clear address & private key fields.</p>
+            </div>
+            <div className="space-y-2 md:col-span-2">
               <Label>RPC URL *</Label>
               <Input value={formData.rpcUrl} onChange={e => setFormData({...formData, rpcUrl: e.target.value})} placeholder="https://..." className="font-mono" />
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label>Faucet Wallet Address *</Label>
-              <Input value={formData.walletAddress} onChange={e => setFormData({...formData, walletAddress: e.target.value})} placeholder="0x..." className="font-mono" />
+              <Input value={formData.walletAddress} onChange={e => setFormData({...formData, walletAddress: e.target.value})} placeholder={getAddressPlaceholder(formData.chainType ?? "evm")} className="font-mono" />
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label>Private Key {editingChain && "(Leave empty to keep current)"} <span className="text-destructive">*</span></Label>
-              <Input type="password" value={formData.privateKey} onChange={e => setFormData({...formData, privateKey: e.target.value})} placeholder="0x..." className="font-mono" />
+              <Input type="password" value={formData.privateKey} onChange={e => setFormData({...formData, privateKey: e.target.value})} placeholder={getPrivateKeyPlaceholder(formData.chainType ?? "evm")} className="font-mono" />
             </div>
             <div className="space-y-2">
               <Label>Claim Amount *</Label>

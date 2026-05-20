@@ -5,8 +5,8 @@ import { RefreshCw, Loader2, AlertTriangle, CheckCircle2, ExternalLink } from "l
 
 type WalletInfo = {
   id: number; name: string; symbol: string; logoUrl: string | null;
-  isTestnet: boolean; isEnabled: boolean; walletAddress: string;
-  claimAmount: string; balance: string | null;
+  chainType: string; isTestnet: boolean; isEnabled: boolean;
+  walletAddress: string; claimAmount: string; balance: string | null;
 };
 
 async function fetchWallets(): Promise<WalletInfo[]> {
@@ -14,15 +14,37 @@ async function fetchWallets(): Promise<WalletInfo[]> {
   return res.json();
 }
 
-function getExplorerUrl(name: string, address: string): string {
-  const n = name.toLowerCase();
-  if (n.includes("polygon") || n.includes("matic")) return `https://polygonscan.com/address/${address}`;
-  if (n.includes("bsc") || n.includes("binance")) return `https://bscscan.com/address/${address}`;
-  if (n.includes("arbitrum")) return `https://arbiscan.io/address/${address}`;
-  if (n.includes("optimism")) return `https://optimistic.etherscan.io/address/${address}`;
-  if (n.includes("sepolia")) return `https://sepolia.etherscan.io/address/${address}`;
-  return `https://etherscan.io/address/${address}`;
+function getExplorerUrl(chainType: string, isTestnet: boolean, address: string): string {
+  switch (chainType) {
+    case "solana":
+      return isTestnet
+        ? `https://explorer.solana.com/address/${address}?cluster=devnet`
+        : `https://explorer.solana.com/address/${address}`;
+    case "ton":
+      return isTestnet
+        ? `https://testnet.tonscan.org/address/${address}`
+        : `https://tonscan.org/address/${address}`;
+    case "sui":
+      return isTestnet
+        ? `https://testnet.suivision.xyz/address/${address}`
+        : `https://suivision.xyz/address/${address}`;
+    case "aptos":
+      return isTestnet
+        ? `https://explorer.aptoslabs.com/account/${address}?network=testnet`
+        : `https://explorer.aptoslabs.com/account/${address}`;
+    default: // evm
+      if (isTestnet) return `https://sepolia.etherscan.io/address/${address}`;
+      return `https://etherscan.io/address/${address}`;
+  }
 }
+
+const CHAIN_TYPE_BADGE: Record<string, { label: string; color: string }> = {
+  evm:    { label: "EVM",    color: "#6366f1" },
+  solana: { label: "SOL",   color: "#9945ff" },
+  ton:    { label: "TON",   color: "#0088cc" },
+  sui:    { label: "SUI",   color: "#4da2ff" },
+  aptos:  { label: "APT",   color: "#00c2a8" },
+};
 
 export function WalletHealth() {
   const [wallets, setWallets] = useState<WalletInfo[]>([]);
@@ -96,7 +118,8 @@ export function WalletHealth() {
         {wallets.map(w => {
           const status = balanceStatus(w.balance, w.claimAmount);
           const sc = statusColors[status];
-          const explorerUrl = getExplorerUrl(w.name, w.walletAddress);
+          const explorerUrl = getExplorerUrl(w.chainType, w.isTestnet, w.walletAddress);
+          const ctBadge = CHAIN_TYPE_BADGE[w.chainType] ?? { label: w.chainType.toUpperCase(), color: "#888" };
           return (
             <div key={w.id} className="rounded-2xl p-4 space-y-3"
               style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${status === "ok" ? "rgba(255,255,255,0.08)" : sc.text + "40"}` }}>
@@ -107,7 +130,15 @@ export function WalletHealth() {
                     : <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">{w.symbol.slice(0, 2)}</div>
                   }
                   <div>
-                    <div className="font-semibold text-sm font-mono">{w.name}</div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="font-semibold text-sm font-mono">{w.name}</div>
+                      <span
+                        className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded"
+                        style={{ background: ctBadge.color + "22", color: ctBadge.color, border: `1px solid ${ctBadge.color}44` }}
+                      >
+                        {ctBadge.label}
+                      </span>
+                    </div>
                     <div className="text-[10px] text-muted-foreground font-mono">{w.isTestnet ? "Testnet" : "Mainnet"}</div>
                   </div>
                 </div>

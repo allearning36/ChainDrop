@@ -5,11 +5,13 @@
  * ChainDrop — Multi-chain faucet hub API
  * OpenAPI spec version: 0.1.0
  */
+import type { ChainPublicChainType } from './chainPublicChainType';
 
 export interface ChainPublic {
   id: number;
   name: string;
   symbol: string;
+  chainType: ChainPublicChainType;
   /** @nullable */
   logoUrl?: string | null;
   claimAmount: string;
