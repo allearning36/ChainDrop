@@ -8,6 +8,7 @@ interface WalletSelectorProps {
   open: boolean;
   onClose: () => void;
   onConnected: (address: string, provider: "injected" | "walletconnect", wcProvider?: any) => void;
+  targetChainId?: number;
 }
 
 type Tab = "browser" | "mobile";
@@ -74,7 +75,7 @@ const MOBILE_WALLETS = [
   },
 ];
 
-export function WalletSelector({ open, onClose, onConnected }: WalletSelectorProps) {
+export function WalletSelector({ open, onClose, onConnected, targetChainId }: WalletSelectorProps) {
   const isMobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
 
   const [tab, setTab] = useState<Tab>(isMobile ? "mobile" : "browser");
@@ -125,7 +126,7 @@ export function WalletSelector({ open, onClose, onConnected }: WalletSelectorPro
   const initWC = async (): Promise<{ provider: any; uri: string } | null> => {
     setError("");
     try {
-      const result = await initWalletConnectProvider();
+      const result = await initWalletConnectProvider(targetChainId);
       setWcProvider(result.provider);
       setWcUri(result.uri);
 

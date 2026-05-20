@@ -4,7 +4,9 @@ const PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || "";
 
 let _provider: EthereumProvider | null = null;
 
-export async function initWalletConnectProvider(): Promise<{
+const ALL_CHAINS = [1, 8453, 42161, 10, 137] as const;
+
+export async function initWalletConnectProvider(targetChainId = 1): Promise<{
   provider: EthereumProvider;
   uri: string;
 }> {
@@ -17,10 +19,16 @@ export async function initWalletConnectProvider(): Promise<{
     _provider = null;
   }
 
+  // Put the target chain first as the required chain; everything else optional
+  const requiredChain = ALL_CHAINS.includes(targetChainId as typeof ALL_CHAINS[number])
+    ? targetChainId
+    : 1;
+  const optionalChains = ALL_CHAINS.filter((c) => c !== requiredChain) as number[];
+
   const provider = await EthereumProvider.init({
     projectId: PROJECT_ID,
-    chains: [1],
-    optionalChains: [8453, 42161, 10, 137],
+    chains: [requiredChain],
+    optionalChains: optionalChains as [number, ...number[]],
     methods: [
       "eth_sendTransaction",
       "personal_sign",

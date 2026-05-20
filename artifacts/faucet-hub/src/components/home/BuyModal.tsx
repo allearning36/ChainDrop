@@ -589,6 +589,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
         open={walletSelectorOpen}
         onClose={() => setWalletSelectorOpen(false)}
         onConnected={handleWalletConnected}
+        targetChainId={selectedNetwork?.chainId}
       />
     </>
   );
