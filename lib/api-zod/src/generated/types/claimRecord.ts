@@ -5,14 +5,18 @@
  * ChainDrop — Multi-chain faucet hub API
  * OpenAPI spec version: 0.1.0
  */
+import type { ClaimRecordType } from './claimRecordType';
 
 export interface ClaimRecord {
   id: number;
   chainId: number;
   chainName: string;
   symbol: string;
+  /** @nullable */
+  logoUrl?: string | null;
   address: string;
   txHash: string;
   amount: string;
   claimedAt: Date;
+  type: ClaimRecordType;
 }

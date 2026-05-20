@@ -1170,7 +1170,7 @@ components:
 
     ClaimRecord:
       type: object
-      required: [id, chainId, chainName, symbol, address, txHash, amount, claimedAt]
+      required: [id, chainId, chainName, symbol, address, txHash, amount, claimedAt, type]
       properties:
         id:
           type: integer
@@ -1180,6 +1180,8 @@ components:
           type: string
         symbol:
           type: string
+        logoUrl:
+          type: ["string", "null"]
         address:
           type: string
         txHash:
@@ -1189,6 +1191,9 @@ components:
         claimedAt:
           type: string
           format: date-time
+        type:
+          type: string
+          enum: [claim, buy]
 
     Banner:
       type: object

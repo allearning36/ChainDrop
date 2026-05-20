@@ -30,6 +30,7 @@ export * from './chainUpdate';
 export * from './chainUpdateChainType';
 export * from './claimInput';
 export * from './claimRecord';
+export * from './claimRecordType';
 export * from './claimResult';
 export * from './claimStatus';
 export * from './errorResponse';

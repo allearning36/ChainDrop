@@ -5,7 +5,7 @@ import {
   getGetBuyInfoQueryKey, PaymentNetwork,
 } from "@workspace/api-client-react";
 import {
-  Loader2, X, Wallet, ArrowRight, CheckCircle2, Copy, Check,
+  Loader2, X, Wallet, CheckCircle2, Copy, Check,
   AlertCircle, ExternalLink, ArrowLeftRight, Zap, ChevronDown, Radio,
 } from "lucide-react";
 import { WalletSelector } from "./WalletSelector";
@@ -83,8 +83,6 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
   const [copied, setCopied] = useState<"addr" | "tx" | null>(null);
   const [walletSelectorOpen, setWalletSelectorOpen] = useState(false);
   const [confirmDots, setConfirmDots] = useState(0);
-  const [sendingSeconds, setSendingSeconds] = useState(0);
-  const [manualHash, setManualHash] = useState("");
 
   const abortRef = useRef<AbortController | null>(null);
   const submitBuy = useSubmitBuy();
@@ -104,38 +102,14 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
     return () => clearInterval(id);
   }, [step]);
 
-  // Count seconds in "sending" state — after 45s show manual hash entry
-  useEffect(() => {
-    if (step !== "sending") { setSendingSeconds(0); return; }
-    const id = setInterval(() => setSendingSeconds((s) => s + 1), 1000);
-    return () => clearInterval(id);
-  }, [step]);
-
   useEffect(() => {
     if (!chain) {
       abortRef.current?.abort();
       setStep("info"); setWalletAddress(""); setEthAmount("0.01");
       setMainnetTxHash(""); setErrorMsg(""); setSelectedNetwork(null);
-      setWalletProvider(null); setConfirmDots(0); setSendingSeconds(0); setManualHash("");
+      setWalletProvider(null); setConfirmDots(0);
     }
   }, [chain]);
-
-  const handleManualHashSubmit = () => {
-    const hash = manualHash.trim();
-    if (!hash || !hash.startsWith("0x") || hash.length < 60) return;
-    setMainnetTxHash(hash);
-    setStep("confirming");
-    const abort = new AbortController();
-    abortRef.current = abort;
-    const rpcUrl = NETWORK_RPC[selectedNetwork?.id || "eth"] || "https://eth.llamarpc.com";
-    waitForReceipt(rpcUrl, hash, abort.signal).then((result) => {
-      if (abort.signal.aborted) return;
-      if (result === null) { setErrorMsg("Transaction not confirmed within 3 minutes. Use the manual submit below."); setStep("error"); return; }
-      if (result === false) { setErrorMsg("Transaction was reverted on-chain. Please try again."); setStep("error"); return; }
-      setStep("submitting");
-      doSubmitBuy(hash);
-    });
-  };
 
   if (!chain || !chain.buyEnabled) return null;
 
@@ -291,12 +265,6 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
         },
       }
     );
-  };
-
-  const handleManualSubmit = () => {
-    if (!mainnetTxHash || !walletAddress || !selectedNetwork) return;
-    setStep("submitting");
-    doSubmitBuy(mainnetTxHash);
   };
 
   const copyToClipboard = (text: string, which: "addr" | "tx") => {
@@ -498,49 +466,17 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
                 <div>
                   <p className="font-bold font-mono text-white">Waiting for wallet{dots}</p>
                   <p className="text-sm font-mono mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>Confirm the transaction in your wallet app</p>
-                  {sendingSeconds > 0 && (
-                    <p className="text-xs font-mono mt-1" style={{ color: "rgba(255,255,255,0.2)" }}>
-                      {sendingSeconds}s elapsed
-                    </p>
-                  )}
+                  <p className="text-xs font-mono mt-1" style={{ color: "rgba(255,255,255,0.2)" }}>
+                    Tokens will be sent automatically once confirmed on-chain
+                  </p>
                 </div>
-
-                {/* After 45s — show manual tx hash fallback */}
-                {sendingSeconds >= 45 && (
-                  <div className="w-full mt-2 flex flex-col gap-2 px-1">
-                    <div className="rounded-xl px-3 py-2.5 text-xs font-mono text-left" style={{ background: "rgba(250,204,21,0.07)", border: "1px solid rgba(250,204,21,0.2)", color: "#fbbf24" }}>
-                      Already confirmed in your wallet? Paste the transaction hash below.
-                    </div>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={manualHash}
-                        onChange={(e) => setManualHash(e.target.value)}
-                        placeholder="0x... tx hash"
-                        className="flex-1 h-9 rounded-xl px-3 font-mono text-xs text-white outline-none min-w-0"
-                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)" }}
-                      />
-                      <button
-                        onClick={handleManualHashSubmit}
-                        disabled={!manualHash.trim().startsWith("0x") || manualHash.trim().length < 60}
-                        className="h-9 px-3 rounded-xl font-mono text-xs font-semibold shrink-0 transition-all"
-                        style={{
-                          background: manualHash.trim().startsWith("0x") && manualHash.trim().length >= 60 ? `linear-gradient(135deg,#4f46e5,${netColor})` : "rgba(255,255,255,0.06)",
-                          color: manualHash.trim().startsWith("0x") && manualHash.trim().length >= 60 ? "#fff" : "rgba(255,255,255,0.3)",
-                        }}
-                      >
-                        Submit
-                      </button>
-                    </div>
-                    <button
-                      onClick={() => { abortRef.current?.abort(); setStep("info"); setErrorMsg(""); setSendingSeconds(0); }}
-                      className="text-xs font-mono text-center"
-                      style={{ color: "rgba(255,255,255,0.25)" }}
-                    >
-                      Cancel and go back
-                    </button>
-                  </div>
-                )}
+                <button
+                  onClick={() => { abortRef.current?.abort(); setStep("info"); setErrorMsg(""); }}
+                  className="text-xs font-mono mt-2"
+                  style={{ color: "rgba(255,255,255,0.2)" }}
+                >
+                  Cancel
+                </button>
               </div>
             )}
 
@@ -627,19 +563,14 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> {errorMsg}
                 </div>
                 {mainnetTxHash && (
-                  <div className="rounded-xl p-3 space-y-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                    <p className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.35)" }}>Submit tx hash manually</p>
-                    <div className="flex gap-2">
-                      <input value={mainnetTxHash} onChange={(e) => setMainnetTxHash(e.target.value.trim())}
-                        placeholder="0x..." className="flex-1 h-10 rounded-xl px-3 font-mono text-xs text-white outline-none"
-                        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }} />
-                      <button onClick={handleManualSubmit} disabled={!mainnetTxHash || !walletAddress || !selectedNetwork}
-                        className="px-4 h-10 rounded-xl font-bold font-mono text-xs flex items-center gap-1"
-                        style={{ background: "rgba(129,140,248,0.15)", color: "#818cf8", border: "1px solid rgba(129,140,248,0.2)" }}
-                      >
-                        <ArrowRight className="w-3.5 h-3.5" /> Submit
-                      </button>
+                  <div className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>Your mainnet tx hash</p>
+                    <div className="flex items-center gap-2">
+                      <span className="flex-1 font-mono text-xs break-all" style={{ color: "rgba(255,255,255,0.5)" }}>{mainnetTxHash}</span>
                     </div>
+                    <p className="text-[10px] font-mono mt-1.5" style={{ color: "rgba(255,255,255,0.25)" }}>
+                      Contact support with this hash if the issue persists.
+                    </p>
                   </div>
                 )}
                 <button onClick={() => { setStep("info"); setErrorMsg(""); }}

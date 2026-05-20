@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request } from "express";
 import { desc, eq, and } from "drizzle-orm";
-import { db, claimsTable, chainsTable, blockedAddressesTable, ipBlocksTable, settingsTable } from "@workspace/db";
+import { db, claimsTable, chainsTable, blockedAddressesTable, ipBlocksTable, settingsTable, purchasesTable } from "@workspace/db";
 import { ClaimFaucetBody, GetFaucetStatusParams } from "@workspace/api-zod";
 import { sendTokens, isValidAddress, type ChainType } from "../lib/chains/index";
 import { claimLimiter } from "../lib/rateLimiters";
@@ -238,12 +238,13 @@ router.get("/faucet/status/:chainId/:address", async (req, res): Promise<void> =
 });
 
 router.get("/faucet/history", async (_req, res): Promise<void> => {
-  const claims = await db
-    .select({
+  const [claims, purchases] = await Promise.all([
+    db.select({
       id: claimsTable.id,
       chainId: claimsTable.chainId,
       chainName: chainsTable.name,
       symbol: chainsTable.symbol,
+      logoUrl: chainsTable.logoUrl,
       address: claimsTable.address,
       txHash: claimsTable.txHash,
       amount: claimsTable.amount,
@@ -252,13 +253,44 @@ router.get("/faucet/history", async (_req, res): Promise<void> => {
     .from(claimsTable)
     .innerJoin(chainsTable, eq(claimsTable.chainId, chainsTable.id))
     .orderBy(desc(claimsTable.claimedAt))
-    .limit(20);
+    .limit(20),
 
-  res.json(claims.map((c) => ({
-    id: c.id, chainId: c.chainId, chainName: c.chainName, symbol: c.symbol,
-    address: c.address, txHash: c.txHash, amount: c.amount,
-    claimedAt: c.claimedAt.toISOString(),
-  })));
+    db.select({
+      id: purchasesTable.id,
+      chainId: purchasesTable.chainId,
+      chainName: chainsTable.name,
+      symbol: chainsTable.symbol,
+      logoUrl: chainsTable.logoUrl,
+      address: purchasesTable.userAddress,
+      txHash: purchasesTable.testnetTxHash,
+      amount: purchasesTable.testnetAmountSent,
+      claimedAt: purchasesTable.createdAt,
+    })
+    .from(purchasesTable)
+    .innerJoin(chainsTable, eq(purchasesTable.chainId, chainsTable.id))
+    .where(eq(purchasesTable.status, "completed"))
+    .orderBy(desc(purchasesTable.createdAt))
+    .limit(20),
+  ]);
+
+  const combined = [
+    ...claims.map((c) => ({
+      id: c.id, chainId: c.chainId, chainName: c.chainName, symbol: c.symbol,
+      logoUrl: c.logoUrl ?? null, address: c.address, txHash: c.txHash,
+      amount: c.amount, claimedAt: c.claimedAt.toISOString(), type: "claim" as const,
+    })),
+    ...purchases
+      .filter((p) => p.txHash && p.amount)
+      .map((p) => ({
+        id: p.id, chainId: p.chainId, chainName: p.chainName, symbol: p.symbol,
+        logoUrl: p.logoUrl ?? null, address: p.address, txHash: p.txHash!,
+        amount: p.amount!, claimedAt: p.claimedAt.toISOString(), type: "buy" as const,
+      })),
+  ]
+    .sort((a, b) => new Date(b.claimedAt).getTime() - new Date(a.claimedAt).getTime())
+    .slice(0, 20);
+
+  res.json(combined);
 });
 
 export default router;

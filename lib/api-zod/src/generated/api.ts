@@ -166,10 +166,12 @@ export const GetFaucetHistoryResponseItem = zod.object({
   "chainId": zod.number(),
   "chainName": zod.string(),
   "symbol": zod.string(),
+  "logoUrl": zod.string().nullish(),
   "address": zod.string(),
   "txHash": zod.string(),
   "amount": zod.string(),
-  "claimedAt": zod.coerce.date()
+  "claimedAt": zod.coerce.date(),
+  "type": zod.enum(['claim', 'buy'])
 })
 export const GetFaucetHistoryResponse = zod.array(GetFaucetHistoryResponseItem)
 

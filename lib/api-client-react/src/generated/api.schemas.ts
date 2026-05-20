@@ -308,15 +308,26 @@ export interface ClaimStatus {
   lastClaimedAt?: string | null;
 }
 
+export type ClaimRecordType = typeof ClaimRecordType[keyof typeof ClaimRecordType];
+
+
+export const ClaimRecordType = {
+  claim: 'claim',
+  buy: 'buy',
+} as const;
+
 export interface ClaimRecord {
   id: number;
   chainId: number;
   chainName: string;
   symbol: string;
+  /** @nullable */
+  logoUrl?: string | null;
   address: string;
   txHash: string;
   amount: string;
   claimedAt: string;
+  type: ClaimRecordType;
 }
 
 export interface Banner {

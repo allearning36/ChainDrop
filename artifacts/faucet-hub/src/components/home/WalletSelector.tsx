@@ -18,21 +18,21 @@ const MOBILE_WALLETS = [
   {
     id: "metamask",
     name: "MetaMask",
-    logo: "https://raw.githubusercontent.com/MetaMask/brand-resources/master/SVG/SVG_MetaMask_Icon_Color.svg",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg",
     color: "#E8831D",
     getWcLink: (uri: string) => `https://metamask.app.link/wc?uri=${encodeURIComponent(uri)}`,
   },
   {
     id: "trust",
     name: "Trust Wallet",
-    logo: "https://raw.githubusercontent.com/trustwallet/assets/master/dapps/trustwallet.com/logo.png",
+    logo: "https://trustwallet.com/assets/images/media/assets/TWT.png",
     color: "#3375BB",
     getWcLink: (uri: string) => `https://link.trustwallet.com/wc?uri=${encodeURIComponent(uri)}`,
   },
   {
     id: "coinbase",
     name: "Coinbase",
-    logo: "https://avatars.githubusercontent.com/u/18060234?s=200&v=4",
+    logo: "https://images.ctfassets.net/q5ulk4bp65r7/3TBS4oVkD1ghowTqylkBsg/2dfd4ea3b623a7c0d8deb2ff445dee9e/coinbase-icon2.svg",
     color: "#0052FF",
     getWcLink: (uri: string) => `https://go.cb-wallet.com/wc?uri=${encodeURIComponent(uri)}`,
   },
@@ -40,40 +40,71 @@ const MOBILE_WALLETS = [
     id: "okx",
     name: "OKX Wallet",
     logo: "https://static.okx.com/cdn/assets/imgs/247/58E63FEA47A2B7D7.png",
-    color: "#000",
-    getWcLink: (uri: string) =>
-      `okx://wallet/wc?uri=${encodeURIComponent(uri)}`,
+    color: "#1a1a1a",
+    getWcLink: (uri: string) => `okx://wallet/wc?uri=${encodeURIComponent(uri)}`,
   },
   {
     id: "bitget",
-    name: "Bitget Wallet",
-    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Bitget_logo.svg/1200px-Bitget_logo.svg.png",
+    name: "Bitget",
+    logo: "https://s2.coinmarketcap.com/static/img/exchanges/64x64/513.png",
     color: "#00B897",
     getWcLink: (uri: string) => `https://bkcode.vip/wc?uri=${encodeURIComponent(uri)}`,
   },
   {
     id: "rainbow",
     name: "Rainbow",
-    logo: "https://assets.coingecko.com/markets/images/1295/small/Rainbow.jpg",
+    logo: "https://rainbow.me/favicon.ico",
     color: "#174299",
     getWcLink: (uri: string) => `https://rnbwapp.com/wc?uri=${encodeURIComponent(uri)}`,
   },
   {
     id: "bybit",
-    name: "Bybit Wallet",
-    logo: "https://raw.githubusercontent.com/trustwallet/assets/master/dapps/bybit.com/logo.png",
+    name: "Bybit",
+    logo: "https://s2.coinmarketcap.com/static/img/exchanges/64x64/521.png",
     color: "#F7A600",
     getWcLink: (uri: string) => `bybitapp://open/wc?uri=${encodeURIComponent(uri)}`,
   },
   {
     id: "tokenpocket",
     name: "TokenPocket",
-    logo: "https://raw.githubusercontent.com/trustwallet/assets/master/dapps/tokenpocket.pro/logo.png",
+    logo: "https://s2.coinmarketcap.com/static/img/exchanges/64x64/368.png",
     color: "#2980FE",
     getWcLink: (uri: string) =>
       `tpoutside://pull?version=1&params=${encodeURIComponent(JSON.stringify({ action: "wc", value: uri }))}`,
   },
 ];
+
+function WalletButton({ wallet, onClick, disabled }: { wallet: typeof MOBILE_WALLETS[0]; onClick: () => void; disabled: boolean }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="flex items-center gap-2.5 px-3 py-3 rounded-2xl text-left transition-all active:scale-[0.97] disabled:opacity-50"
+      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}
+    >
+      <div
+        className="w-10 h-10 rounded-xl shrink-0 overflow-hidden flex items-center justify-center"
+        style={{
+          background: imgFailed ? wallet.color : `${wallet.color}22`,
+          border: `1px solid ${wallet.color}44`,
+        }}
+      >
+        {!imgFailed ? (
+          <img
+            src={wallet.logo}
+            alt={wallet.name}
+            className="w-7 h-7 object-contain"
+            onError={() => setImgFailed(true)}
+          />
+        ) : (
+          <span className="text-sm font-black text-white">{wallet.name.slice(0, 1)}</span>
+        )}
+      </div>
+      <span className="text-xs font-semibold text-white leading-tight">{wallet.name}</span>
+    </button>
+  );
+}
 
 export function WalletSelector({ open, onClose, onConnected, targetChainId }: WalletSelectorProps) {
   const isMobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
@@ -318,20 +349,7 @@ export function WalletSelector({ open, onClose, onConnected, targetChainId }: Wa
               </p>
               <div className="grid grid-cols-2 gap-2">
                 {MOBILE_WALLETS.map((w) => (
-                  <button
-                    key={w.id}
-                    onClick={() => openMobileWallet(w)}
-                    disabled={connecting}
-                    className="flex items-center gap-2.5 px-3 py-3 rounded-2xl text-left transition-all active:scale-[0.97] disabled:opacity-50"
-                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}
-                  >
-                    <div className="w-9 h-9 rounded-xl shrink-0 overflow-hidden flex items-center justify-center"
-                      style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                      <img src={w.logo} alt={w.name} className="w-6 h-6 object-contain"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                    </div>
-                    <span className="text-xs font-semibold text-white leading-tight">{w.name}</span>
-                  </button>
+                  <WalletButton key={w.id} wallet={w} onClick={() => openMobileWallet(w)} disabled={connecting} />
                 ))}
               </div>
 
