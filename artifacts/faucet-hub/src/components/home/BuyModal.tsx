@@ -144,7 +144,10 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
     // Check current chain
     let currentChainHex: string = "0x1";
     try {
-      currentChainHex = await activeProvider.request({ method: "eth_chainId" }) as string;
+      const chainId = await activeProvider.request({ method: "eth_chainId" });
+      currentChainHex = typeof chainId === "number"
+        ? "0x" + chainId.toString(16)
+        : String(chainId);
     } catch { /* ignore */ }
 
     // Switch chain if needed
