@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   LogOut, LayoutDashboard, Link as LinkIcon,
   HeadphonesIcon, ClipboardList, ShieldOff, Wallet,
-  FileText, BarChart2, Settings2, Globe, Send, Users
+  FileText, BarChart2, Settings2, Globe, Send, Users, Radio
 } from "lucide-react";
 import { StatsOverview } from "@/components/admin/Stats";
 import { ChainManagement } from "@/components/admin/ChainManagement";
@@ -20,6 +20,7 @@ import { Analytics } from "@/components/admin/Analytics";
 import { SiteConfig } from "@/components/admin/SiteConfig";
 import { IPBlocking } from "@/components/admin/IPBlocking";
 import { Audience } from "@/components/admin/Audience";
+import { LiveMonitor } from "@/components/admin/LiveMonitor";
 
 async function fetchUnreadCount(): Promise<number> {
   try {
@@ -69,6 +70,9 @@ export default function AdminDashboard() {
         <Tabs defaultValue="stats" className="w-full space-y-8">
           <div className="overflow-x-auto scrollbar-none -mx-4 px-4">
           <TabsList className="bg-card border border-border h-10 p-1 gap-0.5 flex flex-nowrap w-max min-w-full md:w-full md:flex-wrap md:h-auto">
+            <TabsTrigger value="live" className={TAB}>
+              <Radio className="w-3 h-3" /> Live
+            </TabsTrigger>
             <TabsTrigger value="stats" className={TAB}>
               <LayoutDashboard className="w-3 h-3" /> Stats
             </TabsTrigger>
@@ -115,6 +119,7 @@ export default function AdminDashboard() {
           </TabsList>
           </div>
 
+          <TabsContent value="live" className="mt-0 outline-none"><LiveMonitor /></TabsContent>
           <TabsContent value="stats" className="mt-0 outline-none"><StatsOverview /></TabsContent>
           <TabsContent value="analytics" className="mt-0 outline-none"><Analytics /></TabsContent>
           <TabsContent value="audience" className="mt-0 outline-none"><Audience /></TabsContent>
