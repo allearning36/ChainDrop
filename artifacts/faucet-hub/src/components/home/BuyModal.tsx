@@ -308,10 +308,10 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
     setTimeout(() => setCopied(null), 2000);
   };
 
-  // Use chain's configured explorer, fall back to a generic block explorer
+  // Only use the chain's own configured explorer — no fallback to unknown 3rd-party sites
   const explorerUrl = chain?.explorerUrl
     ? `${chain.explorerUrl.replace(/\/$/, "")}/tx/${testnetTxHash}`
-    : `https://blockscan.com/tx/${testnetTxHash}`;
+    : null;
 
   return (
     <>
@@ -618,9 +618,11 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
                     <button onClick={() => copyToClipboard(testnetTxHash, "tx")} style={{ color: copied === "tx" ? "#22c55e" : "rgba(255,255,255,0.4)" }}>
                       {copied === "tx" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
-                    <a href={explorerUrl} target="_blank" rel="noopener noreferrer" style={{ color: "rgba(255,255,255,0.4)" }}>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
+                    {explorerUrl && (
+                      <a href={explorerUrl} target="_blank" rel="noopener noreferrer" style={{ color: "rgba(255,255,255,0.4)" }}>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
                   </div>
                 </div>
                 <button onClick={onClose}

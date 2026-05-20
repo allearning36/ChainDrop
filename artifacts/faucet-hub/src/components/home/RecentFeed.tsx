@@ -2,12 +2,13 @@ import { useGetFaucetHistory, getGetFaucetHistoryQueryKey } from "@workspace/api
 import { formatDistanceToNow } from "date-fns";
 import { ExternalLink, ShoppingCart, Droplets } from "lucide-react";
 
-function getExplorerUrl(chainName: string, txHash: string, explorerUrl?: string | null): string {
-  // Use chain's configured explorer URL first
+/** Returns the TX explorer URL, or null if none is known for this chain. */
+function getExplorerUrl(chainName: string, txHash: string, explorerUrl?: string | null): string | null {
+  // 1. Use chain's own configured explorer (set by admin)
   if (explorerUrl) {
     return `${explorerUrl.replace(/\/$/, "")}/tx/${txHash}`;
   }
-  // Fall back to well-known explorers by chain name
+  // 2. Well-known chains — match by name
   const name = chainName.toLowerCase();
   if (name.includes("sepolia"))    return `https://sepolia.etherscan.io/tx/${txHash}`;
   if (name.includes("ethereum"))   return `https://etherscan.io/tx/${txHash}`;
@@ -18,7 +19,8 @@ function getExplorerUrl(chainName: string, txHash: string, explorerUrl?: string 
   if (name.includes("bsc") || name.includes("binance")) return `https://bscscan.com/tx/${txHash}`;
   if (name.includes("avalanche"))  return `https://snowtrace.io/tx/${txHash}`;
   if (name.includes("fantom"))     return `https://ftmscan.com/tx/${txHash}`;
-  return `https://blockscan.com/tx/${txHash}`;
+  // 3. Unknown chain — don't link to a wrong explorer
+  return null;
 }
 
 export function RecentFeed() {
@@ -132,16 +134,21 @@ export function RecentFeed() {
                   {formatDistanceToNow(new Date(record.claimedAt), { addSuffix: true })}
                 </span>
 
-                <a
-                  href={getExplorerUrl(record.chainName, record.txHash, record.explorerUrl)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-[11px] font-mono transition-colors hover:opacity-80"
-                  style={{ color: "rgba(255,255,255,0.3)" }}
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  TX
-                </a>
+                {(() => {
+                  const url = getExplorerUrl(record.chainName, record.txHash, record.explorerUrl);
+                  return url ? (
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-[11px] font-mono transition-colors hover:opacity-80"
+                      style={{ color: "rgba(255,255,255,0.3)" }}
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      TX
+                    </a>
+                  ) : null;
+                })()}
               </div>
             </div>
           );
