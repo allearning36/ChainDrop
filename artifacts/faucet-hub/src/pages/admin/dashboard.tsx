@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { isAuthenticated, removeToken } from "@/lib/auth";
+import { isAuthenticated, removeToken, getToken } from "@/lib/auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { LogOut, LayoutDashboard, Link as LinkIcon, Image, Megaphone, HeadphonesIcon, Paintbrush } from "lucide-react";
@@ -11,6 +11,19 @@ import { AnnouncementManagement } from "@/components/admin/AnnouncementManagemen
 import { SupportManagement } from "@/components/admin/SupportManagement";
 import { LogoManagement } from "@/components/admin/LogoManagement";
 
+async function fetchUnreadCount(): Promise<number> {
+  try {
+    const res = await fetch("/api/admin/support/unread-count", {
+      headers: { Authorization: `Bearer ${getToken() ?? ""}` },
+    });
+    if (!res.ok) return 0;
+    const data = await res.json() as { count: number };
+    return data.count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const [supportUnread, setSupportUnread] = useState(0);
@@ -18,6 +31,14 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!isAuthenticated()) setLocation("/admin/login");
   }, [setLocation]);
+
+  // Poll unread count every 20s regardless of which tab is active
+  useEffect(() => {
+    if (!isAuthenticated()) return;
+    void fetchUnreadCount().then(setSupportUnread);
+    const id = setInterval(() => void fetchUnreadCount().then(setSupportUnread), 20000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleLogout = () => {
     removeToken();
@@ -57,8 +78,8 @@ export default function AdminDashboard() {
               <Megaphone className="w-4 h-4" /> Announcements
             </TabsTrigger>
 
-            {/* Support tab with live unread badge */}
-            <TabsTrigger value="support" className="font-mono text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary gap-2 h-10 px-4 relative">
+            {/* Support tab — badge always visible from any tab */}
+            <TabsTrigger value="support" className="font-mono text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary gap-2 h-10 px-4">
               <HeadphonesIcon className="w-4 h-4" />
               Support
               {supportUnread > 0 && (
@@ -66,7 +87,7 @@ export default function AdminDashboard() {
                   className="inline-flex items-center justify-center font-mono font-bold text-white rounded-full text-[9px] px-1 min-w-[16px] h-[16px] leading-none"
                   style={{
                     background: "#ef4444",
-                    boxShadow: "0 0 6px rgba(239,68,68,0.7)",
+                    boxShadow: "0 0 6px rgba(239,68,68,0.8)",
                     marginLeft: 2,
                   }}
                 >
