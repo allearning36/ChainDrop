@@ -23,3 +23,21 @@ export const supportLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many support requests. Please try again later." },
 });
+
+// Lookup: address history enumeration guard — 30 req / 5 min per IP
+export const lookupLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many lookup requests. Please slow down." },
+});
+
+// Buy: blockchain verification is expensive — 5 attempts / 10 min per IP
+export const buyLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many buy requests. Please wait before trying again." },
+});

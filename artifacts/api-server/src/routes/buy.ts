@@ -4,6 +4,7 @@ import { db, chainsTable, purchasesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { GetBuyInfoParams, SubmitBuyBody } from "@workspace/api-zod";
 import { sendTokens, isValidEvmAddress } from "../lib/faucet";
+import { buyLimiter } from "../lib/rateLimiters";
 
 const router: IRouter = Router();
 
@@ -55,7 +56,7 @@ router.get("/faucet/buy/info/:chainId", async (req, res): Promise<void> => {
   });
 });
 
-router.post("/faucet/buy", async (req, res): Promise<void> => {
+router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
   const parsed = SubmitBuyBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });

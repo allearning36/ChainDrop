@@ -1,10 +1,11 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, count, sql } from "drizzle-orm";
 import { db, claimsTable, chainsTable } from "@workspace/db";
+import { lookupLimiter } from "../lib/rateLimiters";
 
 const router: IRouter = Router();
 
-router.get("/lookup/:address", async (req, res): Promise<void> => {
+router.get("/lookup/:address", lookupLimiter, async (req, res): Promise<void> => {
   const address = String(req.params.address).toLowerCase().trim();
   if (!/^0x[0-9a-f]{40}$/i.test(address)) {
     res.status(400).json({ error: "Invalid EVM address" });

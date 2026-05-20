@@ -8,12 +8,35 @@ import { globalLimiter } from "./lib/rateLimiters";
 
 const app: Express = express();
 
+// Trust the first proxy hop (Replit's reverse proxy sets X-Forwarded-For).
+// Without this, express-rate-limit cannot identify real client IPs and throws
+// ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
+app.set("trust proxy", 1);
+
 // ── Security headers ──────────────────────────────────────────────────────────
 app.use(helmet({
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc:  ["'self'"],
+      scriptSrc:   ["'self'"],
+      styleSrc:    ["'self'", "'unsafe-inline'"],
+      imgSrc:      ["'self'", "data:", "https:"],
+      connectSrc:  ["'self'", "https:"],
+      fontSrc:     ["'self'", "https:"],
+      objectSrc:   ["'none'"],
+      frameSrc:    ["'none'"],
+      baseUri:     ["'self'"],
+      formAction:  ["'self'"],
+    },
+  },
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: false,   // allow images/fonts served cross-origin
   crossOriginOpenerPolicy: false,
+  // Strict Transport Security — tell browsers to use HTTPS for 1 year
+  strictTransportSecurity: {
+    maxAge: 31_536_000,
+    includeSubDomains: true,
+  },
 }));
 
 // ── CORS — restrict to own Replit domains in production ──────────────────────
@@ -47,8 +70,9 @@ app.use(
 );
 
 app.use(globalLimiter);
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Explicit body size limits to prevent payload-flooding attacks
+app.use(express.json({ limit: "50kb" }));
+app.use(express.urlencoded({ limit: "50kb", extended: true }));
 
 app.use("/api", router);
 

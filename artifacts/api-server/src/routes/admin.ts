@@ -1,10 +1,9 @@
 import { Router, type IRouter } from "express";
+import crypto from "crypto";
 import { eq, desc, count } from "drizzle-orm";
 import { db, chainsTable, claimsTable, bannersTable, announcementsTable, settingsTable } from "@workspace/db";
 import { getStoredPasswordHash, verifyPassword } from "./adminTools";
-import multer from "multer";
-import path from "path";
-import fs from "fs";
+import { upload } from "./upload";
 import {
   AdminAuthBody,
   CreateChainBody,
@@ -21,26 +20,6 @@ import {
   DeleteAnnouncementParams,
 } from "@workspace/api-zod";
 import { signAdminToken, requireAdmin, checkLoginRateLimit, recordFailedLogin, recordSuccessfulLogin } from "../lib/adminAuth";
-
-// Setup multer for image uploads
-const uploadsDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadsDir),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
-  },
-});
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) cb(null, true);
-    else cb(new Error("Only image files are allowed"));
-  },
-});
 
 const router: IRouter = Router();
 
@@ -68,9 +47,15 @@ router.post("/admin/auth", async (req, res): Promise<void> => {
 
   // Check DB-stored hash first (set via change-password), fall back to env var
   const storedHash = await getStoredPasswordHash();
-  const valid = storedHash
-    ? verifyPassword(parsed.data.password, storedHash)
-    : parsed.data.password === adminPassword;
+  let valid: boolean;
+  if (storedHash) {
+    valid = verifyPassword(parsed.data.password, storedHash);
+  } else {
+    // Timing-safe comparison even for the plaintext env-var fallback
+    const a = Buffer.from(parsed.data.password);
+    const b = Buffer.from(adminPassword);
+    valid = a.length === b.length && crypto.timingSafeEqual(a, b);
+  }
 
   if (!valid) {
     recordFailedLogin(req);
@@ -82,15 +67,17 @@ router.post("/admin/auth", async (req, res): Promise<void> => {
   res.json({ token: signAdminToken() });
 });
 
-// Image upload (auth required)
+// Image upload (auth required) — delegates to the shared upload middleware from upload.ts
 router.post("/admin/upload", requireAdmin, upload.single("file"), (req, res): void => {
   if (!req.file) {
     res.status(400).json({ error: "No file uploaded" });
     return;
   }
-  const host = req.get("host") || "";
-  const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
-  const url = `${protocol}://${host}/api/uploads/${req.file.filename}`;
+  // Build URL from REPLIT_DOMAINS env var — never trust client-supplied host headers
+  const domains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
+  const url = domains.length > 0
+    ? `https://${domains[0]}/api/uploads/${req.file.filename}`
+    : `/api/uploads/${req.file.filename}`;
   res.json({ url });
 });
 

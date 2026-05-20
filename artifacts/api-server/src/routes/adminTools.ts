@@ -113,9 +113,25 @@ router.get("/admin/claims/export", requireAdmin, async (_req, res): Promise<void
   ]);
   const chainMap = Object.fromEntries(chains.map(c => [c.id, c]));
 
+  // Sanitize cell values against CSV injection (formula injection via =,+,-,@,TAB,CR).
+  // Addresses and hashes are 0x-prefixed hex so they're inherently safe,
+  // but chain names and amounts are sanitized defensively.
+  function csvCell(value: string | number): string {
+    const s = String(value);
+    return /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  }
+
   const header = "id,address,chain,symbol,amount,txHash,claimedAt\n";
   const lines = rows.map(r =>
-    [r.id, r.address, chainMap[r.chainId]?.name ?? r.chainId, chainMap[r.chainId]?.symbol ?? "", r.amount, r.txHash, r.claimedAt.toISOString()].join(",")
+    [
+      csvCell(r.id),
+      csvCell(r.address),
+      csvCell(chainMap[r.chainId]?.name ?? r.chainId),
+      csvCell(chainMap[r.chainId]?.symbol ?? ""),
+      csvCell(r.amount),
+      csvCell(r.txHash),
+      csvCell(r.claimedAt.toISOString()),
+    ].join(",")
   ).join("\n");
 
   res.setHeader("Content-Type", "text/csv");
