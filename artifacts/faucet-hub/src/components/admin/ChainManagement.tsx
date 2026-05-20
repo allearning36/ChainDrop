@@ -499,7 +499,11 @@ export function ChainManagement() {
             <div className="space-y-2 md:col-span-2">
               <Label>Block Explorer URL</Label>
               <Input value={formData.explorerUrl} onChange={e => setFormData({...formData, explorerUrl: e.target.value})} placeholder="https://explorer.example.com (optional — used for tx links)" className="font-mono text-sm" />
-              <p className="text-[11px] text-muted-foreground font-mono">Tx link: <span className="text-primary">{formData.explorerUrl ? `${formData.explorerUrl.replace(/\/$/, "")}/tx/0x...` : "default explorer will be used"}</span></p>
+              <p className="text-[11px] font-mono" style={{ color: formData.explorerUrl ? undefined : "rgba(251,191,36,0.8)" }}>
+                {formData.explorerUrl
+                  ? <span className="text-primary">Preview: {formData.explorerUrl.replace(/\/$/, "")}/tx/0x...</span>
+                  : "⚠ Required for TX links in Recent Drops — without this, no TX link will appear for this chain"}
+              </p>
             </div>
 
             {/* Logo */}
