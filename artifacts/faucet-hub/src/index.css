@@ -1,5 +1,15 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+
+/* reCAPTCHA challenge popup — ensure clicks/touches work on mobile inside modals */
+iframe[title*="recaptcha"],
+iframe[src*="recaptcha"],
+div[id^="rc-imageselect"],
+.rc-imageselect,
+.rc-anchor-container {
+  pointer-events: auto !important;
+  touch-action: auto !important;
+}
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));

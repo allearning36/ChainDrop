@@ -162,9 +162,9 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   return (
     <>
       <Dialog open={!!chain} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-md w-full p-0 overflow-hidden border-0 bg-transparent shadow-none [&>button]:hidden">
+        <DialogContent className="sm:max-w-md w-full p-0 border-0 bg-transparent shadow-none [&>button]:hidden">
           <div
-            className="relative w-full rounded-2xl overflow-hidden"
+            className="relative w-full rounded-2xl"
             style={{
               background: "linear-gradient(160deg, #0d1117 0%, #0a1628 50%, #0d1117 100%)",
               border: "1px solid rgba(34,197,94,0.2)",
@@ -274,7 +274,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                 {/* reCAPTCHA — shown when address is valid and not in cooldown */}
                 {addressValid && !inCooldown && (
                   <div className="flex justify-center">
-                    <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <div className="rounded-xl" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
                       <ReCAPTCHA
                         ref={recaptchaRef}
                         sitekey={RECAPTCHA_SITE_KEY}
