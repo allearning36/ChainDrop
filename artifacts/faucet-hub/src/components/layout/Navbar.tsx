@@ -23,10 +23,10 @@ export function Navbar() {
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2">
           <img
-            src="/logo.png"
+            src="/logo.svg"
             alt="ChainDrop"
             className="h-10 w-10 object-contain shrink-0"
-            style={{ filter: "drop-shadow(0 0 8px rgba(34,197,94,0.5))" }}
+            style={{ filter: "drop-shadow(0 0 10px rgba(34,197,94,0.6))" }}
           />
           <div className="flex flex-col leading-none">
             <span
