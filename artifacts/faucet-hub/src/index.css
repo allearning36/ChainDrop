@@ -206,4 +206,36 @@ div[id^="rc-imageselect"],
     0% { transform: translateX(0%); }
     100% { transform: translateX(-50%); }
   }
+
+  /* Premium chain card shimmer on CLAIM button */
+  .chain-claim-shimmer {
+    background: linear-gradient(
+      105deg,
+      transparent 30%,
+      rgba(255,255,255,0.18) 50%,
+      transparent 70%
+    );
+    background-size: 200% 100%;
+    animation: claim-shimmer 2.4s ease-in-out infinite;
+  }
+  @keyframes claim-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Card hover lift */
+  .chain-card {
+    transform: translateY(0);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+  .chain-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(34,197,94,0.18), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+  }
+
+  /* Placeholder styling */
+  input::placeholder {
+    color: rgba(255,255,255,0.22);
+    font-style: italic;
+  }
 }

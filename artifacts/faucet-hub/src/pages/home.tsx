@@ -39,35 +39,125 @@ export default function Home() {
       <Navbar />
       <HeadlineBanner />
 
-      {/* Search bar */}
-      <div className="w-full bg-background/80 backdrop-blur-sm border-b border-border/50 px-4 py-3">
-        <div className="relative max-w-lg mx-auto">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search chains by name or symbol…"
-            className="w-full h-10 pl-9 pr-9 rounded-lg bg-muted/60 border border-border text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition"
+      {/* Premium Search bar */}
+      <div className="w-full px-4 py-5 relative" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+        {/* Ambient glow behind search */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: "radial-gradient(ellipse 60% 80% at 50% 100%, rgba(34,197,94,0.06) 0%, transparent 70%)",
+          }}
+        />
+        <div className="relative max-w-2xl mx-auto group">
+          {/* Animated gradient border on focus */}
+          <div
+            className="absolute -inset-[1px] rounded-2xl opacity-0 group-focus-within:opacity-100 transition-all duration-700"
+            style={{
+              background: "linear-gradient(135deg, rgba(34,197,94,0.7) 0%, rgba(6,182,212,0.5) 50%, rgba(168,85,247,0.4) 100%)",
+              filter: "blur(1px)",
+            }}
           />
-          {search && (
-            <button
-              onClick={() => setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition"
-              aria-label="Clear search"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+          {/* Inner container */}
+          <div
+            className="relative flex items-center rounded-2xl overflow-hidden transition-all duration-300"
+            style={{
+              background: "rgba(8,10,14,0.9)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)",
+            }}
+          >
+            {/* Search icon with gradient */}
+            <div className="pl-5 pr-3 flex items-center shrink-0">
+              <Search
+                className="w-5 h-5 transition-all duration-300 group-focus-within:scale-110"
+                style={{ color: "rgba(34,197,94,0.65)" }}
+              />
+            </div>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search chains by name or symbol…"
+              className="flex-1 h-14 text-sm font-mono bg-transparent focus:outline-none text-foreground"
+              style={{
+                color: "rgba(255,255,255,0.9)",
+                letterSpacing: "0.01em",
+              }}
+            />
+            {/* Right side: clear button or hint badge */}
+            <div className="pr-4 flex items-center shrink-0">
+              {search ? (
+                <button
+                  onClick={() => setSearch("")}
+                  className="flex items-center justify-center w-6 h-6 rounded-full transition-all duration-200 hover:scale-110"
+                  style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}
+                  aria-label="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <span
+                  className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase tracking-widest"
+                  style={{
+                    background: "rgba(34,197,94,0.08)",
+                    border: "1px solid rgba(34,197,94,0.15)",
+                    color: "rgba(34,197,94,0.45)",
+                  }}
+                >
+                  Filter
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8 relative">
+        {/* Page ambient background */}
+        <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10" aria-hidden>
+          <div
+            style={{
+              position: "absolute", top: "-20%", left: "10%",
+              width: "500px", height: "500px", borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(34,197,94,0.04) 0%, transparent 70%)",
+              filter: "blur(40px)",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute", top: "40%", right: "5%",
+              width: "400px", height: "400px", borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(6,182,212,0.035) 0%, transparent 70%)",
+              filter: "blur(40px)",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute", bottom: "10%", left: "30%",
+              width: "600px", height: "300px", borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(168,85,247,0.03) 0%, transparent 70%)",
+              filter: "blur(50px)",
+            }}
+          />
+        </div>
         <AdSlot id="home-top" className="my-2" />
         <Banners />
 
         <div className="flex flex-col items-center gap-3 mb-8 mt-12">
-          <h2 className="text-2xl font-bold font-mono tracking-tight uppercase mb-2">
+          <h2
+            className="text-2xl font-bold font-mono tracking-tight uppercase mb-2"
+            style={{
+              background: networkType === "testnet"
+                ? "linear-gradient(135deg, #4ade80 0%, #22c55e 50%, #86efac 100%)"
+                : "linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #d8b4fe 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+              filter: networkType === "testnet"
+                ? "drop-shadow(0 0 12px rgba(34,197,94,0.35))"
+                : "drop-shadow(0 0 12px rgba(168,85,247,0.35))",
+            }}
+          >
             {networkType} Faucets
           </h2>
 

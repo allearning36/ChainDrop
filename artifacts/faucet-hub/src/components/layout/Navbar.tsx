@@ -46,7 +46,7 @@ export function Navbar() {
   const px = SIZE_PX[logo.logoSize] ?? 40;
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <nav className="sticky top-0 z-50 w-full backdrop-blur-xl" style={{ background: "rgba(8,10,14,0.92)", borderBottom: "1px solid rgba(255,255,255,0.07)", boxShadow: "0 1px 20px rgba(0,0,0,0.4)" }}>
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2 min-w-0 shrink overflow-hidden">
           <img
