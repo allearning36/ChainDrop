@@ -14,6 +14,10 @@ export const supportMessagesTable = pgTable("support_messages", {
   conversationId: integer("conversation_id").notNull().references(() => supportConversationsTable.id, { onDelete: "cascade" }),
   content: text("content").notNull(),
   isAdmin: boolean("is_admin").notNull().default(false),
+  // adminSeen: has the admin read this user message? (only relevant when isAdmin=false)
+  adminSeen: boolean("admin_seen").notNull().default(false),
+  // userSeen: has the user read this admin message? (only relevant when isAdmin=true)
+  userSeen: boolean("user_seen").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

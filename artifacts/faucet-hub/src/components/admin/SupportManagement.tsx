@@ -1,13 +1,32 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Send, Loader2, MessageCircle, User, Mail, Clock, CheckCircle, Circle, ArrowLeft } from "lucide-react";
+import { Send, Loader2, MessageCircle, User, Mail, Clock, CheckCircle, Circle } from "lucide-react";
 import { getToken } from "@/lib/auth";
 
-type Msg = { id: number; conversationId: number; content: string; isAdmin: boolean; createdAt: string };
-type Conv = { id: number; userName: string; userEmail: string; status: string; lastMessage: string | null; createdAt: string; updatedAt: string };
+type Msg = {
+  id: number;
+  conversationId: number;
+  content: string;
+  isAdmin: boolean;
+  userSeen?: boolean;
+  createdAt: string;
+};
+type Conv = {
+  id: number;
+  userName: string;
+  userEmail: string;
+  status: string;
+  lastMessage: string | null;
+  hasUnread: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
 type ConvDetail = Conv & { messages: Msg[] };
+
+interface SupportManagementProps {
+  onUnreadCount?: (n: number) => void;
+}
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -18,11 +37,9 @@ function timeAgo(iso: string) {
   if (h < 24) return `${h}h ago`;
   return `${Math.floor(h / 24)}d ago`;
 }
-
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
-
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString([], { month: "short", day: "numeric" });
 }
@@ -42,7 +59,7 @@ async function apiFetch(path: string, opts?: RequestInit) {
   return res.json();
 }
 
-export function SupportManagement() {
+export function SupportManagement({ onUnreadCount }: SupportManagementProps) {
   const [conversations, setConversations] = useState<Conv[]>([]);
   const [selected, setSelected] = useState<ConvDetail | null>(null);
   const [loadingList, setLoadingList] = useState(false);
@@ -52,12 +69,28 @@ export function SupportManagement() {
   const [statusUpdating, setStatusUpdating] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const listPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const loadList = useCallback(async () => {
+    setLoadingList(true);
+    try {
+      const data = await apiFetch("/api/admin/support") as Conv[];
+      setConversations(data ?? []);
+      const unread = (data ?? []).filter(c => c.hasUnread).length;
+      onUnreadCount?.(unread);
+    } finally {
+      setLoadingList(false);
+    }
+  }, [onUnreadCount]);
 
   useEffect(() => {
     void loadList();
-  }, []);
+    // Poll list every 15s for unread badge updates
+    listPollRef.current = setInterval(() => void loadList(), 15000);
+    return () => { if (listPollRef.current) clearInterval(listPollRef.current); };
+  }, [loadList]);
 
-  // Poll selected conversation
+  // Poll selected conversation every 5s
   useEffect(() => {
     if (selected) {
       pollRef.current = setInterval(() => void loadDetail(selected.id), 5000);
@@ -70,21 +103,13 @@ export function SupportManagement() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [selected?.messages]);
 
-  async function loadList() {
-    setLoadingList(true);
-    try {
-      const data = await apiFetch("/api/admin/support") as Conv[];
-      setConversations(data ?? []);
-    } finally {
-      setLoadingList(false);
-    }
-  }
-
   async function loadDetail(id: number) {
     setLoadingDetail(true);
     try {
       const data = await apiFetch(`/api/admin/support/${id}`) as ConvDetail;
       setSelected(data);
+      // After opening, refresh list to clear unread badge for this conv
+      void loadList();
     } finally {
       setLoadingDetail(false);
     }
@@ -136,13 +161,26 @@ export function SupportManagement() {
     }
   }
 
+  const totalUnread = conversations.filter(c => c.hasUnread).length;
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-0 border border-border rounded-xl overflow-hidden" style={{ minHeight: "560px" }}>
-      {/* Sidebar: conversation list */}
+    <div
+      className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-0 border border-border rounded-xl overflow-hidden"
+      style={{ minHeight: "560px" }}
+    >
+      {/* Sidebar */}
       <div className="border-r border-border flex flex-col bg-card/40">
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
           <span className="font-mono font-semibold text-sm flex items-center gap-2">
             <MessageCircle className="w-4 h-4 text-primary" /> Conversations
+            {totalUnread > 0 && (
+              <span
+                className="inline-flex items-center justify-center font-mono font-bold text-[10px] text-white rounded-full px-1.5 min-w-[18px] h-[18px]"
+                style={{ background: "#ef4444", boxShadow: "0 0 6px rgba(239,68,68,0.6)" }}
+              >
+                {totalUnread}
+              </span>
+            )}
           </span>
           {loadingList && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
         </div>
@@ -158,25 +196,36 @@ export function SupportManagement() {
               className={`w-full text-left px-4 py-3 hover:bg-muted/40 transition-colors ${selected?.id === conv.id ? "bg-primary/10 border-l-2 border-primary" : ""}`}
             >
               <div className="flex items-start justify-between gap-2 mb-1">
-                <span className="text-sm font-semibold truncate flex-1">{conv.userName}</span>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span
-                    className="text-[10px] font-mono px-1.5 py-0.5 rounded-full uppercase tracking-wider font-semibold"
-                    style={conv.status === "open"
-                      ? { background: "rgba(34,197,94,0.15)", color: "#22c55e" }
-                      : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }
-                    }
-                  >
-                    {conv.status}
+                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                  {/* Red dot for unread */}
+                  {conv.hasUnread && (
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ background: "#ef4444", boxShadow: "0 0 4px rgba(239,68,68,0.7)" }}
+                    />
+                  )}
+                  <span className={`text-sm truncate ${conv.hasUnread ? "font-bold text-foreground" : "font-semibold"}`}>
+                    {conv.userName}
                   </span>
                 </div>
+                <span
+                  className="text-[10px] font-mono px-1.5 py-0.5 rounded-full uppercase tracking-wider font-semibold shrink-0"
+                  style={conv.status === "open"
+                    ? { background: "rgba(34,197,94,0.15)", color: "#22c55e" }
+                    : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }
+                  }
+                >
+                  {conv.status}
+                </span>
               </div>
               <div className="flex items-center gap-1 text-[11px] text-muted-foreground mb-1">
                 <Mail className="w-3 h-3 shrink-0" />
                 <span className="truncate">{conv.userEmail}</span>
               </div>
               {conv.lastMessage && (
-                <div className="text-xs text-muted-foreground truncate">{conv.lastMessage}</div>
+                <div className={`text-xs truncate ${conv.hasUnread ? "text-foreground/80" : "text-muted-foreground"}`}>
+                  {conv.lastMessage}
+                </div>
               )}
               <div className="text-[10px] text-muted-foreground/60 mt-1 flex items-center gap-1">
                 <Clock className="w-2.5 h-2.5" />
@@ -187,7 +236,7 @@ export function SupportManagement() {
         </div>
       </div>
 
-      {/* Main: conversation detail */}
+      {/* Chat area */}
       {!selected ? (
         <div className="flex items-center justify-center text-muted-foreground flex-col gap-3">
           <MessageCircle className="w-10 h-10 opacity-20" />
@@ -195,7 +244,7 @@ export function SupportManagement() {
         </div>
       ) : (
         <div className="flex flex-col bg-card/20">
-          {/* Conversation header */}
+          {/* Header */}
           <div className="px-4 py-3 border-b border-border flex items-center gap-3">
             <div
               className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0"
@@ -232,10 +281,12 @@ export function SupportManagement() {
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3" style={{ maxHeight: "380px" }}>
             {loadingDetail && !selected.messages?.length && (
-              <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+              <div className="flex justify-center py-4">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
             )}
             {selected.messages?.map(msg => (
-              <div key={msg.id} className={`flex ${msg.isAdmin ? "justify-end" : "justify-start"}`}>
+              <div key={msg.id} className={`flex flex-col ${msg.isAdmin ? "items-end" : "items-start"}`}>
                 <div
                   className="max-w-[75%] rounded-2xl px-3 py-2 text-sm leading-relaxed"
                   style={
@@ -254,6 +305,13 @@ export function SupportManagement() {
                     {formatTime(msg.createdAt)}
                   </div>
                 </div>
+                {/* "Seen" indicator — only for admin messages that user has read */}
+                {msg.isAdmin && msg.userSeen && (
+                  <div className="flex items-center gap-1 mt-0.5 mr-1">
+                    <CheckCircle className="w-3 h-3 text-green-400" />
+                    <span className="text-[10px] font-mono text-green-400 tracking-wide">Seen</span>
+                  </div>
+                )}
               </div>
             ))}
             <div ref={bottomRef} />

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { isAuthenticated, removeToken } from "@/lib/auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,6 +13,7 @@ import { LogoManagement } from "@/components/admin/LogoManagement";
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
+  const [supportUnread, setSupportUnread] = useState(0);
 
   useEffect(() => {
     if (!isAuthenticated()) setLocation("/admin/login");
@@ -55,9 +56,25 @@ export default function AdminDashboard() {
             <TabsTrigger value="announcements" className="font-mono text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary gap-2 h-10 px-4">
               <Megaphone className="w-4 h-4" /> Announcements
             </TabsTrigger>
-            <TabsTrigger value="support" className="font-mono text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary gap-2 h-10 px-4">
-              <HeadphonesIcon className="w-4 h-4" /> Support
+
+            {/* Support tab with live unread badge */}
+            <TabsTrigger value="support" className="font-mono text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary gap-2 h-10 px-4 relative">
+              <HeadphonesIcon className="w-4 h-4" />
+              Support
+              {supportUnread > 0 && (
+                <span
+                  className="inline-flex items-center justify-center font-mono font-bold text-white rounded-full text-[9px] px-1 min-w-[16px] h-[16px] leading-none"
+                  style={{
+                    background: "#ef4444",
+                    boxShadow: "0 0 6px rgba(239,68,68,0.7)",
+                    marginLeft: 2,
+                  }}
+                >
+                  {supportUnread > 99 ? "99+" : supportUnread}
+                </span>
+              )}
             </TabsTrigger>
+
             <TabsTrigger value="logo" className="font-mono text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary gap-2 h-10 px-4">
               <Paintbrush className="w-4 h-4" /> Logo
             </TabsTrigger>
@@ -76,7 +93,7 @@ export default function AdminDashboard() {
             <AnnouncementManagement />
           </TabsContent>
           <TabsContent value="support" className="mt-0 outline-none">
-            <SupportManagement />
+            <SupportManagement onUnreadCount={setSupportUnread} />
           </TabsContent>
           <TabsContent value="logo" className="mt-0 outline-none">
             <LogoManagement />
