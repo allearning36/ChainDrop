@@ -164,6 +164,18 @@
     pointer-events: none;
   }
   
+  .headline-marquee-track {
+    display: flex;
+    white-space: nowrap;
+    animation: headline-scroll 18s linear infinite;
+    will-change: transform;
+  }
+
+  @keyframes headline-scroll {
+    0%   { transform: translateX(0%); }
+    100% { transform: translateX(-50%); }
+  }
+
   .marquee-container {
     overflow: hidden;
     white-space: nowrap;

@@ -14,6 +14,14 @@ const DEFAULTS: HeadlineSettings = {
   headlineEmoji: "📢",
 };
 
+function hexToRgb(hex: string): string {
+  const clean = hex.replace("#", "");
+  const num = parseInt(clean.length === 3
+    ? clean.split("").map(c => c + c).join("")
+    : clean, 16);
+  return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
+}
+
 export function HeadlineBanner() {
   const [cfg, setCfg] = useState<HeadlineSettings>(DEFAULTS);
 
@@ -22,9 +30,9 @@ export function HeadlineBanner() {
       .then(r => r.json())
       .then((data: Record<string, string>) => {
         setCfg({
-          headline: data.headline ?? "",
+          headline:      data.headline      ?? "",
           headlineColor: data.headlineColor ?? DEFAULTS.headlineColor,
-          headlineBg: data.headlineBg ?? DEFAULTS.headlineBg,
+          headlineBg:    data.headlineBg    ?? DEFAULTS.headlineBg,
           headlineEmoji: data.headlineEmoji ?? DEFAULTS.headlineEmoji,
         });
       })
@@ -40,19 +48,59 @@ export function HeadlineBanner() {
 
   if (!cfg.headline.trim()) return null;
 
+  const rgb = hexToRgb(cfg.headlineBg);
+
+  const item = (
+    <span className="inline-flex items-center gap-3 px-12 text-sm font-mono font-semibold tracking-wide">
+      {cfg.headlineEmoji && (
+        <span className="text-base leading-none shrink-0">{cfg.headlineEmoji}</span>
+      )}
+      <span>{cfg.headline}</span>
+    </span>
+  );
+
   return (
     <div
-      className="w-full py-2.5 px-4 flex items-center justify-center gap-2 text-sm font-mono font-semibold tracking-wide select-none"
+      className="w-full overflow-hidden select-none"
       style={{
         background: cfg.headlineBg,
         color: cfg.headlineColor,
-        borderBottom: "1px solid rgba(255,255,255,0.08)",
+        borderBottom: "1px solid rgba(255,255,255,0.10)",
+        position: "relative",
+        height: "38px",
+        display: "flex",
+        alignItems: "center",
       }}
     >
-      {cfg.headlineEmoji && (
-        <span className="shrink-0 text-base leading-none">{cfg.headlineEmoji}</span>
-      )}
-      <span className="text-center leading-snug">{cfg.headline}</span>
+      {/* scrolling track — duplicated for seamless loop */}
+      <div className="headline-marquee-track" style={{ color: cfg.headlineColor }}>
+        {item}{item}{item}{item}
+      </div>
+
+      {/* left fade shadow */}
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: "80px",
+          pointerEvents: "none",
+          background: `linear-gradient(to right, rgba(${rgb},1) 0%, rgba(${rgb},0) 100%)`,
+        }}
+      />
+      {/* right fade shadow */}
+      <div
+        style={{
+          position: "absolute",
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: "80px",
+          pointerEvents: "none",
+          background: `linear-gradient(to left, rgba(${rgb},1) 0%, rgba(${rgb},0) 100%)`,
+        }}
+      />
     </div>
   );
 }
