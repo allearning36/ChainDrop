@@ -22,6 +22,7 @@ export const chainsTable = pgTable("chains", {
   buyCurrencies: text("buy_currencies").notNull().default('["eth"]'),
   receiveAddress: text("receive_address"),
   tokenPrice: numeric("token_price", { precision: 18, scale: 8 }),
+  explorerUrl: text("explorer_url"),
   coingeckoId: text("coingecko_id"),
   chainType: text("chain_type").notNull().default("evm"),
   soonMessage: text("soon_message"),

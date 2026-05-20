@@ -75,6 +75,7 @@ const DEFAULT_CHAIN = {
   walletAddress: "",
   claimAmount: "0.01",
   cooldownSeconds: 86400,
+  explorerUrl: "",
   isTestnet: true,
   isEnabled: true,
   availableStatus: "YES",
@@ -170,6 +171,7 @@ export function ChainManagement() {
       // Null → empty string for all optional text fields
       logoUrl: chain.logoUrl ?? "",
       buyUrl: chain.buyUrl ?? "",
+      explorerUrl: chain.explorerUrl ?? "",
       tokenPrice: chain.tokenPrice ?? "",
       coingeckoId: chain.coingeckoId ?? "",
       soonMessage: chain.soonMessage ?? "",
@@ -211,7 +213,7 @@ export function ChainManagement() {
     };
 
     // Strip empty strings and nulls for optional fields — backend Zod rejects null
-    const optionalFields = ["logoUrl", "buyUrl", "tokenPrice", "coingeckoId", "receiveAddress", "soonMessage"];
+    const optionalFields = ["logoUrl", "buyUrl", "explorerUrl", "tokenPrice", "coingeckoId", "receiveAddress", "soonMessage"];
     for (const key of optionalFields) {
       if (payload[key] === null || payload[key] === "") delete payload[key];
     }
@@ -446,6 +448,11 @@ export function ChainManagement() {
             <div className="space-y-2">
               <Label>Token Price (USD)</Label>
               <Input type="number" step="0.0001" value={formData.tokenPrice} onChange={e => setFormData({...formData, tokenPrice: e.target.value})} placeholder="e.g. 0.0012" className="font-mono" />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Block Explorer URL</Label>
+              <Input value={formData.explorerUrl} onChange={e => setFormData({...formData, explorerUrl: e.target.value})} placeholder="https://explorer.example.com (optional — used for tx links)" className="font-mono text-sm" />
+              <p className="text-[11px] text-muted-foreground font-mono">Tx link: <span className="text-primary">{formData.explorerUrl ? `${formData.explorerUrl.replace(/\/$/, "")}/tx/0x...` : "default explorer will be used"}</span></p>
             </div>
 
             {/* Logo */}

@@ -26,6 +26,7 @@ export interface ChainInput {
   buyMinAmount?: string;
   buyCurrencies?: string;
   receiveAddress?: string;
+  explorerUrl?: string;
   tokenPrice?: string;
   coingeckoId?: string;
   soonMessage?: string;

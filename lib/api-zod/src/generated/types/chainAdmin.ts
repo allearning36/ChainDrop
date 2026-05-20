@@ -31,6 +31,8 @@ export interface ChainAdmin {
   /** @nullable */
   receiveAddress?: string | null;
   /** @nullable */
+  explorerUrl?: string | null;
+  /** @nullable */
   tokenPrice?: string | null;
   /** @nullable */
   coingeckoId?: string | null;

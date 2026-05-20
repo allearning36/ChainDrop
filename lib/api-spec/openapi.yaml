@@ -870,6 +870,8 @@ components:
           type: ["string", "null"]
         tokenPrice:
           type: ["string", "null"]
+        explorerUrl:
+          type: ["string", "null"]
         coingeckoId:
           type: ["string", "null"]
         soonMessage:
@@ -907,6 +909,8 @@ components:
         buyUrl:
           type: ["string", "null"]
         tokenPrice:
+          type: ["string", "null"]
+        explorerUrl:
           type: ["string", "null"]
         coingeckoId:
           type: ["string", "null"]
@@ -958,6 +962,8 @@ components:
           type: string
           description: "JSON array of enabled payment network IDs e.g. [\"eth\",\"base\"]"
         receiveAddress:
+          type: ["string", "null"]
+        explorerUrl:
           type: ["string", "null"]
         tokenPrice:
           type: ["string", "null"]
@@ -1012,6 +1018,8 @@ components:
           type: string
         receiveAddress:
           type: string
+        explorerUrl:
+          type: string
         tokenPrice:
           type: string
         coingeckoId:
@@ -1060,6 +1068,8 @@ components:
         buyCurrencies:
           type: string
         receiveAddress:
+          type: string
+        explorerUrl:
           type: string
         tokenPrice:
           type: string

@@ -39,7 +39,12 @@ function getAddressPlaceholder(chainType: string): string {
   }
 }
 
-function getTxExplorerUrl(chainType: string, isTestnet: boolean, txHash: string): string {
+function getTxExplorerUrl(chainType: string, isTestnet: boolean, txHash: string, customExplorerUrl?: string | null): string {
+  // If admin set a custom explorer URL for this chain, use it
+  if (customExplorerUrl) {
+    const base = customExplorerUrl.replace(/\/$/, "");
+    return `${base}/tx/${txHash}`;
+  }
   switch (chainType) {
     case "solana":
       return isTestnet
@@ -158,7 +163,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const inCooldown = !!debouncedAddress && !!status && !status.canClaim;
   const canSubmit = addressValid && !inCooldown && !isStatusLoading && !!captchaToken;
 
-  const explorerUrl = getTxExplorerUrl(chainType, chain.isTestnet, txHash);
+  const explorerUrl = getTxExplorerUrl(chainType, chain.isTestnet, txHash, chain.explorerUrl);
 
   return (
     <>

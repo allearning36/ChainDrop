@@ -78,6 +78,8 @@ export interface ChainPublic {
   /** @nullable */
   tokenPrice?: string | null;
   /** @nullable */
+  explorerUrl?: string | null;
+  /** @nullable */
   coingeckoId?: string | null;
   /** @nullable */
   soonMessage?: string | null;
@@ -112,6 +114,8 @@ export interface ChainDetail {
   buyUrl?: string | null;
   /** @nullable */
   tokenPrice?: string | null;
+  /** @nullable */
+  explorerUrl?: string | null;
   /** @nullable */
   coingeckoId?: string | null;
   /** @nullable */
@@ -156,6 +160,8 @@ export interface ChainAdmin {
   /** @nullable */
   receiveAddress?: string | null;
   /** @nullable */
+  explorerUrl?: string | null;
+  /** @nullable */
   tokenPrice?: string | null;
   /** @nullable */
   coingeckoId?: string | null;
@@ -195,6 +201,7 @@ export interface ChainInput {
   buyMinAmount?: string;
   buyCurrencies?: string;
   receiveAddress?: string;
+  explorerUrl?: string;
   tokenPrice?: string;
   coingeckoId?: string;
   soonMessage?: string;
@@ -231,6 +238,7 @@ export interface ChainUpdate {
   buyMinAmount?: string;
   buyCurrencies?: string;
   receiveAddress?: string;
+  explorerUrl?: string;
   tokenPrice?: string;
   coingeckoId?: string;
   soonMessage?: string;
