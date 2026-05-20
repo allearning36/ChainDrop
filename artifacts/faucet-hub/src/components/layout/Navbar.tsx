@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Bell, MessageCircle } from "lucide-react";
 import { useGetAnnouncements, getGetAnnouncementsQueryKey } from "@workspace/api-client-react";
@@ -6,27 +6,52 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { SupportModal } from "@/components/support/SupportModal";
 
+interface LogoSettings { logoUrl: string; logoGlow: string; logoSize: string; }
+
+const GLOW_FILTER: Record<string, string> = {
+  none: "none",
+  subtle: "drop-shadow(0 0 4px rgba(34,197,94,0.3))",
+  medium: "drop-shadow(0 0 10px rgba(34,197,94,0.6))",
+  bright: "drop-shadow(0 0 18px rgba(34,197,94,1))",
+};
+const SIZE_PX: Record<string, number> = { small: 32, medium: 40, large: 52 };
+
+async function loadLogoSettings(): Promise<LogoSettings> {
+  try {
+    const r = await fetch("/api/settings");
+    return await r.json();
+  } catch {
+    return { logoUrl: "/logo.svg", logoGlow: "medium", logoSize: "medium" };
+  }
+}
+
 export function Navbar() {
   const { data: announcements = [] } = useGetAnnouncements({
-    query: {
-      queryKey: getGetAnnouncementsQueryKey()
-    }
+    query: { queryKey: getGetAnnouncementsQueryKey() }
   });
   const [open, setOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
-  
+  const [logo, setLogo] = useState<LogoSettings>({ logoUrl: "/logo.svg", logoGlow: "medium", logoSize: "medium" });
+
+  useEffect(() => {
+    loadLogoSettings().then(setLogo);
+    const handler = (e: Event) => setLogo((e as CustomEvent<LogoSettings>).detail);
+    window.addEventListener("logoSettingsChanged", handler);
+    return () => window.removeEventListener("logoSettingsChanged", handler);
+  }, []);
+
   const activeAnnouncements = announcements.filter(a => a.isActive);
   const hasUnread = activeAnnouncements.length > 0;
+  const px = SIZE_PX[logo.logoSize] ?? 40;
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2">
           <img
-            src="/logo.svg"
+            src={logo.logoUrl}
             alt="ChainDrop"
-            className="h-10 w-10 object-contain shrink-0"
-            style={{ filter: "drop-shadow(0 0 10px rgba(34,197,94,0.6))" }}
+            style={{ width: px, height: px, objectFit: "contain", filter: GLOW_FILTER[logo.logoGlow] ?? GLOW_FILTER.medium, transition: "all 0.3s" }}
           />
           <div className="flex flex-col leading-none">
             <span
@@ -49,9 +74,8 @@ export function Navbar() {
             </span>
           </div>
         </Link>
-        
+
         <div className="flex items-center gap-2">
-          {/* Support button */}
           <Button
             variant="ghost"
             size="sm"
@@ -62,7 +86,6 @@ export function Navbar() {
             Support
           </Button>
 
-          {/* Announcements bell */}
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="relative">
@@ -76,18 +99,16 @@ export function Navbar() {
               <div className="flex flex-col gap-4">
                 <div className="space-y-2">
                   <h4 className="font-medium leading-none">Announcements</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Latest news and updates.
-                  </p>
+                  <p className="text-sm text-muted-foreground">Latest news and updates.</p>
                 </div>
                 <div className="grid gap-2">
                   {activeAnnouncements.length === 0 ? (
                     <div className="text-sm text-muted-foreground text-center py-4">No new announcements</div>
                   ) : (
-                    activeAnnouncements.map((announcement) => (
-                      <div key={announcement.id} className="text-sm border-b border-border pb-2 last:border-0 last:pb-0">
-                        <div className="font-medium">{announcement.title}</div>
-                        <div className="text-muted-foreground mt-1 whitespace-pre-wrap">{announcement.content}</div>
+                    activeAnnouncements.map((a) => (
+                      <div key={a.id} className="text-sm border-b border-border pb-2 last:border-0 last:pb-0">
+                        <div className="font-medium">{a.title}</div>
+                        <div className="text-muted-foreground mt-1 whitespace-pre-wrap">{a.content}</div>
                       </div>
                     ))
                   )}

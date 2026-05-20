@@ -4,3 +4,4 @@ export * from "./banners";
 export * from "./announcements";
 export * from "./purchases";
 export * from "./support";
+export * from "./settings";

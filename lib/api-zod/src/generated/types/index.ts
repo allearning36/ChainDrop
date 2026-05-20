@@ -34,6 +34,7 @@ export * from './getPricesParams';
 export * from './healthStatus';
 export * from './paymentNetwork';
 export * from './priceItem';
+export * from './siteSettings';
 export * from './supportConversation';
 export * from './supportConversationDetail';
 export * from './supportMessage';

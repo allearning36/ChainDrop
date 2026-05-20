@@ -350,6 +350,20 @@ export const DeleteChainParams = zod.object({
 
 
 /**
+ * @summary Get site settings (public)
+ */
+export const GetSettingsResponse = zod.record(zod.string(), zod.string())
+
+
+/**
+ * @summary Update site settings
+ */
+export const UpdateSettingsBody = zod.record(zod.string(), zod.string())
+
+export const UpdateSettingsResponse = zod.record(zod.string(), zod.string())
+
+
+/**
  * @summary List all banners (admin)
  */
 export const GetAdminBannersResponseItem = zod.object({

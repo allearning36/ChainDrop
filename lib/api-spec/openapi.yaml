@@ -15,6 +15,7 @@ tags:
   - name: prices
   - name: admin
   - name: support
+  - name: settings
 
 paths:
   /healthz:
@@ -368,6 +369,40 @@ paths:
       responses:
         "204":
           description: Deleted
+
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Get site settings (public)
+      responses:
+        "200":
+          description: Site settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteSettings"
+
+  /admin/settings:
+    patch:
+      operationId: updateSettings
+      tags: [settings, admin]
+      summary: Update site settings
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SiteSettings"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteSettings"
 
   /admin/banners:
     get:
@@ -1287,3 +1322,8 @@ components:
           type: integer
         recentClaimsCount:
           type: integer
+
+    SiteSettings:
+      type: object
+      additionalProperties:
+        type: string

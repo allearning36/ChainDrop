@@ -9,6 +9,7 @@ import pricesRouter from "./prices";
 import adminRouter from "./admin";
 import uploadRouter from "./upload";
 import supportRouter from "./support";
+import settingsRouter from "./settings";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(pricesRouter);
 router.use(adminRouter);
 router.use(uploadRouter);
 router.use(supportRouter);
+router.use(settingsRouter);
 
 export default router;

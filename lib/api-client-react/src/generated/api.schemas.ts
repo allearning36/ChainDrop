@@ -319,6 +319,8 @@ export interface AdminStats {
   recentClaimsCount?: number;
 }
 
+export interface SiteSettings {[key: string]: string}
+
 export type GetChainsParams = {
 type?: GetChainsType;
 };
