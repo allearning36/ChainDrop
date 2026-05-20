@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
   LogOut, LayoutDashboard, Link as LinkIcon, Image, Megaphone,
-  HeadphonesIcon, Paintbrush, ClipboardList, ShieldOff, Wallet, KeyRound,
+  HeadphonesIcon, ClipboardList, ShieldOff, Wallet,
   FileText, BarChart2, Settings2, Globe, Type
 } from "lucide-react";
 import { StatsOverview } from "@/components/admin/Stats";
@@ -13,11 +13,9 @@ import { ChainManagement } from "@/components/admin/ChainManagement";
 import { BannerManagement } from "@/components/admin/BannerManagement";
 import { AnnouncementManagement } from "@/components/admin/AnnouncementManagement";
 import { SupportManagement } from "@/components/admin/SupportManagement";
-import { LogoManagement } from "@/components/admin/LogoManagement";
 import { ClaimsLog } from "@/components/admin/ClaimsLog";
 import { BlockedAddresses } from "@/components/admin/BlockedAddresses";
 import { WalletHealth } from "@/components/admin/WalletHealth";
-import { ChangePassword } from "@/components/admin/ChangePassword";
 import { PagesManagement } from "@/components/admin/PagesManagement";
 import { Analytics } from "@/components/admin/Analytics";
 import { SiteConfig } from "@/components/admin/SiteConfig";
@@ -116,13 +114,7 @@ export default function AdminDashboard() {
               <FileText className="w-3 h-3" /> Pages
             </TabsTrigger>
             <TabsTrigger value="siteconfig" className={TAB}>
-              <Settings2 className="w-3 h-3" /> Config
-            </TabsTrigger>
-            <TabsTrigger value="logo" className={TAB}>
-              <Paintbrush className="w-3 h-3" /> Logo
-            </TabsTrigger>
-            <TabsTrigger value="password" className={TAB}>
-              <KeyRound className="w-3 h-3" /> Password
+              <Settings2 className="w-3 h-3" /> Settings
             </TabsTrigger>
           </TabsList>
           </div>
@@ -142,8 +134,6 @@ export default function AdminDashboard() {
           </TabsContent>
           <TabsContent value="pages" className="mt-0 outline-none"><PagesManagement /></TabsContent>
           <TabsContent value="siteconfig" className="mt-0 outline-none"><SiteConfig /></TabsContent>
-          <TabsContent value="logo" className="mt-0 outline-none"><LogoManagement /></TabsContent>
-          <TabsContent value="password" className="mt-0 outline-none"><ChangePassword /></TabsContent>
         </Tabs>
       </main>
     </div>

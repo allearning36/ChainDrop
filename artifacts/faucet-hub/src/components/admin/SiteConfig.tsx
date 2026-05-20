@@ -5,19 +5,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, Globe, Search, Wrench, Shield, AlertTriangle, Puzzle } from "lucide-react";
+import { Loader2, Save, Globe, Search, Wrench, Shield, AlertTriangle, Puzzle, Paintbrush, KeyRound } from "lucide-react";
+import { LogoManagement } from "./LogoManagement";
+import { ChangePassword } from "./ChangePassword";
 
 function authHeaders() {
   return { "Content-Type": "application/json", Authorization: `Bearer ${getToken() ?? ""}` };
 }
 
-type Tab = "social" | "seo" | "maintenance" | "ratelimit" | "integrations";
+type Tab = "social" | "seo" | "maintenance" | "ratelimit" | "integrations" | "logo" | "password";
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "social", label: "Social Links", icon: Globe },
   { id: "seo", label: "SEO Settings", icon: Search },
   { id: "maintenance", label: "Maintenance", icon: Wrench },
   { id: "ratelimit", label: "Rate Limit", icon: Shield },
   { id: "integrations", label: "Integrations", icon: Puzzle },
+  { id: "logo", label: "Logo", icon: Paintbrush },
+  { id: "password", label: "Password", icon: KeyRound },
 ];
 
 interface SocialLinks { twitter: string; telegram: string; discord: string; github: string; }
@@ -296,6 +300,8 @@ export function SiteConfig() {
       {tab === "maintenance" && <MaintenanceTab data={cfg.maintenanceMode} onSave={save} saving={saving} />}
       {tab === "ratelimit" && <RateLimitTab data={cfg.rateLimitConfig} onSave={save} saving={saving} />}
       {tab === "integrations" && <IntegrationsTab data={cfg.integrations} onSave={save} saving={saving} />}
+      {tab === "logo" && <LogoManagement />}
+      {tab === "password" && <ChangePassword />}
     </div>
   );
 }
