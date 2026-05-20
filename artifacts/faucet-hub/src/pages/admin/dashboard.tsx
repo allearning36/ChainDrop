@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
   LogOut, LayoutDashboard, Link as LinkIcon, Image, Megaphone,
-  HeadphonesIcon, Paintbrush, ClipboardList, ShieldOff, Wallet, KeyRound
+  HeadphonesIcon, Paintbrush, ClipboardList, ShieldOff, Wallet, KeyRound, FileText
 } from "lucide-react";
 import { StatsOverview } from "@/components/admin/Stats";
 import { ChainManagement } from "@/components/admin/ChainManagement";
@@ -17,6 +17,7 @@ import { ClaimsLog } from "@/components/admin/ClaimsLog";
 import { BlockedAddresses } from "@/components/admin/BlockedAddresses";
 import { WalletHealth } from "@/components/admin/WalletHealth";
 import { ChangePassword } from "@/components/admin/ChangePassword";
+import { PagesManagement } from "@/components/admin/PagesManagement";
 
 async function fetchUnreadCount(): Promise<number> {
   try {
@@ -99,6 +100,9 @@ export default function AdminDashboard() {
             <TabsTrigger value="logo" className={TAB}>
               <Paintbrush className="w-3.5 h-3.5" /> Logo
             </TabsTrigger>
+            <TabsTrigger value="pages" className={TAB}>
+              <FileText className="w-3.5 h-3.5" /> Pages
+            </TabsTrigger>
             <TabsTrigger value="password" className={TAB}>
               <KeyRound className="w-3.5 h-3.5" /> Password
             </TabsTrigger>
@@ -115,6 +119,7 @@ export default function AdminDashboard() {
             <SupportManagement onUnreadCount={setSupportUnread} />
           </TabsContent>
           <TabsContent value="logo" className="mt-0 outline-none"><LogoManagement /></TabsContent>
+          <TabsContent value="pages" className="mt-0 outline-none"><PagesManagement /></TabsContent>
           <TabsContent value="password" className="mt-0 outline-none"><ChangePassword /></TabsContent>
         </Tabs>
       </main>

@@ -11,6 +11,7 @@ import uploadRouter from "./upload";
 import supportRouter from "./support";
 import settingsRouter from "./settings";
 import adminToolsRouter from "./adminTools";
+import pagesRouter from "./pages";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(uploadRouter);
 router.use(supportRouter);
 router.use(settingsRouter);
 router.use(adminToolsRouter);
+router.use(pagesRouter);
 
 export default router;
