@@ -26,6 +26,7 @@ router.use(buyRouter);
 router.use(bannersRouter);
 router.use(announcementsRouter);
 router.use(pricesRouter);
+router.use(liveRouter);
 router.use(adminRouter);
 router.use(uploadRouter);
 router.use(supportRouter);
@@ -35,6 +36,5 @@ router.use(pagesRouter);
 router.use(siteConfigRouter);
 router.use(lookupRouter);
 router.use(audienceRouter);
-router.use(liveRouter);
 
 export default router;

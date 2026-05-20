@@ -70,15 +70,37 @@ export function LiveMonitor() {
   const errorCount = events.filter((e) => e.type === "claim_error" || e.type === "rpc_error" || e.type === "server_error").length;
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) return;
+    let cancelled = false;
 
-    function connect() {
-      const es = new EventSource(`/api/admin/live?token=${encodeURIComponent(token!)}`);
+    async function connect() {
+      if (cancelled) return;
+      const token = getToken();
+      if (!token) return;
+
+      // Step 1: get a short-lived SSE ticket (avoids JWT in URL)
+      let ticket: string;
+      try {
+        const r = await fetch("/api/admin/live-ticket", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!r.ok) { setTimeout(connect, 5000); return; }
+        const data = await r.json() as { ticket: string };
+        ticket = data.ticket;
+      } catch { setTimeout(connect, 5000); return; }
+
+      if (cancelled) return;
+
+      // Step 2: open SSE with the ticket
+      const es = new EventSource(`/api/admin/live?ticket=${encodeURIComponent(ticket)}`);
       esRef.current = es;
 
       es.onopen = () => setConnected(true);
-      es.onerror = () => { setConnected(false); es.close(); setTimeout(connect, 3000); };
+      es.onerror = () => {
+        setConnected(false);
+        es.close();
+        if (!cancelled) setTimeout(connect, 3000);
+      };
 
       es.onmessage = (e: MessageEvent) => {
         if (pausedRef.current) return;
@@ -90,8 +112,8 @@ export function LiveMonitor() {
       };
     }
 
-    connect();
-    return () => { esRef.current?.close(); };
+    void connect();
+    return () => { cancelled = true; esRef.current?.close(); };
   }, []);
 
   const togglePause = () => {
