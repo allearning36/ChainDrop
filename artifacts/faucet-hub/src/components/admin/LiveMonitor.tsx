@@ -33,10 +33,7 @@ function maskAddress(addr?: string) {
 }
 
 function maskIp(ip?: string) {
-  if (!ip) return "";
-  const parts = ip.split(".");
-  if (parts.length === 4) return `${parts[0]}.x.x.${parts[3]}`;
-  return ip.slice(0, 8) + "…";
+  return ip ?? "";
 }
 
 function timeAgo(ts: string) {

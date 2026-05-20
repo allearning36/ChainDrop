@@ -210,7 +210,7 @@ router.get("/admin/audience", requireAdmin, async (_req, res): Promise<void> => 
       unique: Number(r.unique),
     })),
     recentVisits: recentRows.map(r => ({
-      ip:          r.ip.replace(/(\d+\.\d+)\.\d+\.\d+/, "$1.x.x"),  // partial mask
+      ip:          r.ip,
       country:     r.country ?? "Unknown",
       countryCode: r.countryCode ?? "??",
       path:        r.path,
