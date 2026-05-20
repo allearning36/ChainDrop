@@ -847,6 +847,9 @@ components:
           type: string
         symbol:
           type: string
+        chainId:
+          type: ["integer", "null"]
+          description: "EVM numeric chain ID (e.g. 1 = Ethereum, 11155111 = Sepolia, 137 = Polygon)"
         chainType:
           type: string
           enum: [evm, solana, ton, sui, aptos]
@@ -889,6 +892,9 @@ components:
           type: string
         symbol:
           type: string
+        chainId:
+          type: ["integer", "null"]
+          description: "EVM numeric chain ID (e.g. 1 = Ethereum, 11155111 = Sepolia, 137 = Polygon)"
         chainType:
           type: string
           enum: [evm, solana, ton, sui, aptos]
@@ -931,6 +937,9 @@ components:
           type: string
         symbol:
           type: string
+        chainId:
+          type: ["integer", "null"]
+          description: "EVM numeric chain ID (e.g. 1 = Ethereum, 11155111 = Sepolia, 137 = Polygon)"
         chainType:
           type: string
           enum: [evm, solana, ton, sui, aptos]
@@ -985,6 +994,9 @@ components:
           type: string
         symbol:
           type: string
+        chainId:
+          type: integer
+          description: "EVM numeric chain ID (e.g. 1, 11155111, 137)"
         chainType:
           type: string
           enum: [evm, solana, ton, sui, aptos]
@@ -1036,6 +1048,9 @@ components:
           type: string
         symbol:
           type: string
+        chainId:
+          type: integer
+          description: "EVM numeric chain ID (e.g. 1, 11155111, 137)"
         chainType:
           type: string
           enum: [evm, solana, ton, sui, aptos]

@@ -10,6 +10,8 @@ import type { ChainUpdateChainType } from './chainUpdateChainType';
 export interface ChainUpdate {
   name?: string;
   symbol?: string;
+  /** EVM numeric chain ID (e.g. 1, 11155111, 137) */
+  chainId?: number;
   chainType?: ChainUpdateChainType;
   logoUrl?: string;
   rpcUrl?: string;

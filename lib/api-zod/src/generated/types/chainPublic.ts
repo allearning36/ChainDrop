@@ -11,6 +11,11 @@ export interface ChainPublic {
   id: number;
   name: string;
   symbol: string;
+  /**
+     * EVM numeric chain ID (e.g. 1 = Ethereum, 11155111 = Sepolia, 137 = Polygon)
+     * @nullable
+     */
+  chainId?: number | null;
   chainType: ChainPublicChainType;
   /** @nullable */
   logoUrl?: string | null;

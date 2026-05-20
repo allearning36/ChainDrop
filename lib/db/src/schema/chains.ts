@@ -6,6 +6,7 @@ export const chainsTable = pgTable("chains", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   symbol: text("symbol").notNull(),
+  chainId: integer("chain_id"),
   logoUrl: text("logo_url"),
   rpcUrl: text("rpc_url").notNull(),
   privateKey: text("private_key").notNull(),

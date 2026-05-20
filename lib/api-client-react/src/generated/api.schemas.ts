@@ -62,6 +62,11 @@ export interface ChainPublic {
   id: number;
   name: string;
   symbol: string;
+  /**
+     * EVM numeric chain ID (e.g. 1 = Ethereum, 11155111 = Sepolia, 137 = Polygon)
+     * @nullable
+     */
+  chainId?: number | null;
   chainType: ChainPublicChainType;
   /** @nullable */
   logoUrl?: string | null;
@@ -101,6 +106,11 @@ export interface ChainDetail {
   id: number;
   name: string;
   symbol: string;
+  /**
+     * EVM numeric chain ID (e.g. 1 = Ethereum, 11155111 = Sepolia, 137 = Polygon)
+     * @nullable
+     */
+  chainId?: number | null;
   chainType: ChainDetailChainType;
   /** @nullable */
   logoUrl?: string | null;
@@ -140,6 +150,11 @@ export interface ChainAdmin {
   id: number;
   name: string;
   symbol: string;
+  /**
+     * EVM numeric chain ID (e.g. 1 = Ethereum, 11155111 = Sepolia, 137 = Polygon)
+     * @nullable
+     */
+  chainId?: number | null;
   chainType: ChainAdminChainType;
   /** @nullable */
   logoUrl?: string | null;
@@ -185,6 +200,8 @@ export const ChainInputChainType = {
 export interface ChainInput {
   name: string;
   symbol: string;
+  /** EVM numeric chain ID (e.g. 1, 11155111, 137) */
+  chainId?: number;
   chainType?: ChainInputChainType;
   logoUrl?: string;
   rpcUrl: string;
@@ -222,6 +239,8 @@ export const ChainUpdateChainType = {
 export interface ChainUpdate {
   name?: string;
   symbol?: string;
+  /** EVM numeric chain ID (e.g. 1, 11155111, 137) */
+  chainId?: number;
   chainType?: ChainUpdateChainType;
   logoUrl?: string;
   rpcUrl?: string;

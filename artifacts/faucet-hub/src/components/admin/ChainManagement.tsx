@@ -74,6 +74,7 @@ const DEFAULT_CHAIN = {
   privateKey: "",
   walletAddress: "",
   claimAmount: "0.01",
+  chainId: "",
   cooldownSeconds: 86400,
   explorerUrl: "",
   isTestnet: true,
@@ -169,6 +170,7 @@ export function ChainManagement() {
       // Never pre-fill private key
       privateKey: "",
       // Null → empty string for all optional text fields
+      chainId: chain.chainId != null ? String(chain.chainId) : "",
       logoUrl: chain.logoUrl ?? "",
       buyUrl: chain.buyUrl ?? "",
       explorerUrl: chain.explorerUrl ?? "",
@@ -206,6 +208,7 @@ export function ChainManagement() {
 
     const payload: Record<string, unknown> = {
       ...formData,
+      chainId: formData.chainId !== "" ? Number(formData.chainId) : undefined,
       cooldownSeconds: hmsToSeconds(Number(cdH), Number(cdM), Number(cdS)),
       sortOrder: Number(formData.sortOrder),
       buyRate: formData.buyRate || "1000",
@@ -400,6 +403,11 @@ export function ChainManagement() {
                 </SelectContent>
               </Select>
               <p className="text-[11px] text-muted-foreground font-mono">Changing chain type will clear address & private key fields.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Chain ID (EVM)</Label>
+              <Input type="number" min="1" value={formData.chainId} onChange={e => setFormData({...formData, chainId: e.target.value})} placeholder="e.g. 11155111" className="font-mono" />
+              <p className="text-[11px] text-muted-foreground font-mono">1=ETH · 137=Polygon · 11155111=Sepolia</p>
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label>RPC URL *</Label>
