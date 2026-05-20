@@ -73,26 +73,26 @@ export function RecentFeed() {
           return (
             <div
               key={`${record.type}-${record.id}`}
-              className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3 rounded-2xl gap-3 transition-all duration-200 hover:translate-y-[-1px]"
+              className="flex items-center justify-between px-3 py-2 rounded-xl gap-2 transition-all duration-200 hover:translate-y-[-1px]"
               style={{
                 background: isBuy ? "rgba(129,140,248,0.05)" : "rgba(34,197,94,0.04)",
                 border: isBuy ? "1px solid rgba(129,140,248,0.12)" : "1px solid rgba(34,197,94,0.1)",
-                boxShadow: "0 1px 8px rgba(0,0,0,0.2)",
+                boxShadow: "0 1px 6px rgba(0,0,0,0.18)",
               }}
             >
               {/* Left */}
-              <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
                 {record.logoUrl ? (
                   <img
                     src={record.logoUrl}
                     alt={record.chainName}
-                    className="w-7 h-7 rounded-full shrink-0 object-cover"
+                    className="w-5 h-5 rounded-full shrink-0 object-cover"
                     style={{ border: "1px solid rgba(255,255,255,0.1)" }}
                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />
                 ) : (
                   <div
-                    className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[10px] font-black"
+                    className="w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-[9px] font-black"
                     style={{
                       background: isBuy ? "rgba(129,140,248,0.15)" : "rgba(34,197,94,0.12)",
                       border: isBuy ? "1px solid rgba(129,140,248,0.2)" : "1px solid rgba(34,197,94,0.2)",
@@ -102,40 +102,38 @@ export function RecentFeed() {
                     {record.symbol.slice(0, 2)}
                   </div>
                 )}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span
-                    className="flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded-md"
-                    style={isBuy
-                      ? { background: "rgba(129,140,248,0.12)", color: "#a5b4fc", border: "1px solid rgba(129,140,248,0.2)" }
-                      : { background: "rgba(34,197,94,0.1)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)" }
-                    }
-                  >
-                    {isBuy ? <><ShoppingCart className="w-2.5 h-2.5" /> BUY</> : <><Droplets className="w-2.5 h-2.5" /> CLAIM</>}
-                  </span>
-                  <span className="text-xs font-mono font-semibold" style={{ color: "rgba(255,255,255,0.5)" }}>
-                    {record.chainName}
-                  </span>
-                </div>
-                <span className="font-mono text-xs hidden sm:block" style={{ color: "rgba(255,255,255,0.3)" }}>
+                <span
+                  className="flex items-center gap-0.5 text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                  style={isBuy
+                    ? { background: "rgba(129,140,248,0.12)", color: "#a5b4fc", border: "1px solid rgba(129,140,248,0.2)" }
+                    : { background: "rgba(34,197,94,0.1)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)" }
+                  }
+                >
+                  {isBuy ? <><ShoppingCart className="w-2 h-2" /> BUY</> : <><Droplets className="w-2 h-2" /> CLAIM</>}
+                </span>
+                <span className="text-[11px] font-mono truncate" style={{ color: "rgba(255,255,255,0.45)" }}>
+                  {record.chainName}
+                </span>
+                <span className="font-mono text-[10px] hidden sm:block shrink-0" style={{ color: "rgba(255,255,255,0.25)" }}>
                   {record.address.slice(0, 6)}…{record.address.slice(-4)}
                 </span>
               </div>
 
               {/* Right */}
-              <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
-                <span className="font-mono text-sm font-bold" style={{ color: isBuy ? "#a5b4fc" : "#4ade80" }}>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="font-mono text-xs font-bold" style={{ color: isBuy ? "#a5b4fc" : "#4ade80" }}>
                   +{parseFloat(record.amount).toFixed(4)} {record.symbol}
                 </span>
-                <span className="text-[11px] font-mono hidden sm:block" style={{ color: "rgba(255,255,255,0.25)" }}>
+                <span className="text-[10px] font-mono hidden sm:block" style={{ color: "rgba(255,255,255,0.2)" }}>
                   {formatDistanceToNow(new Date(record.claimedAt), { addSuffix: true })}
                 </span>
                 {(() => {
                   const url = getExplorerUrl(record.chainName, record.txHash, record.explorerUrl);
                   return url ? (
                     <a href={url} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-[11px] font-mono transition-colors hover:opacity-80"
+                      className="flex items-center gap-0.5 text-[10px] font-mono transition-colors hover:opacity-80"
                       style={{ color: "rgba(255,255,255,0.3)" }}>
-                      <ExternalLink className="w-3 h-3" /> TX
+                      <ExternalLink className="w-2.5 h-2.5" /> TX
                     </a>
                   ) : null;
                 })()}
