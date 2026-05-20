@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, count } from "drizzle-orm";
-import { db, chainsTable, claimsTable, bannersTable, announcementsTable } from "@workspace/db";
+import { db, chainsTable, claimsTable, bannersTable, announcementsTable, settingsTable } from "@workspace/db";
+import { getStoredPasswordHash, verifyPassword } from "./adminTools";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -65,7 +66,13 @@ router.post("/admin/auth", async (req, res): Promise<void> => {
     return;
   }
 
-  if (parsed.data.password !== adminPassword) {
+  // Check DB-stored hash first (set via change-password), fall back to env var
+  const storedHash = await getStoredPasswordHash();
+  const valid = storedHash
+    ? verifyPassword(parsed.data.password, storedHash)
+    : parsed.data.password === adminPassword;
+
+  if (!valid) {
     recordFailedLogin(req);
     res.status(401).json({ error: "Invalid password" });
     return;

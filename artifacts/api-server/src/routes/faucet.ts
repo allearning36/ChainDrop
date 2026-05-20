@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { desc, eq, and, count, sum } from "drizzle-orm";
-import { db, claimsTable, chainsTable } from "@workspace/db";
+import { db, claimsTable, chainsTable, blockedAddressesTable } from "@workspace/db";
 import { ClaimFaucetBody, GetFaucetStatusParams } from "@workspace/api-zod";
 import { sendTokens, isValidEvmAddress } from "../lib/faucet";
 
@@ -33,6 +33,17 @@ router.post("/faucet/claim", async (req, res): Promise<void> => {
 
   if (chain.availableStatus === "NO") {
     res.status(429).json({ error: "This faucet is currently unavailable" });
+    return;
+  }
+
+  // Check if address is blocked
+  const [blocked] = await db
+    .select()
+    .from(blockedAddressesTable)
+    .where(eq(blockedAddressesTable.address, address.toLowerCase()))
+    .limit(1);
+  if (blocked) {
+    res.status(403).json({ error: "This address has been blocked from using the faucet." });
     return;
   }
 

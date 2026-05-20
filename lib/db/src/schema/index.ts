@@ -5,3 +5,4 @@ export * from "./announcements";
 export * from "./purchases";
 export * from "./support";
 export * from "./settings";
+export * from "./blockedAddresses";

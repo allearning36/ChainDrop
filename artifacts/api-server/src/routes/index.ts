@@ -10,6 +10,7 @@ import adminRouter from "./admin";
 import uploadRouter from "./upload";
 import supportRouter from "./support";
 import settingsRouter from "./settings";
+import adminToolsRouter from "./adminTools";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(adminRouter);
 router.use(uploadRouter);
 router.use(supportRouter);
 router.use(settingsRouter);
+router.use(adminToolsRouter);
 
 export default router;
