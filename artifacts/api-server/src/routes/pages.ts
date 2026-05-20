@@ -94,6 +94,56 @@ You may request deletion of any personally identifiable data we hold by contacti
 
 If you have questions about this privacy policy, please contact us through our support chat.`,
   },
+  faq: {
+    title: "Frequently Asked Questions",
+    content: `# Frequently Asked Questions
+
+## What is ChainDrop?
+
+ChainDrop is a multi-chain cryptocurrency faucet hub that provides free testnet tokens for developers, testers, and blockchain enthusiasts.
+
+## How do I claim tokens?
+
+1. Select a supported blockchain network from the home page
+2. Enter your EVM wallet address
+3. Click "Request Funds" — tokens will arrive in seconds
+
+## Is there a cooldown period?
+
+Yes. Each address has a cooldown period per chain to ensure fair distribution for all users. The cooldown varies by network and is displayed on each chain card.
+
+## Why is my claim failing?
+
+Common reasons:
+- Your address is still in the cooldown period — check the claim button for the next available time
+- The faucet wallet is temporarily low on funds
+- You entered an invalid wallet address
+- The chain is temporarily unavailable
+
+## Are these tokens real money?
+
+No. Testnet tokens have **no real monetary value**. They are provided solely for development and testing purposes on public test networks.
+
+## Can I claim from multiple chains?
+
+Yes! Each chain has its own independent cooldown, so you can claim from multiple networks simultaneously.
+
+## What if I need more tokens?
+
+Each address is limited to one claim per cooldown period per chain. If you require larger amounts, please contact us via the support chat.
+
+## How do I check my claim history?
+
+Use the **Lookup** page (linked in the footer) to enter any wallet address and view its full claim history across all chains.
+
+## How do I report an issue?
+
+Use the **Support** button in the navigation bar to chat with our team directly. We typically respond within a few hours.
+
+## My wallet address was blocked — what do I do?
+
+If you believe your address was blocked by mistake, contact us via the support chat with your wallet address and we will review your case promptly.`,
+  },
   terms: {
     title: "Terms & Conditions",
     content: `# Terms & Conditions
@@ -139,7 +189,7 @@ For questions about these terms, please use our support chat.`,
   },
 };
 
-const SLUGS = ["about", "contact", "privacy", "terms"] as const;
+const SLUGS = ["about", "contact", "privacy", "terms", "faq"] as const;
 type Slug = (typeof SLUGS)[number];
 
 router.get("/pages/:slug", async (req, res): Promise<void> => {

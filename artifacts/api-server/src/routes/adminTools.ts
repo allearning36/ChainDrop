@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, asc, and, ilike, count as drizzleCount } from "drizzle-orm";
+import { eq, desc, asc, and, ilike, count as drizzleCount, sql, gte } from "drizzle-orm";
 import crypto from "crypto";
 import { db, claimsTable, chainsTable, blockedAddressesTable, settingsTable } from "@workspace/db";
 import { requireAdmin } from "../lib/adminAuth";
@@ -179,6 +179,62 @@ router.get("/admin/wallet-health", requireAdmin, async (_req, res): Promise<void
         : { id: chains[i]!.id, name: chains[i]!.name, symbol: chains[i]!.symbol, logoUrl: chains[i]!.logoUrl, isTestnet: chains[i]!.isTestnet, isEnabled: chains[i]!.isEnabled, walletAddress: chains[i]!.walletAddress, claimAmount: chains[i]!.claimAmount, balance: null }
     )
   );
+});
+
+// ── Analytics ────────────────────────────────────────────────────────────────
+router.get("/admin/analytics", requireAdmin, async (_req, res): Promise<void> => {
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  const [dailyRows, chainRows, [summary], chains] = await Promise.all([
+    db.select({
+      date: sql<string>`date(${claimsTable.claimedAt} AT TIME ZONE 'UTC')::text`,
+      count: drizzleCount(),
+      ethAmount: sql<number>`coalesce(sum(${claimsTable.amount}::numeric), 0)::float`,
+    }).from(claimsTable)
+      .where(gte(claimsTable.claimedAt, thirtyDaysAgo))
+      .groupBy(sql`date(${claimsTable.claimedAt} AT TIME ZONE 'UTC')`)
+      .orderBy(sql`date(${claimsTable.claimedAt} AT TIME ZONE 'UTC')`),
+
+    db.select({
+      chainId: claimsTable.chainId,
+      count: drizzleCount(),
+      ethAmount: sql<number>`coalesce(sum(${claimsTable.amount}::numeric), 0)::float`,
+    }).from(claimsTable)
+      .groupBy(claimsTable.chainId)
+      .orderBy(desc(drizzleCount())),
+
+    db.select({
+      totalClaims: drizzleCount(),
+      totalEth: sql<string>`coalesce(sum(${claimsTable.amount}::numeric), 0)::text`,
+      uniqueAddresses: sql<number>`count(distinct ${claimsTable.address})::int`,
+      today: sql<number>`count(case when date(${claimsTable.claimedAt} AT TIME ZONE 'UTC') = current_date then 1 end)::int`,
+    }).from(claimsTable),
+
+    db.select({ id: chainsTable.id, name: chainsTable.name, symbol: chainsTable.symbol }).from(chainsTable),
+  ]);
+
+  const chainMap = Object.fromEntries(chains.map(c => [c.id, c]));
+
+  res.json({
+    dailyClaims: dailyRows.map(r => ({
+      date: r.date,
+      count: Number(r.count),
+      ethAmount: Number(r.ethAmount),
+    })),
+    chainDistribution: chainRows.map(r => ({
+      chainId: r.chainId,
+      name: chainMap[r.chainId]?.name ?? `Chain ${r.chainId}`,
+      symbol: chainMap[r.chainId]?.symbol ?? "",
+      count: Number(r.count),
+      ethAmount: Number(r.ethAmount),
+    })),
+    summary: {
+      totalClaims: Number(summary!.totalClaims),
+      totalEth: parseFloat(summary!.totalEth).toFixed(6),
+      uniqueAddresses: Number(summary!.uniqueAddresses),
+      today: Number(summary!.today),
+    },
+  });
 });
 
 export default router;

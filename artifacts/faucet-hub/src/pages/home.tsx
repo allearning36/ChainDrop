@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { SEOHead } from "@/components/layout/SEOHead";
+import { AdSlot } from "@/components/layout/AdSlot";
 import { PriceMarquee } from "@/components/home/PriceMarquee";
 import { Banners } from "@/components/home/Banners";
 import { ChainCard } from "@/components/home/ChainCard";
@@ -27,11 +29,12 @@ export default function Home() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background selection:bg-primary selection:text-primary-foreground">
+      <SEOHead />
       <Navbar />
       
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8">
         <PriceMarquee coinIds={coinIds} />
-        
+        <AdSlot id="home-top" className="my-2" />
         <Banners />
 
         <div className="flex flex-col items-center gap-3 mb-8 mt-12">
@@ -141,6 +144,7 @@ export default function Home() {
         )}
 
         <RecentFeed />
+        <AdSlot id="home-bottom" className="mt-6" />
       </main>
 
       <Footer />

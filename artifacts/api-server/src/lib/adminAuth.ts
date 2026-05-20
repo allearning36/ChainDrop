@@ -1,5 +1,7 @@
 import jwt from "jsonwebtoken";
 import { type Request, type Response, type NextFunction } from "express";
+import { db, settingsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 // ── JWT ──────────────────────────────────────────────────────────────────────
 const JWT_SECRET = process.env.SESSION_SECRET;
@@ -40,9 +42,29 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
 // Tracks failed attempts per IP. After MAX_ATTEMPTS failures within WINDOW_MS
 // the IP is locked out for LOCKOUT_MS.
 
-const MAX_ATTEMPTS = 5;           // max wrong passwords before lockout
-const WINDOW_MS    = 15 * 60 * 1000; // 15-minute sliding window
-const LOCKOUT_MS   = 15 * 60 * 1000; // 15-minute lockout after too many failures
+// Dynamic rate-limit config (refreshed from DB every 5 min)
+let MAX_ATTEMPTS = 5;
+let WINDOW_MS    = 15 * 60 * 1000;
+let LOCKOUT_MS   = 15 * 60 * 1000;
+let _configLoadedAt = 0;
+
+async function refreshRateLimitConfig() {
+  try {
+    const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "rateLimitConfig")).limit(1);
+    if (row?.value) {
+      const c = JSON.parse(row.value) as { maxAttempts?: number; lockoutMinutes?: number };
+      if (typeof c.maxAttempts === "number") MAX_ATTEMPTS = Math.max(1, Math.min(20, c.maxAttempts));
+      if (typeof c.lockoutMinutes === "number") {
+        WINDOW_MS  = Math.max(1, c.lockoutMinutes) * 60 * 1000;
+        LOCKOUT_MS = WINDOW_MS;
+      }
+    }
+    _configLoadedAt = Date.now();
+  } catch { /* keep current values */ }
+}
+
+void refreshRateLimitConfig();
+setInterval(() => void refreshRateLimitConfig(), 5 * 60 * 1000);
 
 interface AttemptRecord {
   count: number;

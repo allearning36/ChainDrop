@@ -12,6 +12,8 @@ import supportRouter from "./support";
 import settingsRouter from "./settings";
 import adminToolsRouter from "./adminTools";
 import pagesRouter from "./pages";
+import siteConfigRouter from "./siteConfig";
+import lookupRouter from "./lookup";
 
 const router: IRouter = Router();
 
@@ -28,5 +30,7 @@ router.use(supportRouter);
 router.use(settingsRouter);
 router.use(adminToolsRouter);
 router.use(pagesRouter);
+router.use(siteConfigRouter);
+router.use(lookupRouter);
 
 export default router;

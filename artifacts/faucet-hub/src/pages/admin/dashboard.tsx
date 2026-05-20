@@ -5,7 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
   LogOut, LayoutDashboard, Link as LinkIcon, Image, Megaphone,
-  HeadphonesIcon, Paintbrush, ClipboardList, ShieldOff, Wallet, KeyRound, FileText
+  HeadphonesIcon, Paintbrush, ClipboardList, ShieldOff, Wallet, KeyRound,
+  FileText, BarChart2, Settings2, Globe
 } from "lucide-react";
 import { StatsOverview } from "@/components/admin/Stats";
 import { ChainManagement } from "@/components/admin/ChainManagement";
@@ -18,6 +19,9 @@ import { BlockedAddresses } from "@/components/admin/BlockedAddresses";
 import { WalletHealth } from "@/components/admin/WalletHealth";
 import { ChangePassword } from "@/components/admin/ChangePassword";
 import { PagesManagement } from "@/components/admin/PagesManagement";
+import { Analytics } from "@/components/admin/Analytics";
+import { SiteConfig } from "@/components/admin/SiteConfig";
+import { IPBlocking } from "@/components/admin/IPBlocking";
 
 async function fetchUnreadCount(): Promise<number> {
   try {
@@ -30,7 +34,7 @@ async function fetchUnreadCount(): Promise<number> {
   } catch { return 0; }
 }
 
-const TAB = "font-mono text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary gap-1.5 h-10 px-3";
+const TAB = "font-mono text-xs data-[state=active]:bg-primary/20 data-[state=active]:text-primary gap-1 h-9 px-2.5";
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
@@ -67,59 +71,71 @@ export default function AdminDashboard() {
         <Tabs defaultValue="stats" className="w-full space-y-8">
           <TabsList className="bg-card border border-border h-auto p-1 flex-wrap w-full gap-0.5">
             <TabsTrigger value="stats" className={TAB}>
-              <LayoutDashboard className="w-3.5 h-3.5" /> Stats
+              <LayoutDashboard className="w-3 h-3" /> Stats
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className={TAB}>
+              <BarChart2 className="w-3 h-3" /> Analytics
             </TabsTrigger>
             <TabsTrigger value="chains" className={TAB}>
-              <LinkIcon className="w-3.5 h-3.5" /> Chains
+              <LinkIcon className="w-3 h-3" /> Chains
             </TabsTrigger>
             <TabsTrigger value="wallets" className={TAB}>
-              <Wallet className="w-3.5 h-3.5" /> Wallets
+              <Wallet className="w-3 h-3" /> Wallets
             </TabsTrigger>
             <TabsTrigger value="claims" className={TAB}>
-              <ClipboardList className="w-3.5 h-3.5" /> Claims
+              <ClipboardList className="w-3 h-3" /> Claims
             </TabsTrigger>
             <TabsTrigger value="blocked" className={TAB}>
-              <ShieldOff className="w-3.5 h-3.5" /> Blocked
+              <ShieldOff className="w-3 h-3" /> Blocked
+            </TabsTrigger>
+            <TabsTrigger value="ipblocks" className={TAB}>
+              <Globe className="w-3 h-3" /> IP Block
             </TabsTrigger>
             <TabsTrigger value="banners" className={TAB}>
-              <Image className="w-3.5 h-3.5" /> Banners
+              <Image className="w-3 h-3" /> Banners
             </TabsTrigger>
             <TabsTrigger value="announcements" className={TAB}>
-              <Megaphone className="w-3.5 h-3.5" /> Announcements
+              <Megaphone className="w-3 h-3" /> Alerts
             </TabsTrigger>
             <TabsTrigger value="support" className={TAB}>
-              <HeadphonesIcon className="w-3.5 h-3.5" />
+              <HeadphonesIcon className="w-3 h-3" />
               Support
               {supportUnread > 0 && (
-                <span className="inline-flex items-center justify-center font-mono font-bold text-white rounded-full text-[9px] px-1 min-w-[16px] h-[16px] leading-none"
+                <span className="inline-flex items-center justify-center font-mono font-bold text-white rounded-full text-[9px] px-1 min-w-[14px] h-[14px] leading-none"
                   style={{ background: "#ef4444", boxShadow: "0 0 6px rgba(239,68,68,0.8)" }}>
                   {supportUnread > 99 ? "99+" : supportUnread}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="logo" className={TAB}>
-              <Paintbrush className="w-3.5 h-3.5" /> Logo
-            </TabsTrigger>
             <TabsTrigger value="pages" className={TAB}>
-              <FileText className="w-3.5 h-3.5" /> Pages
+              <FileText className="w-3 h-3" /> Pages
+            </TabsTrigger>
+            <TabsTrigger value="siteconfig" className={TAB}>
+              <Settings2 className="w-3 h-3" /> Config
+            </TabsTrigger>
+            <TabsTrigger value="logo" className={TAB}>
+              <Paintbrush className="w-3 h-3" /> Logo
             </TabsTrigger>
             <TabsTrigger value="password" className={TAB}>
-              <KeyRound className="w-3.5 h-3.5" /> Password
+              <KeyRound className="w-3 h-3" /> Password
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="stats" className="mt-0 outline-none"><StatsOverview /></TabsContent>
+          <TabsContent value="analytics" className="mt-0 outline-none"><Analytics /></TabsContent>
           <TabsContent value="chains" className="mt-0 outline-none"><ChainManagement /></TabsContent>
           <TabsContent value="wallets" className="mt-0 outline-none"><WalletHealth /></TabsContent>
           <TabsContent value="claims" className="mt-0 outline-none"><ClaimsLog /></TabsContent>
           <TabsContent value="blocked" className="mt-0 outline-none"><BlockedAddresses /></TabsContent>
+          <TabsContent value="ipblocks" className="mt-0 outline-none"><IPBlocking /></TabsContent>
           <TabsContent value="banners" className="mt-0 outline-none"><BannerManagement /></TabsContent>
           <TabsContent value="announcements" className="mt-0 outline-none"><AnnouncementManagement /></TabsContent>
           <TabsContent value="support" className="mt-0 outline-none">
             <SupportManagement onUnreadCount={setSupportUnread} />
           </TabsContent>
-          <TabsContent value="logo" className="mt-0 outline-none"><LogoManagement /></TabsContent>
           <TabsContent value="pages" className="mt-0 outline-none"><PagesManagement /></TabsContent>
+          <TabsContent value="siteconfig" className="mt-0 outline-none"><SiteConfig /></TabsContent>
+          <TabsContent value="logo" className="mt-0 outline-none"><LogoManagement /></TabsContent>
           <TabsContent value="password" className="mt-0 outline-none"><ChangePassword /></TabsContent>
         </Tabs>
       </main>

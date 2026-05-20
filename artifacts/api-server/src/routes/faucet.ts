@@ -1,8 +1,14 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
 import { desc, eq, and, count, sum } from "drizzle-orm";
-import { db, claimsTable, chainsTable, blockedAddressesTable } from "@workspace/db";
+import { db, claimsTable, chainsTable, blockedAddressesTable, ipBlocksTable, settingsTable } from "@workspace/db";
 import { ClaimFaucetBody, GetFaucetStatusParams } from "@workspace/api-zod";
 import { sendTokens, isValidEvmAddress } from "../lib/faucet";
+
+function getClientIp(req: Request): string {
+  const fwd = req.headers["x-forwarded-for"];
+  if (typeof fwd === "string") return fwd.split(",")[0]!.trim();
+  return req.socket.remoteAddress ?? "unknown";
+}
 
 
 const router: IRouter = Router();
@@ -15,6 +21,26 @@ router.post("/faucet/claim", async (req, res): Promise<void> => {
   }
 
   const { chainId, address, captchaToken } = parsed.data;
+
+  // Check maintenance mode
+  const [maintenanceSetting] = await db.select().from(settingsTable).where(eq(settingsTable.key, "maintenanceMode")).limit(1);
+  if (maintenanceSetting?.value) {
+    try {
+      const mc = JSON.parse(maintenanceSetting.value) as { enabled?: boolean; message?: string };
+      if (mc.enabled) {
+        res.status(503).json({ error: mc.message || "The faucet is currently under maintenance. Please check back soon." });
+        return;
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Check IP block
+  const clientIp = getClientIp(req);
+  const [blockedIp] = await db.select().from(ipBlocksTable).where(eq(ipBlocksTable.ip, clientIp)).limit(1);
+  if (blockedIp) {
+    res.status(403).json({ error: "Your IP address has been blocked from using the faucet." });
+    return;
+  }
 
   if (!isValidEvmAddress(address)) {
     res.status(400).json({ error: "Invalid EVM address" });

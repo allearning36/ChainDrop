@@ -8,6 +8,9 @@ import AboutPage from "@/pages/about";
 import ContactPage from "@/pages/contact";
 import PrivacyPage from "@/pages/privacy";
 import TermsPage from "@/pages/terms";
+import FAQPage from "@/pages/faq";
+import LookupPage from "@/pages/lookup";
+import StatusPage from "@/pages/status";
 import AdminLogin from "@/pages/admin/login";
 import AdminDashboard from "@/pages/admin/dashboard";
 
@@ -24,6 +27,9 @@ function Router() {
       <Route path="/contact" component={ContactPage} />
       <Route path="/privacy" component={PrivacyPage} />
       <Route path="/terms" component={TermsPage} />
+      <Route path="/faq" component={FAQPage} />
+      <Route path="/lookup" component={LookupPage} />
+      <Route path="/status" component={StatusPage} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin" component={AdminDashboard} />
       <Route component={NotFound} />
