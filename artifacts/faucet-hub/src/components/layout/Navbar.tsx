@@ -48,13 +48,14 @@ export function Navbar() {
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2 min-w-0 shrink overflow-hidden">
           <img
             src={logo.logoUrl}
             alt="ChainDrop"
+            className="shrink-0"
             style={{ width: px, height: px, objectFit: "contain", filter: GLOW_FILTER[logo.logoGlow] ?? GLOW_FILTER.medium, transition: "all 0.3s" }}
           />
-          <div className="flex flex-col leading-none">
+          <div className="flex flex-col leading-none min-w-0">
             <span
               className="font-black tracking-wider uppercase"
               style={{
@@ -68,15 +69,15 @@ export function Navbar() {
               ChainDrop
             </span>
             <span
-              className="font-mono uppercase tracking-widest whitespace-nowrap"
-              style={{ fontSize: "9px", color: "rgba(255,255,255,0.4)", letterSpacing: "0.2em" }}
+              className="font-mono uppercase whitespace-nowrap"
+              style={{ fontSize: "7px", color: "rgba(255,255,255,0.4)", letterSpacing: "0.13em" }}
             >
               Your Ultimate Faucet Hub
             </span>
           </div>
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="ghost"
             size="sm"
