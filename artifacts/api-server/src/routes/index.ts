@@ -14,6 +14,7 @@ import adminToolsRouter from "./adminTools";
 import pagesRouter from "./pages";
 import siteConfigRouter from "./siteConfig";
 import lookupRouter from "./lookup";
+import audienceRouter from "./audience";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(adminToolsRouter);
 router.use(pagesRouter);
 router.use(siteConfigRouter);
 router.use(lookupRouter);
+router.use(audienceRouter);
 
 export default router;

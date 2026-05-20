@@ -8,3 +8,4 @@ export * from "./settings";
 export * from "./blockedAddresses";
 export * from "./pages";
 export * from "./ipBlocks";
+export * from "./pageViews";

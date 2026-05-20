@@ -41,3 +41,12 @@ export const buyLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many buy requests. Please wait before trying again." },
 });
+
+// Track: page-view beacon — 20 calls / min per IP (generous but prevents flood)
+export const trackLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests." },
+});

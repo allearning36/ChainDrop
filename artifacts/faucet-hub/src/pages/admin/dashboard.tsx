@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   LogOut, LayoutDashboard, Link as LinkIcon,
   HeadphonesIcon, ClipboardList, ShieldOff, Wallet,
-  FileText, BarChart2, Settings2, Globe, Send
+  FileText, BarChart2, Settings2, Globe, Send, Users
 } from "lucide-react";
 import { StatsOverview } from "@/components/admin/Stats";
 import { ChainManagement } from "@/components/admin/ChainManagement";
@@ -19,6 +19,7 @@ import { PagesManagement } from "@/components/admin/PagesManagement";
 import { Analytics } from "@/components/admin/Analytics";
 import { SiteConfig } from "@/components/admin/SiteConfig";
 import { IPBlocking } from "@/components/admin/IPBlocking";
+import { Audience } from "@/components/admin/Audience";
 
 async function fetchUnreadCount(): Promise<number> {
   try {
@@ -74,6 +75,9 @@ export default function AdminDashboard() {
             <TabsTrigger value="analytics" className={TAB}>
               <BarChart2 className="w-3 h-3" /> Analytics
             </TabsTrigger>
+            <TabsTrigger value="audience" className={TAB}>
+              <Users className="w-3 h-3" /> Audience
+            </TabsTrigger>
             <TabsTrigger value="chains" className={TAB}>
               <LinkIcon className="w-3 h-3" /> Chains
             </TabsTrigger>
@@ -113,6 +117,7 @@ export default function AdminDashboard() {
 
           <TabsContent value="stats" className="mt-0 outline-none"><StatsOverview /></TabsContent>
           <TabsContent value="analytics" className="mt-0 outline-none"><Analytics /></TabsContent>
+          <TabsContent value="audience" className="mt-0 outline-none"><Audience /></TabsContent>
           <TabsContent value="chains" className="mt-0 outline-none"><ChainManagement /></TabsContent>
           <TabsContent value="wallets" className="mt-0 outline-none"><WalletHealth /></TabsContent>
           <TabsContent value="claims" className="mt-0 outline-none"><ClaimsLog /></TabsContent>

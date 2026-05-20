@@ -1,4 +1,5 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,10 +17,30 @@ import AdminDashboard from "@/pages/admin/dashboard";
 
 import "@/lib/auth";
 
+// ── Page-view tracking ────────────────────────────────────────────────────────
+// Send one beacon per page navigation. Uses sessionStorage to deduplicate
+// rapid re-renders, but fires again when the path changes (SPA navigation).
+function trackPageView(path: string): void {
+  const key = `tracked:${path}`;
+  if (sessionStorage.getItem(key)) return;
+  sessionStorage.setItem(key, "1");
+  fetch("/api/track", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path }),
+    keepalive: true,
+  }).catch(() => {/* silent — tracking must never break the UI */});
+}
 
 const queryClient = new QueryClient();
 
+function usePageTracking() {
+  const [location] = useLocation();
+  useEffect(() => { trackPageView(location); }, [location]);
+}
+
 function Router() {
+  usePageTracking();
   return (
     <Switch>
       <Route path="/" component={Home} />
