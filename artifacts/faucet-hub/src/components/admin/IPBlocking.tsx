@@ -36,8 +36,8 @@ export function IPBlocking() {
   const load = () =>
     fetch("/api/admin/ip-blocks", { headers: authHeaders() })
       .then(r => r.json())
-      .then((d: IpBlock[]) => setBlocks(d))
-      .catch(() => {})
+      .then((d: unknown) => setBlocks(Array.isArray(d) ? d as IpBlock[] : []))
+      .catch(() => setBlocks([]))
       .finally(() => setLoading(false));
 
   useEffect(() => { void load(); }, []);

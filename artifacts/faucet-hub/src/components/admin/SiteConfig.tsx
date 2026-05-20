@@ -260,7 +260,13 @@ export function SiteConfig() {
   useEffect(() => {
     fetch("/api/admin/site-config", { headers: authHeaders() })
       .then(r => r.json())
-      .then((d: SiteConfigData) => setCfg(d))
+      .then((d: Partial<SiteConfigData>) => setCfg(prev => ({
+        socialLinks:       { ...DEFAULT.socialLinks,       ...(d.socialLinks       ?? {}) },
+        seoSettings:       { ...DEFAULT.seoSettings,       ...(d.seoSettings       ?? {}) },
+        maintenanceMode:   { ...DEFAULT.maintenanceMode,   ...(d.maintenanceMode   ?? {}) },
+        rateLimitConfig:   { ...DEFAULT.rateLimitConfig,   ...(d.rateLimitConfig   ?? {}) },
+        integrations:      { ...prev.integrations,         ...(d.integrations      ?? {}) },
+      })))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
