@@ -118,12 +118,12 @@ function ChainPickerModal({
             <Search className="w-4 h-4 shrink-0" style={{ color: "rgba(255,255,255,0.35)" }} />
             <input
               type="text"
-              inputMode="none"
+              inputMode="search"
               placeholder="Search chain or token…"
               value={search}
-              onFocus={e => { (e.target as HTMLInputElement).removeAttribute("inputMode"); }}
               onChange={e => setSearch(e.target.value)}
-              className="flex-1 bg-transparent outline-none text-sm text-white font-mono placeholder:text-white/30"
+              className="flex-1 bg-transparent outline-none text-white font-mono placeholder:text-white/30"
+              style={{ fontSize: "16px" }}
             />
           </div>
         </div>
@@ -232,7 +232,7 @@ export default function ExchangePage() {
       .finally(() => setLoadingPairs(false));
   }, []);
 
-  // Poll order status
+  // Poll order status — every 2s to stay in sync with backend 2s receipt polling
   useEffect(() => {
     if (!order || step !== "confirming") return;
     pollRef.current = setInterval(async () => {
@@ -247,7 +247,7 @@ export default function ExchangePage() {
           setStep("error");
         }
       } catch { /* keep polling */ }
-    }, 4000);
+    }, 2000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [order, step]);
 
@@ -561,9 +561,13 @@ export default function ExchangePage() {
                     </label>
                     <div className="relative">
                       <input
-                        type="number" step="0.001" min={pair.minAmount} max={pair.maxAmount}
+                        type="text"
+                        inputMode="decimal"
                         value={fromAmount}
-                        onChange={e => setFromAmount(e.target.value)}
+                        onChange={e => {
+                          const v = e.target.value;
+                          if (v === "" || /^\d*\.?\d*$/.test(v)) setFromAmount(v);
+                        }}
                         placeholder={`${pair.minAmount} – ${pair.maxAmount}`}
                         disabled={step === "review"}
                         className="w-full h-14 rounded-xl px-4 pr-28 font-mono text-white text-base outline-none transition-all"
@@ -708,7 +712,7 @@ export default function ExchangePage() {
             </div>
             <div className="text-center space-y-1">
               <p className="font-bold text-white font-mono">Processing Swap</p>
-              <p className="text-xs font-mono" style={{ color: "rgba(255,255,255,0.4)" }}>Verifying on-chain…</p>
+              <p className="text-xs font-mono" style={{ color: "rgba(255,255,255,0.4)" }}>Waiting for on-chain confirmation…</p>
               <p className="text-xs font-mono" style={{ color: "rgba(255,255,255,0.25)" }}>
                 {order.toAmount} {order.toSymbol} will be sent once confirmed.
               </p>
@@ -723,6 +727,17 @@ export default function ExchangePage() {
                 <span className="text-[11px] font-mono" style={{ color: "#a78bfa" }}>{order.toAmount} {order.toSymbol}</span>
               </div>
             </div>
+            {/* TX explorer link — lets user verify while waiting */}
+            {orderStatus?.fromTxHash && pair?.fromExplorerUrl && (
+              <a href={`${pair.fromExplorerUrl}/tx/${orderStatus.fromTxHash}`}
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-[11px] font-mono transition-colors"
+                style={{ color: "rgba(255,255,255,0.3)" }}
+                onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}
+                onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}>
+                <ExternalLink className="w-3 h-3" /> View your transaction
+              </a>
+            )}
           </div>
         )}
 

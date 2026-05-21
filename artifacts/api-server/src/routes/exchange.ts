@@ -83,12 +83,12 @@ function getPairRpcs(pair: any, side: "from" | "to"): string[] {
 async function waitForTxReceipt(
   rpcUrls: string[],
   txHash: string,
-  maxAttempts = 40,
-  intervalMs = 4000,
+  maxAttempts = 60,   // up to ~2 min at 2s intervals
+  intervalMs = 2000,  // poll every 2s (was 4s) — faster for Base / Arbitrum
 ): Promise<{ success: boolean; to: string; value: bigint } | null> {
   const rpc = rpcUrls[0]!;
   for (let i = 0; i < maxAttempts; i++) {
-    await new Promise(r => setTimeout(r, intervalMs));
+    // Check FIRST, then wait — first confirmation can arrive in <2s on Base
     try {
       const res = await fetch(rpc, {
         method: "POST",
@@ -114,6 +114,7 @@ async function waitForTxReceipt(
         };
       }
     } catch { /* keep polling */ }
+    await new Promise(r => setTimeout(r, intervalMs));
   }
   return null;
 }
