@@ -31,6 +31,7 @@ export const chainsTable = pgTable("chains", {
   chainType: text("chain_type").notNull().default("evm"),
   soonMessage: text("soon_message"),
   gasPriceGwei: numeric("gas_price_gwei", { precision: 18, scale: 4 }),
+  gasLimit: integer("gas_limit"),
   adClaimEnabled: boolean("ad_claim_enabled").notNull().default(false),
   adClaimAmount: numeric("ad_claim_amount", { precision: 18, scale: 8 }),
   adDurationSeconds: integer("ad_duration_seconds").notNull().default(30),

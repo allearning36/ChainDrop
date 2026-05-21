@@ -38,15 +38,16 @@ export async function sendEvm(
   privateKey: string,
   toAddress: string,
   amount: string,
-  gasPriceGwei?: string | null
+  gasPriceGwei?: string | null,
+  gasLimit?: number | null
 ): Promise<{ txHash: string }> {
   const provider = makeProvider(rpcUrl);
   try {
     const wallet = new ethers.Wallet(privateKey, provider);
     const amountWei = ethers.parseEther(amount);
 
-    const GAS_LIMIT = 21_000n;
-    logger.info({ toAddress, amount, gasPriceGwei: gasPriceGwei ?? "auto" }, "Sending EVM tokens");
+    const GAS_LIMIT = gasLimit != null ? BigInt(gasLimit) : 21_000n;
+    logger.info({ toAddress, amount, gasPriceGwei: gasPriceGwei ?? "auto", gasLimit: GAS_LIMIT.toString() }, "Sending EVM tokens");
 
     let balanceWei: bigint;
     let effectiveGasPrice: bigint;

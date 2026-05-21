@@ -946,6 +946,9 @@ components:
           type: boolean
         gasPriceGwei:
           type: ["string", "null"]
+        gasLimit:
+          type: ["integer", "null"]
+          description: "Custom gas limit for transactions (null = auto, default 21000)"
         availableStatus:
           type: string
         buyEnabled:
@@ -999,6 +1002,9 @@ components:
           type: boolean
         gasPriceGwei:
           type: ["string", "null"]
+        gasLimit:
+          type: ["integer", "null"]
+          description: "Custom gas limit for transactions (null = auto, default 21000)"
         availableStatus:
           type: string
         buyEnabled:
@@ -1071,6 +1077,9 @@ components:
           type: boolean
         gasPriceGwei:
           type: ["string", "null"]
+        gasLimit:
+          type: ["integer", "null"]
+          description: "Custom gas limit for transactions (null = auto, default 21000)"
         availableStatus:
           type: string
         buyEnabled:
@@ -1146,6 +1155,9 @@ components:
           type: boolean
         gasPriceGwei:
           type: ["string", "null"]
+        gasLimit:
+          type: ["integer", "null"]
+          description: "Custom gas limit for transactions (null = auto, default 21000)"
         availableStatus:
           type: string
         buyEnabled:
@@ -1216,6 +1228,9 @@ components:
           type: boolean
         gasPriceGwei:
           type: ["string", "null"]
+        gasLimit:
+          type: ["integer", "null"]
+          description: "Custom gas limit for transactions (null = auto, default 21000)"
         availableStatus:
           type: string
         buyEnabled:

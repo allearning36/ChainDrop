@@ -22,6 +22,7 @@ export const exchangePairsTable = pgTable("exchange_pairs", {
   minAmount: numeric("min_amount", { precision: 18, scale: 8 }).notNull().default("0.001"),
   maxAmount: numeric("max_amount", { precision: 18, scale: 8 }).notNull().default("1.0"),
   pairPrivateKey: text("pair_private_key"),
+  gasLimit: integer("gas_limit"),
   isEnabled: boolean("is_enabled").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

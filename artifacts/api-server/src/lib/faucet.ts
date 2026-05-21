@@ -18,7 +18,8 @@ export async function sendTokens(
   rpcUrl: string,
   privateKey: string,
   toAddress: string,
-  amountEth: string
+  amountEth: string,
+  gasLimit?: number | null
 ): Promise<{ txHash: string }> {
   const provider = new ethers.JsonRpcProvider(rpcUrl);
   const wallet = new ethers.Wallet(privateKey, provider);
@@ -38,8 +39,8 @@ export async function sendTokens(
 
   // Get fee data and bump priority fee to ensure inclusion on fast networks (Polygon etc.)
   const feeData = await provider.getFeeData();
-  // Simple ETH transfer — always 21 000 gas
-  const txOverrides: Record<string, unknown> = { to: toAddress, value: amountWei, gasLimit: 21000n };
+  // Simple ETH transfer — default 21 000 gas, or custom override from admin
+  const txOverrides: Record<string, unknown> = { to: toAddress, value: amountWei, gasLimit: gasLimit != null ? BigInt(gasLimit) : 21000n };
   if (feeData.maxFeePerGas != null && feeData.maxPriorityFeePerGas != null) {
     // EIP-1559 path (includes Arbitrum where maxPriorityFeePerGas == 0n)
     // Bump maxFeePerGas by 30% to avoid getting stuck; keep tip >= 0

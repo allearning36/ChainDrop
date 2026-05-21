@@ -21,6 +21,7 @@ interface ExchangePair {
   toExplorerUrl: string | null; toLogoUrl: string | null;
   feePercent: string; minAmount: string; maxAmount: string;
   pairPrivateKey: string | null;
+  gasLimit: number | null;
   isEnabled: boolean;
 }
 
@@ -46,6 +47,7 @@ interface FormData {
   toExplorerUrl: string; toLogoUrl: string;
   feePercent: string; minAmount: string; maxAmount: string; isEnabled: boolean;
   useSystemKey: boolean; pairPrivateKey: string;
+  gasLimit: string;
 }
 
 const DEFAULT_FORM: FormData = {
@@ -55,6 +57,7 @@ const DEFAULT_FORM: FormData = {
   toExplorerUrl: "", toLogoUrl: "",
   feePercent: "1.00", minAmount: "0.001", maxAmount: "1.0", isEnabled: true,
   useSystemKey: true, pairPrivateKey: "",
+  gasLimit: "",
 };
 
 function jsonHeaders(): Record<string, string> {
@@ -346,6 +349,7 @@ export function ExchangeManagement() {
       isEnabled: p.isEnabled,
       useSystemKey: !p.pairPrivateKey,
       pairPrivateKey: "",
+      gasLimit: p.gasLimit != null ? String(p.gasLimit) : "",
     });
     setFromRpcs(parseRpcList(p.fromRpcUrls, p.fromRpcUrl));
     setToRpcs(parseRpcList(p.toRpcUrls, p.toRpcUrl));
@@ -374,6 +378,7 @@ export function ExchangeManagement() {
         toRpcUrl: validTo[0],
         toRpcUrls: JSON.stringify(validTo),
         pairPrivateKey: form.useSystemKey ? null : (form.pairPrivateKey.trim() || null),
+        gasLimit: form.gasLimit !== "" ? Number(form.gasLimit) : null,
       };
       ["fromExplorerUrl","toExplorerUrl","fromLogoUrl","toLogoUrl"].forEach(k => {
         if (!body[k]) delete body[k];
@@ -731,6 +736,27 @@ export function ExchangeManagement() {
                 <div className="px-4 pb-4 flex items-center gap-3">
                   <Switch checked={form.isEnabled} onCheckedChange={c => setForm({ ...form, isEnabled: c })} />
                   <span className="text-xs font-mono text-muted-foreground">Enabled (visible to users)</span>
+                </div>
+              </div>
+
+              {/* Gas Limit section */}
+              <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(99,102,241,0.2)" }}>
+                <div className="px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest"
+                  style={{ background: "rgba(99,102,241,0.05)", color: "#818cf8", borderBottom: "1px solid rgba(99,102,241,0.15)" }}>
+                  Gas Settings (for sending toToken)
+                </div>
+                <div className="p-4 space-y-1.5">
+                  <Label className="text-xs">Gas Limit <span className="text-muted-foreground font-normal">(blank = auto 21000)</span></Label>
+                  <Input
+                    type="number" min="21000" step="1000"
+                    value={form.gasLimit}
+                    onChange={e => setForm(f => ({ ...f, gasLimit: e.target.value }))}
+                    placeholder="21000"
+                    className="font-mono text-xs h-9"
+                  />
+                  <p className="text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.35)" }}>
+                    ETH transfer = 21000 · Token/contract transfer ≥ 65000
+                  </p>
                 </div>
               </div>
 

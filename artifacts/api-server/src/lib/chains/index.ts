@@ -36,7 +36,7 @@ export async function sendTokens(
   privateKey: string,
   toAddress: string,
   amount: string,
-  options?: { gasPriceGwei?: string | null }
+  options?: { gasPriceGwei?: string | null; gasLimit?: number | null }
 ): Promise<{ txHash: string }> {
   return withRpcFailover(
     rpcUrls,
@@ -44,7 +44,7 @@ export async function sendTokens(
       switch (chainType) {
         case "evm": {
           const { sendEvm } = await import("./evm");
-          return sendEvm(rpcUrl, privateKey, toAddress, amount, options?.gasPriceGwei);
+          return sendEvm(rpcUrl, privateKey, toAddress, amount, options?.gasPriceGwei, options?.gasLimit);
         }
         case "solana": {
           const { sendSolana } = await import("./solana");

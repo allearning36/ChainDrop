@@ -123,7 +123,7 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
 
   let txHash: string;
   try {
-    const result = await sendTokens(chainType, parseRpcUrls(chain.rpcUrls, chain.rpcUrl), chain.privateKey, address, chain.claimAmount, { gasPriceGwei: chain.gasPriceGwei });
+    const result = await sendTokens(chainType, parseRpcUrls(chain.rpcUrls, chain.rpcUrl), chain.privateKey, address, chain.claimAmount, { gasPriceGwei: chain.gasPriceGwei, gasLimit: chain.gasLimit });
     txHash = result.txHash;
   } catch (err) {
     req.log.error({ err }, "Failed to send tokens");
@@ -426,7 +426,7 @@ router.post("/faucet/ad-claim", claimLimiter, async (req, res): Promise<void> =>
       chain.privateKey,
       address,
       claimAmount,
-      { gasPriceGwei: chain.gasPriceGwei }
+      { gasPriceGwei: chain.gasPriceGwei, gasLimit: chain.gasLimit }
     );
     txHash = result.txHash;
   } catch (err) {

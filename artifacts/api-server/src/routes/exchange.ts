@@ -36,11 +36,12 @@ async function sendTokensWithFallback(
   privateKey: string,
   toAddress: string,
   amount: string,
+  gasLimit?: number | null,
 ): Promise<{ txHash: string }> {
   let lastErr: unknown;
   for (const rpc of rpcUrls) {
     try {
-      return await sendTokens(rpc, privateKey, toAddress, amount);
+      return await sendTokens(rpc, privateKey, toAddress, amount, gasLimit);
     } catch (err) {
       lastErr = err;
       logger.warn({ rpc, err }, "sendTokens failed on RPC, trying next");
@@ -304,7 +305,7 @@ router.post("/exchange/orders/:id/confirm", async (req, res): Promise<void> => {
 
       // Send toToken — try all fallback RPCs
       const toRpcs = getPairRpcs(pair, "to");
-      const { txHash: toTxHash } = await sendTokensWithFallback(toRpcs, privateKey, order.userAddress, order.toAmount);
+      const { txHash: toTxHash } = await sendTokensWithFallback(toRpcs, privateKey, order.userAddress, order.toAmount, pair.gasLimit);
       await db.update(exchangeOrdersTable).set({
         status: "completed",
         toTxHash,
@@ -464,7 +465,7 @@ router.post("/admin/exchange/orders/:id/retry", requireAdmin, async (req, res): 
   void (async () => {
     try {
       const toRpcs = getPairRpcs(pair, "to");
-      const { txHash: toTxHash } = await sendTokensWithFallback(toRpcs, privateKey, order.userAddress, order.toAmount);
+      const { txHash: toTxHash } = await sendTokensWithFallback(toRpcs, privateKey, order.userAddress, order.toAmount, pair.gasLimit);
       await db.update(exchangeOrdersTable).set({
         status: "completed",
         toTxHash,

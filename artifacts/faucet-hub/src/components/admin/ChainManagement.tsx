@@ -91,6 +91,7 @@ const DEFAULT_CHAIN = {
   coingeckoId: "",
   soonMessage: "",
   gasPriceGwei: "",
+  gasLimit: "",
   adClaimEnabled: false,
   adClaimAmount: "",
   adDurationSeconds: 30,
@@ -234,6 +235,7 @@ export function ChainManagement() {
       coingeckoId: chain.coingeckoId ?? "",
       soonMessage: chain.soonMessage ?? "",
       gasPriceGwei: chain.gasPriceGwei ?? "",
+      gasLimit: chain.gasLimit != null ? String(chain.gasLimit) : "",
       receiveAddress: chain.receiveAddress ?? "",
       buyRate: chain.buyRate || "1000",
       buyMinAmount: chain.buyMinAmount || "0.0005",
@@ -274,6 +276,7 @@ export function ChainManagement() {
       rpcUrls: validRpcs,
       rpcUrl: validRpcs[0],
       chainId: formData.chainId !== "" ? Number(formData.chainId) : undefined,
+      gasLimit: formData.gasLimit !== "" ? Number(formData.gasLimit) : undefined,
       cooldownSeconds: hmsToSeconds(Number(cdH), Number(cdM), Number(cdS)),
       sortOrder: Number(formData.sortOrder),
       buyRate: formData.buyRate || "1000",
@@ -635,6 +638,11 @@ export function ChainManagement() {
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono text-muted-foreground">{formData.symbol || "TOKEN"}</span>
                   </div>
                   <p className="text-[10px] text-muted-foreground font-mono">Amount sent per claim</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Gas Limit <span className="text-muted-foreground font-normal">(blank = auto 21000)</span></Label>
+                  <Input type="number" min="21000" step="1000" value={formData.gasLimit} onChange={e => setFormData({...formData, gasLimit: e.target.value})} placeholder="21000" className="font-mono text-sm h-9" />
+                  <p className="text-[10px] text-muted-foreground font-mono">ETH transfer = 21000 · Token contract ≥ 65000</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs flex items-center gap-1.5"><Clock className="w-3 h-3" /> Cooldown <span className="text-destructive">*</span></Label>

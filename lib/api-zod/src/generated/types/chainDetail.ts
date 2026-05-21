@@ -26,6 +26,11 @@ export interface ChainDetail {
   isPinned?: boolean;
   /** @nullable */
   gasPriceGwei?: string | null;
+  /**
+     * Custom gas limit for transactions (null = auto, default 21000)
+     * @nullable
+     */
+  gasLimit?: number | null;
   availableStatus: string;
   buyEnabled: boolean;
   /** @nullable */
