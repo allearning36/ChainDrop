@@ -3,7 +3,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { WalletSelector } from "@/components/home/WalletSelector";
 import {
-  ArrowLeftRight, Wallet, Loader2, CheckCircle2, AlertCircle,
+  ArrowLeftRight, ArrowUpDown, Wallet, Loader2, CheckCircle2, AlertCircle,
   ExternalLink, ChevronDown, X, RefreshCw, ArrowLeft, Search, LogOut, Copy, Check,
 } from "lucide-react";
 
@@ -546,123 +546,188 @@ export default function ExchangePage() {
               </div>
             ) : (
               <>
-                {/* ── Chain selector row ─────────────────────────────────── */}
-                <div>
-                  <div className="grid items-end gap-2" style={{ gridTemplateColumns: "1fr 40px 1fr" }}>
-                    {/* From */}
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-mono uppercase tracking-widest mb-1.5" style={{ color: "rgba(255,255,255,0.3)" }}>From</p>
-                      <ChainSelectorBtn
-                        option={fromOption}
-                        placeholder="Select chain"
-                        onClick={() => step === "select" && setFromPickerOpen(true)}
-                      />
-                    </div>
-
-                    {/* Swap direction button — centered in fixed 40px column */}
-                    <div className="flex items-center justify-center" style={{ height: "52px" }}>
-                      <button
-                        onClick={handleSwapDirection}
-                        disabled={!canSwapDirection}
-                        title={canSwapDirection ? "Swap direction" : "Reverse pair not available"}
-                        className="w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0"
-                        style={{
-                          background: canSwapDirection ? "rgba(167,139,250,0.1)" : "rgba(255,255,255,0.04)",
-                          border: `1px solid ${canSwapDirection ? "rgba(167,139,250,0.25)" : "rgba(255,255,255,0.07)"}`,
-                          color: canSwapDirection ? "#a78bfa" : "rgba(255,255,255,0.2)",
-                          cursor: canSwapDirection ? "pointer" : "default",
-                        }}>
-                        <ArrowLeftRight className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    {/* To */}
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-mono uppercase tracking-widest mb-1.5" style={{ color: "rgba(255,255,255,0.3)" }}>To</p>
-                      <ChainSelectorBtn
-                        option={toOptionIsValid ? toOption : null}
-                        placeholder="Select chain"
-                        onClick={() => step === "select" && fromOption && setToPickerOpen(true)}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Pair not found hint */}
-                  {fromOption && toOption && !toOptionIsValid && (
-                    <p className="text-xs font-mono mt-2 text-center" style={{ color: "rgba(255,255,255,0.3)" }}>
-                      Select a destination chain
-                    </p>
-                  )}
-                  {fromOption && toOption && toOptionIsValid && !selectedPair && (
-                    <p className="text-xs font-mono mt-2 text-center" style={{ color: "#f87171" }}>
-                      No route for this pair
-                    </p>
-                  )}
-                </div>
-
-                {/* ── Amount input ───────────────────────────────────────── */}
-                {pair && (
-                  <div>
-                    <label className="text-[10px] font-mono uppercase tracking-widest mb-1.5 block" style={{ color: "rgba(255,255,255,0.35)" }}>
-                      You Send
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={fromAmount}
-                        onChange={e => {
-                          const v = e.target.value;
-                          if (v === "" || /^\d*\.?\d*$/.test(v)) setFromAmount(v);
-                        }}
-                        placeholder={`${pair.minAmount} – ${pair.maxAmount}`}
-                        disabled={step === "review"}
-                        className="w-full h-14 rounded-xl px-4 pr-28 font-mono text-white text-base outline-none transition-all"
-                        style={{
-                          background: "rgba(255,255,255,0.05)",
-                          border: `1px solid ${fromAmount && !amountValid ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.1)"}`,
-                        }}
-                      />
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none">
-                        <TokenLogo logoUrl={pair.fromLogoUrl} chainId={pair.fromChainId} symbol={pair.fromSymbol} size={20} />
-                        <span className="text-sm font-bold font-mono text-white">{pair.fromSymbol}</span>
+                {/* ── FROM section ───────────────────────────────────────── */}
+                <div className="space-y-1">
+                  {/* FROM header */}
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.6)" }}>From</span>
+                    {walletAddress && (
+                      <div className="flex items-center gap-1.5">
+                        <Wallet className="w-3 h-3 shrink-0" style={{ color: "#a78bfa" }} />
+                        <span className="text-xs font-mono" style={{ color: "rgba(255,255,255,0.5)" }}>{shortAddr(walletAddress)}</span>
+                        {userBalance && pair && (
+                          <span className="text-xs font-mono" style={{ color: "rgba(255,255,255,0.3)" }}>· {userBalance}</span>
+                        )}
+                        <button onClick={handleDisconnect} title="Disconnect"
+                          className="ml-0.5 transition-opacity"
+                          style={{ opacity: 0.45, color: "#f87171" }}
+                          onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+                          onMouseLeave={e => (e.currentTarget.style.opacity = "0.45")}>
+                          <LogOut className="w-3 h-3" />
+                        </button>
                       </div>
-                    </div>
-                    {fromAmount && !amountValid && (
-                      <p className="text-xs font-mono mt-1.5" style={{ color: "#f87171" }}>
-                        {pair.minAmount} – {pair.maxAmount} {pair.fromSymbol}
-                      </p>
                     )}
                   </div>
-                )}
-
-                {/* ── You Receive display ────────────────────────────────── */}
-                {pair && from > 0 && amountValid && (
-                  <div className="rounded-xl px-4 py-3 space-y-2.5" style={{ background: "rgba(167,139,250,0.05)", border: "1px solid rgba(167,139,250,0.15)" }}>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-mono" style={{ color: "rgba(255,255,255,0.45)" }}>Fee ({pair.feePercent}%)</span>
-                      <span className="text-xs font-mono" style={{ color: "#f87171" }}>−{feeAmt.toFixed(6)} {pair.fromSymbol}</span>
-                    </div>
-                    <div className="h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-mono" style={{ color: "rgba(255,255,255,0.45)" }}>You receive</span>
-                      <div className="flex items-center gap-1.5">
-                        <TokenLogo logoUrl={pair.toLogoUrl} chainId={pair.toChainId} symbol={pair.toSymbol} size={17} />
-                        <span className="text-base font-bold font-mono" style={{ color: "#a78bfa" }}>
-                          {toAmt.toFixed(6)} <span style={{ color: "rgba(167,139,250,0.7)" }}>{pair.toSymbol}</span>
+                  {/* FROM card */}
+                  <div className="rounded-2xl px-4 py-4"
+                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.09)" }}>
+                    <div className="flex items-center gap-3">
+                      {/* Token selector */}
+                      <button onClick={() => step === "select" && setFromPickerOpen(true)}
+                        className="flex items-center gap-3 shrink-0 transition-opacity"
+                        style={{ opacity: step === "review" ? 0.6 : 1 }}>
+                        {fromOption ? (
+                          <>
+                            <TokenLogo logoUrl={fromOption.logoUrl} chainId={fromOption.chainId} symbol={fromOption.symbol} size={42} />
+                            <div className="flex flex-col items-start text-left">
+                              <div className="flex items-center gap-0.5">
+                                <span className="font-bold text-white text-base leading-tight">{fromOption.symbol}</span>
+                                {step === "select" && <ChevronDown className="w-3.5 h-3.5" style={{ color: "rgba(255,255,255,0.4)" }} />}
+                              </div>
+                              <span className="text-[11px] font-mono" style={{ color: "rgba(255,255,255,0.4)" }}>{fromOption.chainName}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <div className="w-[42px] h-[42px] rounded-full flex items-center justify-center"
+                              style={{ background: "rgba(255,255,255,0.07)" }}>
+                              <ChevronDown className="w-4 h-4" style={{ color: "rgba(255,255,255,0.3)" }} />
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm font-mono" style={{ color: "rgba(255,255,255,0.35)" }}>Select</span>
+                              <ChevronDown className="w-3.5 h-3.5" style={{ color: "rgba(255,255,255,0.3)" }} />
+                            </div>
+                          </div>
+                        )}
+                      </button>
+                      {/* Amount input */}
+                      <div className="flex flex-col items-end flex-1 min-w-0">
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={fromAmount}
+                          onChange={e => {
+                            const v = e.target.value;
+                            if (v === "" || /^\d*\.?\d*$/.test(v)) setFromAmount(v);
+                          }}
+                          placeholder="0.00"
+                          disabled={step === "review"}
+                          className="w-full text-right font-bold bg-transparent outline-none placeholder:opacity-25 transition-colors"
+                          style={{
+                            fontSize: "clamp(18px, 6vw, 26px)",
+                            color: fromAmount && !amountValid ? "#f87171" : "white",
+                          }}
+                        />
+                        <span className="text-[11px] font-mono mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.3)" }}>
+                          {pair
+                            ? (fromAmount && !amountValid ? `${pair.minAmount}–${pair.maxAmount} ${pair.fromSymbol}` : `min ${pair.minAmount}`)
+                            : "enter amount"}
                         </span>
                       </div>
                     </div>
-                    <p className="text-[10px] font-mono text-center" style={{ color: "rgba(255,255,255,0.2)" }}>
-                      Delivered to your wallet on {pair.toChainName}
-                    </p>
+                  </div>
+                </div>
+
+                {/* ── Swap direction circle ───────────────────────────────── */}
+                <div className="flex justify-center" style={{ marginTop: "-6px", marginBottom: "-6px", position: "relative", zIndex: 10 }}>
+                  <button onClick={handleSwapDirection} disabled={!canSwapDirection}
+                    title={canSwapDirection ? "Swap direction" : "Reverse pair not available"}
+                    className="w-10 h-10 rounded-full flex items-center justify-center transition-all"
+                    style={{
+                      background: canSwapDirection ? "rgba(167,139,250,0.13)" : "rgba(255,255,255,0.05)",
+                      border: `2px solid ${canSwapDirection ? "rgba(167,139,250,0.35)" : "rgba(255,255,255,0.1)"}`,
+                      color: canSwapDirection ? "#a78bfa" : "rgba(255,255,255,0.2)",
+                      cursor: canSwapDirection ? "pointer" : "default",
+                      boxShadow: "0 0 0 4px rgba(10,10,20,0.9)",
+                    }}>
+                    <ArrowUpDown className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* ── TO section ─────────────────────────────────────────── */}
+                <div className="space-y-1">
+                  {/* TO header */}
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.6)" }}>To</span>
+                    {walletAddress && (
+                      <div className="flex items-center gap-1.5">
+                        <Wallet className="w-3 h-3 shrink-0" style={{ color: "#a78bfa" }} />
+                        <span className="text-xs font-mono" style={{ color: "rgba(255,255,255,0.5)" }}>{shortAddr(walletAddress)}</span>
+                      </div>
+                    )}
+                  </div>
+                  {/* TO card */}
+                  <div className="rounded-2xl px-4 py-4"
+                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.09)" }}>
+                    <div className="flex items-center gap-3">
+                      {/* Token selector */}
+                      <button onClick={() => step === "select" && fromOption && setToPickerOpen(true)}
+                        className="flex items-center gap-3 shrink-0 transition-opacity"
+                        style={{ opacity: step === "review" ? 0.6 : 1 }}>
+                        {toOptionIsValid && toOption ? (
+                          <>
+                            <TokenLogo logoUrl={toOption.logoUrl} chainId={toOption.chainId} symbol={toOption.symbol} size={42} />
+                            <div className="flex flex-col items-start text-left">
+                              <div className="flex items-center gap-0.5">
+                                <span className="font-bold text-white text-base leading-tight">{toOption.symbol}</span>
+                                {step === "select" && <ChevronDown className="w-3.5 h-3.5" style={{ color: "rgba(255,255,255,0.4)" }} />}
+                              </div>
+                              <span className="text-[11px] font-mono" style={{ color: "rgba(255,255,255,0.4)" }}>{toOption.chainName}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <div className="w-[42px] h-[42px] rounded-full flex items-center justify-center"
+                              style={{ background: "rgba(255,255,255,0.07)" }}>
+                              <ChevronDown className="w-4 h-4" style={{ color: "rgba(255,255,255,0.3)" }} />
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm font-mono" style={{ color: "rgba(255,255,255,0.35)" }}>{fromOption ? "Select" : "—"}</span>
+                              {fromOption && <ChevronDown className="w-3.5 h-3.5" style={{ color: "rgba(255,255,255,0.3)" }} />}
+                            </div>
+                          </div>
+                        )}
+                      </button>
+                      {/* Receive amount */}
+                      <div className="flex flex-col items-end flex-1 min-w-0">
+                        <span className="font-bold transition-colors"
+                          style={{
+                            fontSize: "clamp(18px, 6vw, 26px)",
+                            color: pair && from > 0 && amountValid ? "#a78bfa" : "rgba(255,255,255,0.18)",
+                          }}>
+                          {pair && from > 0 && amountValid ? toAmt.toFixed(6) : "0.00"}
+                        </span>
+                        <span className="text-[11px] font-mono mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>
+                          {toOptionIsValid && toOption ? toOption.chainName : "destination"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* No route warning */}
+                  {fromOption && toOption && toOptionIsValid && !selectedPair && (
+                    <p className="text-xs font-mono px-1" style={{ color: "#f87171" }}>No route for this pair</p>
+                  )}
+                </div>
+
+                {/* ── Fee strip ──────────────────────────────────────────── */}
+                {pair && from > 0 && amountValid && (
+                  <div className="flex items-center gap-3 rounded-xl px-4 py-2.5"
+                    style={{ background: "rgba(167,139,250,0.05)", border: "1px solid rgba(167,139,250,0.12)" }}>
+                    <span className="text-xs font-mono" style={{ color: "rgba(255,255,255,0.4)" }}>Fee {pair.feePercent}%</span>
+                    <span className="text-xs font-mono" style={{ color: "#f87171" }}>−{feeAmt.toFixed(6)} {pair.fromSymbol}</span>
+                    <div className="flex-1" />
+                    <span className="text-xs font-mono" style={{ color: "rgba(255,255,255,0.4)" }}>You receive</span>
+                    <div className="flex items-center gap-1">
+                      <TokenLogo logoUrl={pair.toLogoUrl} chainId={pair.toChainId} symbol={pair.toSymbol} size={14} />
+                      <span className="text-sm font-bold font-mono" style={{ color: "#a78bfa" }}>{toAmt.toFixed(6)} {pair.toSymbol}</span>
+                    </div>
                   </div>
                 )}
 
-                {/* ── Exchange wallet balance warning (blocking) ─────────── */}
+                {/* ── Exchange wallet balance warning ─────────────────────── */}
                 {pair && exchangeBalance?.warning && (
-                  <div className="rounded-xl overflow-hidden"
-                    style={{ border: "1px solid rgba(239,68,68,0.3)" }}>
+                  <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(239,68,68,0.3)" }}>
                     <div className="flex items-center gap-2 px-3 py-2"
                       style={{ background: "rgba(239,68,68,0.12)", borderBottom: "1px solid rgba(239,68,68,0.15)" }}>
                       <AlertCircle className="w-3.5 h-3.5 shrink-0" style={{ color: "#f87171" }} />
@@ -673,20 +738,10 @@ export default function ExchangePage() {
                         ? `The exchange wallet has 0 ${pair.toSymbol} on ${pair.toChainName}. Cannot process swaps.`
                         : exchangeBalance.balance !== null
                         ? `Exchange wallet balance too low: ${parseFloat(exchangeBalance.balance).toFixed(6)} ${pair.toSymbol} on ${pair.toChainName}.`
-                        : `Cannot reach the ${pair.toChainName} network to verify exchange wallet. Please try again later.`
+                        : `Cannot reach the ${pair.toChainName} network. Please try again later.`
                       }
                     </div>
                   </div>
-                )}
-
-                {/* ── Wallet chip (always visible when connected) ────────── */}
-                {walletAddress && (
-                  <WalletChip
-                    address={walletAddress}
-                    balance={userBalance}
-                    symbol={pair?.fromSymbol ?? ""}
-                    onDisconnect={handleDisconnect}
-                  />
                 )}
 
                 {/* ── Swap / Connect button ──────────────────────────────── */}
