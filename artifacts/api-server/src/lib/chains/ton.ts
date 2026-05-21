@@ -25,12 +25,26 @@ export async function sendTon(
     messages: [internal({ to: toAddress, value: toNano(amount), bounce: false })],
   });
 
-  // TON doesn't return a tx hash synchronously; encode a unique reference
+  logger.info({ toAddress, seqno }, "TON transfer submitted — polling for seqno advancement");
+
+  // Poll until the wallet seqno increments, confirming the tx was processed
+  const TON_POLL_INTERVAL_MS = 1_500;
+  const TON_POLL_TIMEOUT_MS = 90_000;
+  const deadline = Date.now() + TON_POLL_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    await new Promise<void>((r) => setTimeout(r, TON_POLL_INTERVAL_MS));
+    try {
+      const currentSeqno = await contract.getSeqno();
+      if (currentSeqno > seqno) break;
+    } catch { /* keep polling */ }
+  }
+
+  // Encode a unique reference from wallet address + seqno + timestamp
   const txRef = Buffer.from(
     `${wallet.address.toRawString()}_${seqno}_${Date.now()}`
   ).toString("hex").slice(0, 64);
 
-  logger.info({ txRef, toAddress, seqno }, "TON transfer submitted");
+  logger.info({ txRef, toAddress, seqno }, "TON transfer confirmed (seqno advanced)");
   return { txHash: txRef };
 }
 

@@ -24,7 +24,10 @@ export async function sendAptos(
   });
 
   const { hash } = await aptos.signAndSubmitTransaction({ signer: account, transaction: txn });
-  logger.info({ hash, toAddress }, "Aptos transaction submitted");
+  logger.info({ hash, toAddress }, "Aptos transaction submitted — waiting for confirmation");
+
+  await aptos.waitForTransaction({ transactionHash: hash });
+  logger.info({ hash, toAddress }, "Aptos transaction confirmed");
 
   return { txHash: hash };
 }

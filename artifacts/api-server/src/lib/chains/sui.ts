@@ -27,7 +27,14 @@ export async function sendSui(
   tx.transferObjects([coin], toAddress);
 
   const result = await client.signAndExecuteTransaction({ signer: keypair, transaction: tx });
-  logger.info({ digest: result.digest, toAddress }, "Sui transaction executed");
+  logger.info({ digest: result.digest, toAddress }, "Sui transaction submitted — waiting for confirmation");
+
+  const confirmed = await client.waitForTransaction({ digest: result.digest, options: { showEffects: true } });
+  const status = confirmed.effects?.status?.status;
+  if (status !== "success") {
+    throw new Error(`Sui transaction failed on-chain: ${confirmed.effects?.status?.error ?? status}`);
+  }
+  logger.info({ digest: result.digest, toAddress }, "Sui transaction confirmed");
 
   return { txHash: result.digest };
 }

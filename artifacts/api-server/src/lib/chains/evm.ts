@@ -3,6 +3,7 @@ import { logger } from "../logger";
 
 const RPC_TIMEOUT_MS = 15_000;
 const TX_TIMEOUT_MS = 30_000;
+const TX_CONFIRM_TIMEOUT_MS = 120_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
@@ -104,12 +105,14 @@ export async function sendEvm(
       "sendTransaction"
     );
 
-    logger.info({ txHash: tx.hash, toAddress }, "EVM transaction submitted");
+    logger.info({ txHash: tx.hash, toAddress }, "EVM transaction submitted — waiting for confirmation");
 
-    tx.wait(1).then((receipt) => {
-      if (receipt?.status === 1) logger.info({ txHash: tx.hash }, "EVM tx confirmed");
-      else logger.warn({ txHash: tx.hash }, "EVM tx may have been reverted");
-    }).catch((err) => logger.warn({ err, txHash: tx.hash }, "EVM receipt polling failed"));
+    const receipt = await withTimeout(tx.wait(1), TX_CONFIRM_TIMEOUT_MS, "waitForConfirmation");
+    if (!receipt || receipt.status !== 1) {
+      throw new Error(`EVM transaction reverted on-chain (txHash: ${tx.hash})`);
+    }
+
+    logger.info({ txHash: tx.hash, toAddress, blockNumber: receipt.blockNumber }, "EVM transaction confirmed");
 
     return { txHash: tx.hash };
   } finally {
