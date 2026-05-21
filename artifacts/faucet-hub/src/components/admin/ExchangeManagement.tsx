@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getToken } from "@/lib/auth";
 import {
-  ArrowLeftRight, Plus, Trash2, Edit2, Save, X, ChevronDown, ChevronUp,
-  ToggleLeft, ToggleRight, AlertCircle, CheckCircle2, Loader2, ClipboardList,
+  ArrowLeftRight, Plus, Trash2, Edit2, Save, X,
+  ToggleLeft, ToggleRight, AlertCircle, CheckCircle2, Loader2,
+  ClipboardList, Activity, ArrowUp, ArrowDown, Upload, XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +13,11 @@ import { Switch } from "@/components/ui/switch";
 interface ExchangePair {
   id: number; name: string;
   fromChainName: string; fromSymbol: string; fromChainId: number;
-  fromRpcUrl: string; fromExplorerUrl: string | null; fromDepositAddress: string; fromLogoUrl: string | null;
+  fromRpcUrl: string; fromRpcUrls: string | null;
+  fromExplorerUrl: string | null; fromDepositAddress: string; fromLogoUrl: string | null;
   toChainName: string; toSymbol: string; toChainId: number;
-  toRpcUrl: string; toExplorerUrl: string | null; toLogoUrl: string | null;
+  toRpcUrl: string; toRpcUrls: string | null;
+  toExplorerUrl: string | null; toLogoUrl: string | null;
   feePercent: string; minAmount: string; maxAmount: string; isEnabled: boolean;
 }
 
@@ -25,18 +28,37 @@ interface ExchangeOrder {
   failReason: string | null; createdAt: string; completedAt: string | null;
 }
 
-type FormData = Omit<ExchangePair, "id" | "isEnabled"> & { isEnabled: boolean };
+type RpcHealth = Record<string, { status: "ok" | "error"; latencyMs: number; error?: string }>;
+
+interface FormData {
+  name: string;
+  fromChainName: string; fromSymbol: string; fromChainId: number;
+  fromExplorerUrl: string; fromDepositAddress: string; fromLogoUrl: string;
+  toChainName: string; toSymbol: string; toChainId: number;
+  toExplorerUrl: string; toLogoUrl: string;
+  feePercent: string; minAmount: string; maxAmount: string; isEnabled: boolean;
+}
 
 const DEFAULT_FORM: FormData = {
   name: "", fromChainName: "", fromSymbol: "", fromChainId: 1,
-  fromRpcUrl: "", fromExplorerUrl: "", fromDepositAddress: "", fromLogoUrl: "",
+  fromExplorerUrl: "", fromDepositAddress: "", fromLogoUrl: "",
   toChainName: "", toSymbol: "", toChainId: 8453,
-  toRpcUrl: "", toExplorerUrl: "", toLogoUrl: "",
+  toExplorerUrl: "", toLogoUrl: "",
   feePercent: "1.00", minAmount: "0.001", maxAmount: "1.0", isEnabled: true,
 };
 
-function authHeaders() {
+function authHeaders(): Record<string, string> {
   return { "Content-Type": "application/json", Authorization: `Bearer ${getToken() ?? ""}` };
+}
+
+function parseRpcList(urls: string | null, fallback: string): string[] {
+  if (urls) {
+    try {
+      const parsed = JSON.parse(urls);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch { /* ignore */ }
+  }
+  return [fallback];
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -54,6 +76,158 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+// ── Multi-RPC editor ──────────────────────────────────────────────────────────
+function RpcEditor({
+  label, color, rpcList, setRpcList, health, onCheckHealth, checking, pairId,
+}: {
+  label: string; color: string;
+  rpcList: string[]; setRpcList: (v: string[]) => void;
+  health: RpcHealth; onCheckHealth: () => void; checking: boolean;
+  pairId: number | null;
+}) {
+  const move = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= rpcList.length) return;
+    const copy = [...rpcList];
+    [copy[i], copy[j]] = [copy[j]!, copy[i]!];
+    setRpcList(copy);
+  };
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs">{label}</Label>
+        <div className="flex items-center gap-1.5">
+          {pairId && (
+            <Button type="button" variant="outline" size="sm"
+              className="h-6 px-2 text-[10px] font-mono gap-1"
+              onClick={onCheckHealth} disabled={checking}>
+              {checking ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
+              Health
+            </Button>
+          )}
+          <Button type="button" variant="outline" size="sm"
+            className="h-6 px-2 text-[10px] font-mono gap-1"
+            onClick={() => setRpcList([...rpcList, ""])}>
+            <Plus className="w-3 h-3" /> Add
+          </Button>
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        {rpcList.map((url, i) => {
+          const h = health[url];
+          return (
+            <div key={i} className="flex items-center gap-1.5">
+              <span className="text-[10px] font-mono text-muted-foreground w-14 shrink-0 text-right">
+                {i === 0 ? "Primary" : `Fallback ${i}`}
+              </span>
+              <div className="relative flex-1">
+                <Input
+                  value={url}
+                  onChange={e => {
+                    const copy = [...rpcList];
+                    copy[i] = e.target.value;
+                    setRpcList(copy);
+                  }}
+                  placeholder="https://rpc.example.com"
+                  className="font-mono text-xs h-8 pr-8"
+                />
+                {h && (
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2">
+                    {h.status === "ok"
+                      ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+                      : <XCircle className="w-3.5 h-3.5 text-red-400" />}
+                  </span>
+                )}
+              </div>
+              {h && (
+                <span className={`text-[10px] font-mono shrink-0 w-14 ${h.status === "ok" ? "text-green-400" : "text-red-400"}`}>
+                  {h.status === "ok" ? `${h.latencyMs}ms` : "Down"}
+                </span>
+              )}
+              <div className="flex gap-0.5 shrink-0">
+                <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
+                  onClick={() => move(i, -1)} disabled={i === 0}>
+                  <ArrowUp className="w-3 h-3" />
+                </Button>
+                <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
+                  onClick={() => move(i, 1)} disabled={i === rpcList.length - 1}>
+                  <ArrowDown className="w-3 h-3" />
+                </Button>
+                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                  onClick={() => setRpcList(rpcList.filter((_, idx) => idx !== i))}
+                  disabled={rpcList.length === 1}>
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-muted-foreground font-mono">
+        Primary used first. Fallbacks activate if primary is down.
+      </p>
+    </div>
+  );
+}
+
+// ── Logo uploader ─────────────────────────────────────────────────────────────
+function LogoUploader({
+  value, onChange, label,
+}: { value: string; onChange: (url: string) => void; label: string }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleFile = async (file: File) => {
+    setUploading(true); setError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken() ?? ""}` },
+        body: fd,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json() as { url: string };
+      onChange(data.url);
+    } catch (e: any) { setError(e.message); }
+    finally { setUploading(false); }
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <div className="flex items-center gap-2">
+        {value && (
+          <img src={value} alt="" className="w-8 h-8 rounded-full object-contain shrink-0"
+            style={{ background: "rgba(255,255,255,0.08)" }}
+            onError={e => (e.currentTarget.style.display = "none")} />
+        )}
+        <div className="flex-1 flex items-center gap-2">
+          <Input
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            placeholder="https://... or upload below"
+            className="font-mono text-xs h-8 flex-1"
+          />
+          <Button type="button" variant="outline" size="sm"
+            className="h-8 px-2.5 text-xs font-mono gap-1.5 shrink-0"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}>
+            {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+            {uploading ? "…" : "Upload"}
+          </Button>
+        </div>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden"
+          onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); e.target.value = ""; }} />
+      </div>
+      {error && <p className="text-[10px] font-mono" style={{ color: "#f87171" }}>{error}</p>}
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export function ExchangeManagement() {
   const [pairs, setPairs] = useState<ExchangePair[]>([]);
   const [orders, setOrders] = useState<ExchangeOrder[]>([]);
@@ -62,6 +236,17 @@ export function ExchangeManagement() {
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<FormData>(DEFAULT_FORM);
+
+  // RPC lists for from/to
+  const [fromRpcs, setFromRpcs] = useState<string[]>([""]);
+  const [toRpcs, setToRpcs] = useState<string[]>([""]);
+
+  // Health check state
+  const [fromHealth, setFromHealth] = useState<RpcHealth>({});
+  const [toHealth, setToHealth] = useState<RpcHealth>({});
+  const [checkingFrom, setCheckingFrom] = useState(false);
+  const [checkingTo, setCheckingTo] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -80,20 +265,74 @@ export function ExchangeManagement() {
     Promise.all([fetchPairs(), fetchOrders()]).finally(() => setLoading(false));
   }, []);
 
-  const openCreate = () => { setEditId(null); setForm(DEFAULT_FORM); setError(""); setFormOpen(true); };
-  const openEdit = (p: ExchangePair) => {
-    setEditId(p.id);
-    setForm({ ...p, fromExplorerUrl: p.fromExplorerUrl ?? "", toExplorerUrl: p.toExplorerUrl ?? "", fromLogoUrl: p.fromLogoUrl ?? "", toLogoUrl: p.toLogoUrl ?? "" });
+  const checkHealth = async (side: "from" | "to") => {
+    if (!editId) return;
+    const setSide = side === "from" ? setCheckingFrom : setCheckingTo;
+    const setHealth = side === "from" ? setFromHealth : setToHealth;
+    setSide(true);
+    try {
+      const res = await fetch(`/api/admin/exchange/pairs/${editId}/rpc-health?side=${side}`, {
+        headers: { Authorization: `Bearer ${getToken() ?? ""}` },
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json() as Array<{ url: string; status: "ok" | "error"; latencyMs: number; error?: string }>;
+      const map: RpcHealth = {};
+      for (const item of data) map[item.url] = item;
+      setHealth(map);
+    } catch { /* ignore */ }
+    finally { setSide(false); }
+  };
+
+  const openCreate = () => {
+    setEditId(null);
+    setForm(DEFAULT_FORM);
+    setFromRpcs([""]);
+    setToRpcs([""]);
+    setFromHealth({}); setToHealth({});
     setError(""); setFormOpen(true);
   };
-  const closeForm = () => { setFormOpen(false); setEditId(null); setForm(DEFAULT_FORM); setError(""); };
+
+  const openEdit = (p: ExchangePair) => {
+    setEditId(p.id);
+    setForm({
+      name: p.name,
+      fromChainName: p.fromChainName, fromSymbol: p.fromSymbol, fromChainId: p.fromChainId,
+      fromExplorerUrl: p.fromExplorerUrl ?? "", fromDepositAddress: p.fromDepositAddress,
+      fromLogoUrl: p.fromLogoUrl ?? "",
+      toChainName: p.toChainName, toSymbol: p.toSymbol, toChainId: p.toChainId,
+      toExplorerUrl: p.toExplorerUrl ?? "", toLogoUrl: p.toLogoUrl ?? "",
+      feePercent: p.feePercent, minAmount: p.minAmount, maxAmount: p.maxAmount,
+      isEnabled: p.isEnabled,
+    });
+    setFromRpcs(parseRpcList(p.fromRpcUrls, p.fromRpcUrl));
+    setToRpcs(parseRpcList(p.toRpcUrls, p.toRpcUrl));
+    setFromHealth({}); setToHealth({});
+    setError(""); setFormOpen(true);
+  };
+
+  const closeForm = () => { setFormOpen(false); setEditId(null); setError(""); };
 
   const handleSave = async () => {
+    const validFrom = fromRpcs.filter(u => u.trim());
+    const validTo = toRpcs.filter(u => u.trim());
+    if (!form.name || !form.fromChainName || !form.fromSymbol || !form.fromDepositAddress ||
+        !form.toChainName || !form.toSymbol || validFrom.length === 0 || validTo.length === 0) {
+      setError("Please fill all required fields and at least one RPC per chain."); return;
+    }
     setSaving(true); setError(""); setSuccess("");
     try {
-      const body: any = { ...form, fromChainId: Number(form.fromChainId), toChainId: Number(form.toChainId) };
-      ["fromExplorerUrl","toExplorerUrl","fromLogoUrl","toLogoUrl"].forEach(k => { if (!body[k]) delete body[k]; });
-
+      const body: Record<string, unknown> = {
+        ...form,
+        fromChainId: Number(form.fromChainId),
+        toChainId: Number(form.toChainId),
+        fromRpcUrl: validFrom[0],
+        fromRpcUrls: JSON.stringify(validFrom),
+        toRpcUrl: validTo[0],
+        toRpcUrls: JSON.stringify(validTo),
+      };
+      ["fromExplorerUrl","toExplorerUrl","fromLogoUrl","toLogoUrl"].forEach(k => {
+        if (!body[k]) delete body[k];
+      });
       const url = editId ? `/api/admin/exchange/pairs/${editId}` : "/api/admin/exchange/pairs";
       const method = editId ? "PUT" : "POST";
       const res = await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(body) });
@@ -138,6 +377,7 @@ export function ExchangeManagement() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold font-mono flex items-center gap-2">
@@ -151,24 +391,29 @@ export function ExchangeManagement() {
       </div>
 
       {success && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e" }}>
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm"
+          style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e" }}>
           <CheckCircle2 className="w-4 h-4 shrink-0" /> {success}
         </div>
       )}
 
-      {/* ── Tabs ── */}
-      <div className="flex gap-1 p-1 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+      {/* Tabs */}
+      <div className="flex gap-1 p-1 rounded-xl"
+        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
         {(["pairs", "orders"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-mono font-bold uppercase tracking-widest transition-colors"
-            style={{ background: tab === t ? "rgba(167,139,250,0.15)" : "transparent", color: tab === t ? "#a78bfa" : "rgba(255,255,255,0.4)" }}>
+            style={{
+              background: tab === t ? "rgba(167,139,250,0.15)" : "transparent",
+              color: tab === t ? "#a78bfa" : "rgba(255,255,255,0.4)",
+            }}>
             {t === "pairs" ? <ArrowLeftRight className="w-3.5 h-3.5" /> : <ClipboardList className="w-3.5 h-3.5" />}
             {t}
           </button>
         ))}
       </div>
 
-      {/* ── PAIRS TAB ── */}
+      {/* Pairs tab */}
       {tab === "pairs" && (
         <div className="space-y-3">
           {pairs.length === 0 ? (
@@ -178,7 +423,8 @@ export function ExchangeManagement() {
             </div>
           ) : pairs.map(p => (
             <div key={p.id} className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-              <div className="flex items-center justify-between px-4 py-3" style={{ background: "rgba(255,255,255,0.03)" }}>
+              <div className="flex items-center justify-between px-4 py-3"
+                style={{ background: "rgba(255,255,255,0.03)" }}>
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="font-bold font-mono text-sm text-white">{p.fromSymbol}</span>
@@ -193,12 +439,16 @@ export function ExchangeManagement() {
                   <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg transition-colors hover:bg-white/10">
                     <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
                   </button>
-                  <button onClick={() => handleDelete(p.id)} disabled={deleting === p.id} className="p-1.5 rounded-lg transition-colors hover:bg-red-500/10">
-                    {deleting === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin text-red-400" /> : <Trash2 className="w-3.5 h-3.5 text-red-400" />}
+                  <button onClick={() => handleDelete(p.id)} disabled={deleting === p.id}
+                    className="p-1.5 rounded-lg transition-colors hover:bg-red-500/10">
+                    {deleting === p.id
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin text-red-400" />
+                      : <Trash2 className="w-3.5 h-3.5 text-red-400" />}
                   </button>
                 </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-4 py-3 text-xs font-mono text-muted-foreground" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-4 py-3 text-xs font-mono text-muted-foreground"
+                style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
                 <div><span className="opacity-60">From</span><br /><span className="text-white">{p.fromChainName}</span></div>
                 <div><span className="opacity-60">To</span><br /><span className="text-white">{p.toChainName}</span></div>
                 <div><span className="opacity-60">Min</span><br /><span className="text-white">{p.minAmount} {p.fromSymbol}</span></div>
@@ -209,7 +459,7 @@ export function ExchangeManagement() {
         </div>
       )}
 
-      {/* ── ORDERS TAB ── */}
+      {/* Orders tab */}
       {tab === "orders" && (
         <div className="space-y-2">
           {orders.length === 0 ? (
@@ -218,13 +468,16 @@ export function ExchangeManagement() {
               <p className="text-sm font-mono">No exchange orders yet.</p>
             </div>
           ) : orders.map(o => (
-            <div key={o.id} className="rounded-xl px-4 py-3 space-y-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <div key={o.id} className="rounded-xl px-4 py-3 space-y-2"
+              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2 min-w-0">
                   <code className="text-[10px] font-mono text-muted-foreground truncate">{o.id.slice(0, 12)}…</code>
                   <StatusBadge status={o.status} />
                 </div>
-                <span className="text-[10px] font-mono text-muted-foreground">{new Date(o.createdAt).toLocaleString()}</span>
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  {new Date(o.createdAt).toLocaleString()}
+                </span>
               </div>
               <div className="flex items-center gap-4 text-xs font-mono flex-wrap">
                 <span className="text-white">{o.fromAmount} → {o.toAmount}</span>
@@ -236,27 +489,38 @@ export function ExchangeManagement() {
         </div>
       )}
 
-      {/* ── FORM MODAL ── */}
+      {/* ── Form Modal ── */}
       {formOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl" style={{ background: "#0d1117", border: "1px solid rgba(255,255,255,0.1)" }}>
-            <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-              <h3 className="font-bold font-mono text-white">{editId ? "Edit Exchange Pair" : "New Exchange Pair"}</h3>
-              <button onClick={closeForm} className="p-1.5 rounded-lg hover:bg-white/10"><X className="w-4 h-4" /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl"
+            style={{ background: "#0d1117", border: "1px solid rgba(255,255,255,0.1)" }}>
+
+            <div className="flex items-center justify-between px-5 py-4"
+              style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <h3 className="font-bold font-mono text-white">
+                {editId ? "Edit Exchange Pair" : "New Exchange Pair"}
+              </h3>
+              <button onClick={closeForm} className="p-1.5 rounded-lg hover:bg-white/10">
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
             <div className="p-5 space-y-5">
               {error && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs"
+                  style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
                   <AlertCircle className="w-4 h-4 shrink-0" /> {error}
                 </div>
               )}
 
+              {/* Pair name */}
               {f("name", "Pair Name", "text", "e.g. ETH → Base ETH")}
 
-              {/* Global fee + limits */}
+              {/* Fee & limits */}
               <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(167,139,250,0.2)" }}>
-                <div className="px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest" style={{ background: "rgba(167,139,250,0.05)", color: "#a78bfa", borderBottom: "1px solid rgba(167,139,250,0.15)" }}>
+                <div className="px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest"
+                  style={{ background: "rgba(167,139,250,0.05)", color: "#a78bfa", borderBottom: "1px solid rgba(167,139,250,0.15)" }}>
                   Fee & Limits
                 </div>
                 <div className="p-4 grid grid-cols-3 gap-3">
@@ -270,39 +534,73 @@ export function ExchangeManagement() {
                 </div>
               </div>
 
-              {/* From chain */}
+              {/* FROM chain */}
               <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(34,197,94,0.2)" }}>
-                <div className="px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest" style={{ background: "rgba(34,197,94,0.05)", color: "#22c55e", borderBottom: "1px solid rgba(34,197,94,0.15)" }}>
+                <div className="px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest"
+                  style={{ background: "rgba(34,197,94,0.05)", color: "#22c55e", borderBottom: "1px solid rgba(34,197,94,0.15)" }}>
                   From Chain (Users Send Here)
                 </div>
-                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {f("fromChainName", "Chain Name", "text", "Ethereum Mainnet")}
-                  {f("fromSymbol", "Token Symbol", "text", "ETH")}
-                  {f("fromChainId", "Chain ID (EVM)", "number", "1")}
-                  {f("fromDepositAddress", "Deposit Address", "text", "0x... (users send here)")}
-                  {f("fromRpcUrl", "RPC URL", "text", "https://eth.llamarpc.com")}
-                  {f("fromExplorerUrl", "Explorer URL (optional)", "text", "https://etherscan.io")}
-                  {f("fromLogoUrl", "Logo URL (optional)", "text", "https://...")}
+                <div className="p-4 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {f("fromChainName", "Chain Name", "text", "Ethereum Mainnet")}
+                    {f("fromSymbol", "Token Symbol", "text", "ETH")}
+                    {f("fromChainId", "Chain ID (EVM)", "number", "1")}
+                    {f("fromDepositAddress", "Deposit Address", "text", "0x... (users send ETH here)")}
+                    {f("fromExplorerUrl", "Explorer URL (optional)", "text", "https://etherscan.io")}
+                  </div>
+                  <RpcEditor
+                    label="RPC Endpoints"
+                    color="#22c55e"
+                    rpcList={fromRpcs}
+                    setRpcList={rpcs => { setFromRpcs(rpcs); setFromHealth({}); }}
+                    health={fromHealth}
+                    onCheckHealth={() => checkHealth("from")}
+                    checking={checkingFrom}
+                    pairId={editId}
+                  />
+                  <LogoUploader
+                    label="Chain Logo (optional)"
+                    value={form.fromLogoUrl}
+                    onChange={url => setForm(f => ({ ...f, fromLogoUrl: url }))}
+                  />
                 </div>
               </div>
 
-              {/* To chain */}
+              {/* TO chain */}
               <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(96,165,250,0.2)" }}>
-                <div className="px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest" style={{ background: "rgba(96,165,250,0.05)", color: "#60a5fa", borderBottom: "1px solid rgba(96,165,250,0.15)" }}>
+                <div className="px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest"
+                  style={{ background: "rgba(96,165,250,0.05)", color: "#60a5fa", borderBottom: "1px solid rgba(96,165,250,0.15)" }}>
                   To Chain (Users Receive Here)
                 </div>
-                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {f("toChainName", "Chain Name", "text", "Base")}
-                  {f("toSymbol", "Token Symbol", "text", "ETH")}
-                  {f("toChainId", "Chain ID (EVM)", "number", "8453")}
-                  {f("toRpcUrl", "RPC URL", "text", "https://mainnet.base.org")}
-                  {f("toExplorerUrl", "Explorer URL (optional)", "text", "https://basescan.org")}
-                  {f("toLogoUrl", "Logo URL (optional)", "text", "https://...")}
+                <div className="p-4 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {f("toChainName", "Chain Name", "text", "Base")}
+                    {f("toSymbol", "Token Symbol", "text", "ETH")}
+                    {f("toChainId", "Chain ID (EVM)", "number", "8453")}
+                    {f("toExplorerUrl", "Explorer URL (optional)", "text", "https://basescan.org")}
+                  </div>
+                  <RpcEditor
+                    label="RPC Endpoints"
+                    color="#60a5fa"
+                    rpcList={toRpcs}
+                    setRpcList={rpcs => { setToRpcs(rpcs); setToHealth({}); }}
+                    health={toHealth}
+                    onCheckHealth={() => checkHealth("to")}
+                    checking={checkingTo}
+                    pairId={editId}
+                  />
+                  <LogoUploader
+                    label="Chain Logo (optional)"
+                    value={form.toLogoUrl}
+                    onChange={url => setForm(f => ({ ...f, toLogoUrl: url }))}
+                  />
                 </div>
               </div>
 
-              <div className="rounded-xl p-3 text-xs font-mono" style={{ background: "rgba(250,204,21,0.05)", border: "1px solid rgba(250,204,21,0.2)", color: "rgba(250,204,21,0.8)" }}>
-                ⚠ Ensure your FAUCET_PRIVATE_KEY wallet has sufficient {form.toSymbol || "token"} balance on {form.toChainName || "the destination chain"} to fulfill swaps.
+              <div className="rounded-xl p-3 text-xs font-mono"
+                style={{ background: "rgba(250,204,21,0.05)", border: "1px solid rgba(250,204,21,0.2)", color: "rgba(250,204,21,0.8)" }}>
+                ⚠ Ensure your FAUCET_PRIVATE_KEY wallet has sufficient {form.toSymbol || "token"} balance
+                on {form.toChainName || "the destination chain"} to fulfill swaps.
               </div>
 
               <div className="flex gap-3 pt-2">

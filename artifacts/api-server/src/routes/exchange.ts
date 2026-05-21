@@ -6,23 +6,32 @@ import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendTokens } from "../lib/faucet";
 import { requireAdmin } from "../lib/adminAuth";
+import { parseRpcUrls, checkRpcHealth } from "../lib/rpcFailover";
 import { randomUUID } from "crypto";
 
 const router = Router();
 
 const PRIVATE_KEY = process.env.FAUCET_PRIVATE_KEY ?? "";
 
-// ── Poll for TX receipt via JSON-RPC ─────────────────────────────────────────
+// ── Helper: parse RPC list from pair ─────────────────────────────────────────
+function getPairRpcs(pair: { fromRpcUrls?: string | null; fromRpcUrl: string }, side: "from"): string[];
+function getPairRpcs(pair: { toRpcUrls?: string | null; toRpcUrl: string }, side: "to"): string[];
+function getPairRpcs(pair: any, side: "from" | "to"): string[] {
+  return parseRpcUrls(pair[`${side}RpcUrls`], pair[`${side}RpcUrl`]);
+}
+
+// ── Poll for TX receipt via JSON-RPC (with failover) ─────────────────────────
 async function waitForTxReceipt(
-  rpcUrl: string,
+  rpcUrls: string[],
   txHash: string,
   maxAttempts = 40,
   intervalMs = 4000,
 ): Promise<{ success: boolean; to: string; value: bigint } | null> {
+  const rpc = rpcUrls[0]!;
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise(r => setTimeout(r, intervalMs));
     try {
-      const res = await fetch(rpcUrl, {
+      const res = await fetch(rpc, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -31,7 +40,7 @@ async function waitForTxReceipt(
       });
       const json = await res.json() as any;
       if (json.result?.blockNumber) {
-        const txRes = await fetch(rpcUrl, {
+        const txRes = await fetch(rpc, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -145,7 +154,7 @@ router.post("/exchange/orders/:id/confirm", async (req, res): Promise<void> => {
   // Background: verify TX + send toToken
   void (async () => {
     try {
-      const receipt = await waitForTxReceipt(pair.fromRpcUrl, fromTxHash);
+      const receipt = await waitForTxReceipt(getPairRpcs(pair, "from"), fromTxHash);
       if (!receipt || !receipt.success) {
         await db.update(exchangeOrdersTable).set({ status: "failed", failReason: "From-chain TX failed or not found" }).where(eq(exchangeOrdersTable.id, orderId));
         return;
@@ -239,6 +248,19 @@ router.delete("/admin/exchange/pairs/:id", requireAdmin, async (req, res): Promi
 router.get("/admin/exchange/orders", requireAdmin, async (_req, res): Promise<void> => {
   const orders = await db.select().from(exchangeOrdersTable).orderBy(exchangeOrdersTable.createdAt).limit(100);
   res.json(orders.reverse());
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN: GET /admin/exchange/pairs/:id/rpc-health?side=from|to
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/admin/exchange/pairs/:id/rpc-health", requireAdmin, async (req, res): Promise<void> => {
+  const id = parseInt(String(req.params.id));
+  const side = (req.query.side === "to" ? "to" : "from") as "from" | "to";
+  const [pair] = await db.select().from(exchangePairsTable).where(eq(exchangePairsTable.id, id)).limit(1);
+  if (!pair) { res.status(404).json({ error: "Pair not found" }); return; }
+  const urls = parseRpcUrls(pair[`${side}RpcUrls`], pair[`${side}RpcUrl`]);
+  const results = await Promise.all(urls.map(url => checkRpcHealth(url)));
+  res.json(results);
 });
 
 export default router;
