@@ -634,24 +634,28 @@ export default function ExchangePage() {
 
                 {/* ── Wallet chip (always visible when connected) ────────── */}
                 {walletAddress && (
-                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+                  <div className="rounded-xl overflow-hidden"
                     style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.2)" }}>
-                    <Wallet className="w-4 h-4 shrink-0" style={{ color: "#22c55e" }} />
-                    <span className="text-xs font-mono text-white truncate flex-1 min-w-0">{walletAddress}</span>
-                    {userBalance !== null && pair && (
-                      <span className="text-xs font-mono shrink-0" style={{ color: "rgba(34,197,94,0.7)" }}>
-                        {userBalance} {pair.fromSymbol}
+                    {/* Address row */}
+                    <div className="flex items-center gap-2 px-3 py-2">
+                      <Wallet className="w-3.5 h-3.5 shrink-0" style={{ color: "#22c55e" }} />
+                      <span className="text-xs font-mono text-white truncate flex-1 min-w-0">{walletAddress}</span>
+                    </div>
+                    {/* Balance + Disconnect row */}
+                    <div className="flex items-center justify-between px-3 pb-2 gap-2"
+                      style={{ borderTop: "1px solid rgba(34,197,94,0.1)" }}>
+                      <span className="text-[11px] font-mono" style={{ color: "rgba(34,197,94,0.7)" }}>
+                        {userBalance !== null && pair ? `${userBalance} ${pair.fromSymbol}` : "Connected"}
                       </span>
-                    )}
-                    <button
-                      onClick={handleDisconnect}
-                      title="Disconnect wallet"
-                      className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-mono transition-all"
-                      style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.18)", color: "rgba(239,100,100,0.8)" }}
-                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(239,68,68,0.15)"; e.currentTarget.style.color = "#f87171"; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = "rgba(239,68,68,0.08)"; e.currentTarget.style.color = "rgba(239,100,100,0.8)"; }}>
-                      <LogOut className="w-3 h-3" /> Disconnect
-                    </button>
+                      <button
+                        onClick={handleDisconnect}
+                        className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-mono transition-all"
+                        style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.15)", color: "rgba(239,100,100,0.8)" }}
+                        onMouseEnter={e => { e.currentTarget.style.background = "rgba(239,68,68,0.15)"; e.currentTarget.style.color = "#f87171"; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = "rgba(239,68,68,0.08)"; e.currentTarget.style.color = "rgba(239,100,100,0.8)"; }}>
+                        <LogOut className="w-3 h-3" /> Disconnect
+                      </button>
+                    </div>
                   </div>
                 )}
 
