@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { WalletSelector } from "@/components/home/WalletSelector";
 import {
   ArrowLeftRight, Wallet, Loader2, CheckCircle2, AlertCircle,
-  ExternalLink, ArrowRight, ChevronDown, X, RefreshCw,
+  ExternalLink, ArrowRight, ChevronDown, X, RefreshCw, ArrowLeft,
 } from "lucide-react";
 function parseEtherToHex(amount: string): string {
   const [intPart = "0", fracPart = ""] = amount.split(".");
@@ -463,6 +463,18 @@ export default function ExchangePage() {
     <div className="min-h-[100dvh] flex flex-col" style={{ background: "#080a0e" }}>
       <Navbar />
       <main className="flex-1 container mx-auto px-4 py-8 max-w-lg">
+        {/* Back button */}
+        <div className="mb-4">
+          <Link href="/"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-mono transition-colors"
+            style={{ color: "rgba(255,255,255,0.45)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+            onMouseEnter={(e: any) => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "rgba(255,255,255,0.75)"; }}
+            onMouseLeave={(e: any) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.color = "rgba(255,255,255,0.45)"; }}
+          >
+            <ArrowLeft className="w-4 h-4" /> Home
+          </Link>
+        </div>
+
         {/* Page title */}
         <div className="mb-6 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-3" style={{ background: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.2)" }}>
