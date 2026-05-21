@@ -186,29 +186,72 @@ function LogoUploader({ label, value, onChange }: { label: string; value: string
 }
 
 // ── Pair balance chip ─────────────────────────────────────────────────────────
-function PairBalanceChip({ pairId, toSymbol }: { pairId: number; toSymbol: string }) {
-  const [bal, setBal] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+type BalState =
+  | { kind: "loading" }
+  | { kind: "rpc_error" }
+  | { kind: "no_key" }
+  | { kind: "ok"; bal: number }
+  | { kind: "low"; bal: number }
+  | { kind: "zero" };
+
+function PairBalanceChip({ pairId, toSymbol, toChainName }: { pairId: number; toSymbol: string; toChainName: string }) {
+  const [state, setState] = useState<BalState>({ kind: "loading" });
 
   const check = async () => {
-    setLoading(true);
+    setState({ kind: "loading" });
     try {
       const res = await fetch(`/api/admin/exchange/pairs/${pairId}/wallet-balance`, { headers: authHeaders() });
       const d = await res.json() as any;
-      setBal(d.balance ?? null);
-    } catch { setBal(null); }
-    setLoading(false);
+      if (!d.address) { setState({ kind: "no_key" }); return; }
+      if (d.balance === null) { setState({ kind: "rpc_error" }); return; }
+      const n = parseFloat(d.balance);
+      if (n === 0) setState({ kind: "zero" });
+      else if (n < 0.001) setState({ kind: "low", bal: n });
+      else setState({ kind: "ok", bal: n });
+    } catch {
+      setState({ kind: "rpc_error" });
+    }
   };
 
   useEffect(() => { check(); }, [pairId]);
 
-  if (loading) return <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />;
-  if (bal === null) return null;
-  const low = parseFloat(bal) < 0.001;
+  if (state.kind === "loading") return <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />;
+
+  if (state.kind === "rpc_error") return (
+    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full flex items-center gap-1"
+      style={{ background: "rgba(251,146,60,0.12)", color: "#fb923c", border: "1px solid rgba(251,146,60,0.25)" }}
+      title={`Cannot reach ${toChainName} RPC — balance unverifiable. Update the To Chain RPC URL.`}>
+      ⚠ RPC Error
+    </span>
+  );
+
+  if (state.kind === "no_key") return (
+    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full"
+      style={{ background: "rgba(239,68,68,0.1)", color: "#f87171" }} title="No private key configured">
+      No Key
+    </span>
+  );
+
+  if (state.kind === "zero") return (
+    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full flex items-center gap-1"
+      style={{ background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)" }}
+      title={`Exchange wallet has 0 ${toSymbol} on ${toChainName}. Swaps will fail.`}>
+      ⛔ 0 {toSymbol}
+    </span>
+  );
+
+  if (state.kind === "low") return (
+    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full"
+      style={{ background: "rgba(239,68,68,0.1)", color: "#f87171" }}
+      title={`Low balance: ${state.bal.toFixed(6)} ${toSymbol} on ${toChainName}`}>
+      {state.bal.toFixed(5)} {toSymbol}
+    </span>
+  );
+
   return (
     <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full"
-      style={{ background: low ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.08)", color: low ? "#f87171" : "#22c55e" }}>
-      {parseFloat(bal).toFixed(4)} {toSymbol}
+      style={{ background: "rgba(34,197,94,0.08)", color: "#22c55e" }}>
+      {state.bal.toFixed(4)} {toSymbol}
     </span>
   );
 }
@@ -483,7 +526,7 @@ export function ExchangeManagement() {
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <PairBalanceChip pairId={p.id} toSymbol={p.toSymbol} />
+                  <PairBalanceChip pairId={p.id} toSymbol={p.toSymbol} toChainName={p.toChainName} />
                   <span className="text-[10px] font-mono text-muted-foreground">{p.feePercent}% fee</span>
                   <Switch checked={p.isEnabled} onCheckedChange={() => handleToggle(p)} />
                   <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg transition-colors hover:bg-white/10">
