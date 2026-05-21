@@ -75,10 +75,11 @@ export function SupportManagement({ onUnreadCount }: SupportManagementProps) {
     setLoadingList(true);
     try {
       const data = await apiFetch("/api/admin/support") as Conv[];
-      setConversations(data ?? []);
-      const unread = (data ?? []).filter(c => c.hasUnread).length;
-      onUnreadCount?.(unread);
-    } finally {
+      const list = Array.isArray(data) ? data : [];
+      setConversations(list);
+      onUnreadCount?.(list.filter(c => c.hasUnread).length);
+    } catch { /* auth error or network */ }
+    finally {
       setLoadingList(false);
     }
   }, [onUnreadCount]);

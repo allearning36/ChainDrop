@@ -38,7 +38,8 @@ export function ClaimsLog() {
       if (search) params.set("address", search);
       const d = await apiFetch(`/api/admin/claims?${params.toString()}`) as Page;
       setData(d);
-    } finally { setLoading(false); }
+    } catch { /* auth error or network — leave previous data */ }
+    finally { setLoading(false); }
   }, [page, search]);
 
   useEffect(() => { void load(); }, [load]);

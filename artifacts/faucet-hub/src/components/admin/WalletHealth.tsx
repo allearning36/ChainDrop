@@ -11,7 +11,9 @@ type WalletInfo = {
 
 async function fetchWallets(): Promise<WalletInfo[]> {
   const res = await fetch("/api/admin/wallet-health", { headers: { Authorization: `Bearer ${getToken() ?? ""}` } });
-  return res.json();
+  if (!res.ok) return [];
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
 }
 
 function getExplorerUrl(chainType: string, isTestnet: boolean, address: string): string {
