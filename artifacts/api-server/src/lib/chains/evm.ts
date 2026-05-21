@@ -117,7 +117,7 @@ export async function sendEvm(
   }
 }
 
-export async function getEvmBalance(rpcUrl: string, address: string): Promise<string | null> {
+export async function getEvmBalance(rpcUrl: string, address: string): Promise<string> {
   const provider = makeProvider(rpcUrl);
   try {
     const balance = await withTimeout(
@@ -126,9 +126,6 @@ export async function getEvmBalance(rpcUrl: string, address: string): Promise<st
       "getBalance"
     );
     return ethers.formatEther(balance);
-  } catch (err) {
-    logger.warn({ err }, "Failed to get EVM balance");
-    return null;
   } finally {
     provider.destroy();
   }

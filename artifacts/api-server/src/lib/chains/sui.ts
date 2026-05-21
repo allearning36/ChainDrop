@@ -32,15 +32,10 @@ export async function sendSui(
   return { txHash: result.digest };
 }
 
-export async function getSuiBalance(rpcUrl: string, address: string): Promise<string | null> {
-  try {
-    const client = makeClient(rpcUrl);
-    const balance = await client.getBalance({ owner: address });
-    return (Number(balance.totalBalance) / Number(MIST_PER_SUI)).toString();
-  } catch (err) {
-    logger.warn({ err }, "Failed to get Sui balance");
-    return null;
-  }
+export async function getSuiBalance(rpcUrl: string, address: string): Promise<string> {
+  const client = makeClient(rpcUrl);
+  const balance = await client.getBalance({ owner: address });
+  return (Number(balance.totalBalance) / Number(MIST_PER_SUI)).toString();
 }
 
 export function isValidSuiAddress(address: string): boolean {

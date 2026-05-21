@@ -43,16 +43,11 @@ export async function sendSolana(
   return { txHash };
 }
 
-export async function getSolanaBalance(rpcUrl: string, address: string): Promise<string | null> {
-  try {
-    const connection = new Connection(rpcUrl, "confirmed");
-    const pubkey = new PublicKey(address);
-    const lamports = await connection.getBalance(pubkey);
-    return (lamports / LAMPORTS_PER_SOL).toString();
-  } catch (err) {
-    logger.warn({ err }, "Failed to get Solana balance");
-    return null;
-  }
+export async function getSolanaBalance(rpcUrl: string, address: string): Promise<string> {
+  const connection = new Connection(rpcUrl, "confirmed");
+  const pubkey = new PublicKey(address);
+  const lamports = await connection.getBalance(pubkey);
+  return (lamports / LAMPORTS_PER_SOL).toString();
 }
 
 export function isValidSolanaAddress(address: string): boolean {

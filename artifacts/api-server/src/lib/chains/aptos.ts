@@ -29,16 +29,11 @@ export async function sendAptos(
   return { txHash: hash };
 }
 
-export async function getAptosBalance(rpcUrl: string, address: string): Promise<string | null> {
-  try {
-    const config = new AptosConfig({ fullnode: rpcUrl });
-    const aptos = new Aptos(config);
-    const balance = await aptos.getAccountAPTAmount({ accountAddress: address });
-    return (balance / OCTAS_PER_APT).toString();
-  } catch (err) {
-    logger.warn({ err }, "Failed to get Aptos balance");
-    return null;
-  }
+export async function getAptosBalance(rpcUrl: string, address: string): Promise<string> {
+  const config = new AptosConfig({ fullnode: rpcUrl });
+  const aptos = new Aptos(config);
+  const balance = await aptos.getAccountAPTAmount({ accountAddress: address });
+  return (balance / OCTAS_PER_APT).toString();
 }
 
 export function isValidAptosAddress(address: string): boolean {

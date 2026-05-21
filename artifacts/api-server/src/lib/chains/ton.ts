@@ -34,16 +34,11 @@ export async function sendTon(
   return { txHash: txRef };
 }
 
-export async function getTonBalance(rpcUrl: string, address: string): Promise<string | null> {
-  try {
-    const client = new TonClient({ endpoint: rpcUrl });
-    const parsed = Address.parse(address);
-    const balance = await client.getBalance(parsed);
-    return fromNano(balance);
-  } catch (err) {
-    logger.warn({ err }, "Failed to get TON balance");
-    return null;
-  }
+export async function getTonBalance(rpcUrl: string, address: string): Promise<string> {
+  const client = new TonClient({ endpoint: rpcUrl });
+  const parsed = Address.parse(address);
+  const balance = await client.getBalance(parsed);
+  return fromNano(balance);
 }
 
 export function isValidTonAddress(address: string): boolean {
