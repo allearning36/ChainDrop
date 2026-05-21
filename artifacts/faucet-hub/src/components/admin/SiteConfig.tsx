@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { adminFetch } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, Globe, Search, Wrench, Shield, AlertTriangle, Puzzle, Paintbrush, KeyRound } from "lucide-react";
+import { Loader2, Save, Globe, Search, Wrench, Shield, AlertTriangle, Puzzle, Paintbrush, KeyRound, Upload, ImageIcon } from "lucide-react";
 import { LogoManagement } from "./LogoManagement";
 import { ChangePassword } from "./ChangePassword";
 
@@ -75,7 +75,29 @@ function SocialTab({ data, onSave, saving }: { data: SocialLinks; onSave: SaveFn
 
 function SEOTab({ data, onSave, saving }: { data: SEOSettings; onSave: SaveFn; saving: boolean }) {
   const [form, setForm] = useState(data);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   useEffect(() => setForm(data), [data]);
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      const res = await adminFetch("/api/uploads/banner", { method: "POST", body: fd });
+      const json = await res.json() as { url?: string; error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Upload failed");
+      setForm(p => ({ ...p, ogImage: json.url! }));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
   return (
     <div className="space-y-4 max-w-lg">
       <p className="text-sm text-muted-foreground">Controls browser tab title and search engine preview.</p>
@@ -89,9 +111,42 @@ function SEOTab({ data, onSave, saving }: { data: SEOSettings; onSave: SaveFn; s
         <p className="text-xs text-muted-foreground">{form.description.length}/160 recommended</p>
       </div>
       <div className="space-y-1.5">
-        <Label className="font-mono text-xs">OG Image URL</Label>
-        <Input value={form.ogImage} onChange={e => setForm(p => ({ ...p, ogImage: e.target.value }))} placeholder="https://..." className="font-mono bg-card border-border" />
+        <Label className="font-mono text-xs">OG Image</Label>
+        <div className="flex gap-2">
+          <Input
+            value={form.ogImage}
+            onChange={e => setForm(p => ({ ...p, ogImage: e.target.value }))}
+            placeholder="https://..."
+            className="font-mono bg-card border-border flex-1"
+          />
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            disabled={uploading}
+            onClick={() => fileRef.current?.click()}
+            title="Upload from gallery"
+            className="shrink-0"
+          >
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+          </Button>
+        </div>
         <p className="text-xs text-muted-foreground">Shown when shared on social media (1200×630px recommended).</p>
+        {form.ogImage && (
+          <div className="mt-2 rounded-lg overflow-hidden border border-border bg-muted/30">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+              <ImageIcon className="w-3 h-3 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground font-mono">Preview</span>
+            </div>
+            <img
+              src={form.ogImage}
+              alt="OG preview"
+              className="w-full object-cover max-h-40"
+              onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+          </div>
+        )}
       </div>
       <SaveBtn onClick={() => onSave("seoSettings", form)} saving={saving} />
     </div>
