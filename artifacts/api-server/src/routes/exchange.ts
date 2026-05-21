@@ -53,9 +53,19 @@ async function sendTokensWithFallback(
 async function getWalletBalance(rpcUrls: string[], address: string): Promise<string | null> {
   for (const rpc of rpcUrls) {
     try {
-      const provider = new ethers.JsonRpcProvider(rpc);
-      const bal = await provider.getBalance(address);
-      return ethers.formatEther(bal);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(rpc, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", method: "eth_getBalance", params: [address, "latest"], id: 1 }),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      if (!res.ok) continue;
+      const { result } = await res.json() as { result?: string };
+      if (!result) continue;
+      return ethers.formatEther(BigInt(result));
     } catch { /* try next */ }
   }
   return null;

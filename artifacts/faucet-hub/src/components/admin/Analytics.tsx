@@ -55,7 +55,7 @@ export function Analytics() {
   }, []);
 
   if (loading) return <div className="flex justify-center py-24"><Loader2 className="animate-spin w-8 h-8 text-primary" /></div>;
-  if (!data) return <p className="text-muted-foreground text-center py-12">Failed to load analytics.</p>;
+  if (!data || !data.summary) return <p className="text-muted-foreground text-center py-12">Failed to load analytics.</p>;
 
   const { summary, dailyClaims, chainDistribution } = data;
 

@@ -29,7 +29,10 @@ export function BlockedAddresses() {
 
   async function load() {
     setLoading(true);
-    try { setList((await apiFetch("/api/admin/blocked-addresses")) as BlockedAddr[]); }
+    try {
+      const result = await apiFetch("/api/admin/blocked-addresses");
+      if (Array.isArray(result)) setList(result as BlockedAddr[]);
+    }
     finally { setLoading(false); }
   }
 
