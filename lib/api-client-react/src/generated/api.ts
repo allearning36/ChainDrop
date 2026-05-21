@@ -20,6 +20,9 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdClaimBody,
+  AdTokenBody,
+  AdTokenResponse,
   AdminAuthInput,
   AdminAuthResult,
   AdminStats,
@@ -607,6 +610,148 @@ export const useSubmitBuy = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getSubmitBuyMutationOptions(options));
+    }
+
+export const getRequestAdTokenUrl = () => {
+
+
+
+
+  return `/api/faucet/ad-token`
+}
+
+/**
+ * @summary Request a time-locked ad-watch token for an extra claim during cooldown
+ */
+export const requestAdToken = async (adTokenBody: AdTokenBody, options?: RequestInit): Promise<AdTokenResponse> => {
+
+  return customFetch<AdTokenResponse>(getRequestAdTokenUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adTokenBody,)
+  }
+);}
+
+
+
+
+export const getRequestAdTokenMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestAdToken>>, TError,{data: BodyType<AdTokenBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestAdToken>>, TError,{data: BodyType<AdTokenBody>}, TContext> => {
+
+const mutationKey = ['requestAdToken'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestAdToken>>, {data: BodyType<AdTokenBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  requestAdToken(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestAdTokenMutationResult = NonNullable<Awaited<ReturnType<typeof requestAdToken>>>
+    export type RequestAdTokenMutationBody = BodyType<AdTokenBody>
+    export type RequestAdTokenMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Request a time-locked ad-watch token for an extra claim during cooldown
+ */
+export const useRequestAdToken = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestAdToken>>, TError,{data: BodyType<AdTokenBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestAdToken>>,
+        TError,
+        {data: BodyType<AdTokenBody>},
+        TContext
+      > => {
+      return useMutation(getRequestAdTokenMutationOptions(options));
+    }
+
+export const getClaimFaucetWithAdUrl = () => {
+
+
+
+
+  return `/api/faucet/ad-claim`
+}
+
+/**
+ * @summary Claim tokens after watching an ad using a verified time-locked token
+ */
+export const claimFaucetWithAd = async (adClaimBody: AdClaimBody, options?: RequestInit): Promise<ClaimResult> => {
+
+  return customFetch<ClaimResult>(getClaimFaucetWithAdUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adClaimBody,)
+  }
+);}
+
+
+
+
+export const getClaimFaucetWithAdMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimFaucetWithAd>>, TError,{data: BodyType<AdClaimBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof claimFaucetWithAd>>, TError,{data: BodyType<AdClaimBody>}, TContext> => {
+
+const mutationKey = ['claimFaucetWithAd'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof claimFaucetWithAd>>, {data: BodyType<AdClaimBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  claimFaucetWithAd(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClaimFaucetWithAdMutationResult = NonNullable<Awaited<ReturnType<typeof claimFaucetWithAd>>>
+    export type ClaimFaucetWithAdMutationBody = BodyType<AdClaimBody>
+    export type ClaimFaucetWithAdMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Claim tokens after watching an ad using a verified time-locked token
+ */
+export const useClaimFaucetWithAd = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimFaucetWithAd>>, TError,{data: BodyType<AdClaimBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof claimFaucetWithAd>>,
+        TError,
+        {data: BodyType<AdClaimBody>},
+        TContext
+      > => {
+      return useMutation(getClaimFaucetWithAdMutationOptions(options));
     }
 
 export const getGetFaucetHistoryUrl = () => {

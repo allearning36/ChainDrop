@@ -96,6 +96,8 @@ export interface ChainPublic {
   coingeckoId?: string | null;
   /** @nullable */
   soonMessage?: string | null;
+  adClaimEnabled?: boolean;
+  adDurationSeconds?: number;
   sortOrder: number;
 }
 
@@ -219,6 +221,15 @@ export interface ChainAdmin {
   coingeckoId?: string | null;
   /** @nullable */
   soonMessage?: string | null;
+  adClaimEnabled?: boolean;
+  /** @nullable */
+  adClaimAmount?: string | null;
+  adDurationSeconds?: number;
+  /**
+     * URL or HTML embed code for the ad to display (shown in iframe)
+     * @nullable
+     */
+  adNetworkCode?: string | null;
   sortOrder: number;
   createdAt: string;
 }
@@ -264,6 +275,11 @@ export interface ChainInput {
   tokenPrice?: string;
   coingeckoId?: string;
   soonMessage?: string;
+  adClaimEnabled?: boolean;
+  adClaimAmount?: string;
+  adDurationSeconds?: number;
+  /** URL or HTML embed code for the ad to display (shown in iframe) */
+  adNetworkCode?: string;
   sortOrder?: number;
 }
 
@@ -308,6 +324,11 @@ export interface ChainUpdate {
   tokenPrice?: string;
   coingeckoId?: string;
   soonMessage?: string;
+  adClaimEnabled?: boolean;
+  adClaimAmount?: string;
+  adDurationSeconds?: number;
+  /** URL or HTML embed code for the ad to display (shown in iframe) */
+  adNetworkCode?: string;
   sortOrder?: number;
 }
 
@@ -319,6 +340,28 @@ export interface ClaimInput {
   chainId: number;
   address: string;
   captchaToken: string;
+}
+
+export interface AdTokenBody {
+  chainId: number;
+  address: string;
+}
+
+export interface AdTokenResponse {
+  token: string;
+  durationSeconds: number;
+  /**
+     * URL or HTML embed code for the ad to display
+     * @nullable
+     */
+  adContent?: string | null;
+}
+
+export interface AdClaimBody {
+  token: string;
+  chainId: number;
+  address: string;
+  captchaToken?: string;
 }
 
 export interface ClaimResult {

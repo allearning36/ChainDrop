@@ -41,6 +41,8 @@ router.get("/chains", async (req, res): Promise<void> => {
       explorerUrl: c.explorerUrl,
       tokenPrice: c.tokenPrice,
       coingeckoId: c.coingeckoId,
+      adClaimEnabled: c.adClaimEnabled,
+      adDurationSeconds: c.adDurationSeconds,
       sortOrder: c.sortOrder,
     }))
   );
@@ -89,6 +91,8 @@ router.get("/chains/:id", async (req, res): Promise<void> => {
     explorerUrl: chain.explorerUrl,
     tokenPrice: chain.tokenPrice,
     coingeckoId: chain.coingeckoId,
+    adClaimEnabled: chain.adClaimEnabled,
+    adDurationSeconds: chain.adDurationSeconds,
     sortOrder: chain.sortOrder,
     walletBalanceEth,
   });

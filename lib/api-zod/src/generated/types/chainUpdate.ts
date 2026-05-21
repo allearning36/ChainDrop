@@ -37,5 +37,10 @@ export interface ChainUpdate {
   tokenPrice?: string;
   coingeckoId?: string;
   soonMessage?: string;
+  adClaimEnabled?: boolean;
+  adClaimAmount?: string;
+  adDurationSeconds?: number;
+  /** URL or HTML embed code for the ad to display (shown in iframe) */
+  adNetworkCode?: string;
   sortOrder?: number;
 }

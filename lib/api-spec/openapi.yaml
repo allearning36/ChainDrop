@@ -189,6 +189,56 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /faucet/ad-token:
+    post:
+      operationId: requestAdToken
+      tags: [faucet]
+      summary: Request a time-locked ad-watch token for an extra claim during cooldown
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdTokenBody"
+      responses:
+        "200":
+          description: Ad token issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdTokenResponse"
+        "400":
+          description: Bad request or ad claims not enabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /faucet/ad-claim:
+    post:
+      operationId: claimFaucetWithAd
+      tags: [faucet]
+      summary: Claim tokens after watching an ad using a verified time-locked token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdClaimBody"
+      responses:
+        "200":
+          description: Claim successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaimResult"
+        "400":
+          description: Bad request or token invalid/expired/already used
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /faucet/history:
     get:
       operationId: getFaucetHistory
@@ -911,6 +961,10 @@ components:
           type: ["string", "null"]
         soonMessage:
           type: ["string", "null"]
+        adClaimEnabled:
+          type: boolean
+        adDurationSeconds:
+          type: integer
         sortOrder:
           type: integer
 
@@ -1042,6 +1096,15 @@ components:
           type: ["string", "null"]
         soonMessage:
           type: ["string", "null"]
+        adClaimEnabled:
+          type: boolean
+        adClaimAmount:
+          type: ["string", "null"]
+        adDurationSeconds:
+          type: integer
+        adNetworkCode:
+          type: ["string", "null"]
+          description: "URL or HTML embed code for the ad to display (shown in iframe)"
         sortOrder:
           type: integer
         createdAt:
@@ -1107,6 +1170,15 @@ components:
           type: string
         soonMessage:
           type: string
+        adClaimEnabled:
+          type: boolean
+        adClaimAmount:
+          type: string
+        adDurationSeconds:
+          type: integer
+        adNetworkCode:
+          type: string
+          description: "URL or HTML embed code for the ad to display (shown in iframe)"
         sortOrder:
           type: integer
 
@@ -1168,6 +1240,15 @@ components:
           type: string
         soonMessage:
           type: string
+        adClaimEnabled:
+          type: boolean
+        adClaimAmount:
+          type: string
+        adDurationSeconds:
+          type: integer
+        adNetworkCode:
+          type: string
+          description: "URL or HTML embed code for the ad to display (shown in iframe)"
         sortOrder:
           type: integer
 
@@ -1182,6 +1263,40 @@ components:
       type: object
       required: [chainId, address, captchaToken]
       properties:
+        chainId:
+          type: integer
+        address:
+          type: string
+        captchaToken:
+          type: string
+
+    AdTokenBody:
+      type: object
+      required: [chainId, address]
+      properties:
+        chainId:
+          type: integer
+        address:
+          type: string
+
+    AdTokenResponse:
+      type: object
+      required: [token, durationSeconds]
+      properties:
+        token:
+          type: string
+        durationSeconds:
+          type: integer
+        adContent:
+          type: ["string", "null"]
+          description: "URL or HTML embed code for the ad to display"
+
+    AdClaimBody:
+      type: object
+      required: [token, chainId, address]
+      properties:
+        token:
+          type: string
         chainId:
           type: integer
         address:

@@ -136,6 +136,10 @@ router.get("/admin/chains", async (_req, res): Promise<void> => {
       tokenPrice: c.tokenPrice,
       coingeckoId: c.coingeckoId,
       gasPriceGwei: c.gasPriceGwei,
+      adClaimEnabled: c.adClaimEnabled,
+      adClaimAmount: c.adClaimAmount ?? null,
+      adDurationSeconds: c.adDurationSeconds,
+      adNetworkCode: c.adNetworkCode ?? null,
       sortOrder: c.sortOrder,
       createdAt: c.createdAt.toISOString(),
     }))
@@ -196,6 +200,10 @@ router.post("/admin/chains", async (req, res): Promise<void> => {
     explorerUrl: chain.explorerUrl,
     tokenPrice: chain.tokenPrice,
     coingeckoId: chain.coingeckoId,
+    adClaimEnabled: chain.adClaimEnabled,
+    adClaimAmount: chain.adClaimAmount ?? null,
+    adDurationSeconds: chain.adDurationSeconds,
+    adNetworkCode: chain.adNetworkCode ?? null,
     sortOrder: chain.sortOrder,
     createdAt: chain.createdAt.toISOString(),
   });
@@ -269,6 +277,10 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     tokenPrice: chain.tokenPrice,
     coingeckoId: chain.coingeckoId,
     gasPriceGwei: chain.gasPriceGwei,
+    adClaimEnabled: chain.adClaimEnabled,
+    adClaimAmount: chain.adClaimAmount ?? null,
+    adDurationSeconds: chain.adDurationSeconds,
+    adNetworkCode: chain.adNetworkCode ?? null,
     sortOrder: chain.sortOrder,
     createdAt: chain.createdAt.toISOString(),
   });

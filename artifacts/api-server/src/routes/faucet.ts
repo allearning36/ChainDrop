@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request } from "express";
 import { desc, eq, and } from "drizzle-orm";
-import { db, claimsTable, chainsTable, blockedAddressesTable, ipBlocksTable, settingsTable, purchasesTable } from "@workspace/db";
-import { ClaimFaucetBody, GetFaucetStatusParams } from "@workspace/api-zod";
+import { db, claimsTable, chainsTable, blockedAddressesTable, ipBlocksTable, settingsTable, purchasesTable, adTokensTable } from "@workspace/db";
+import { ClaimFaucetBody, GetFaucetStatusParams, RequestAdTokenBody, ClaimFaucetWithAdBody } from "@workspace/api-zod";
 import { sendTokens, isValidAddress, type ChainType } from "../lib/chains/index";
 import { parseRpcUrls } from "../lib/rpcFailover";
 import { claimLimiter } from "../lib/rateLimiters";
@@ -296,6 +296,171 @@ router.get("/faucet/history", async (_req, res): Promise<void> => {
     .slice(0, 20);
 
   res.json(combined);
+});
+
+router.post("/faucet/ad-token", async (req, res): Promise<void> => {
+  const parsed = RequestAdTokenBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { chainId, address } = parsed.data;
+
+  const [chain] = await db
+    .select()
+    .from(chainsTable)
+    .where(and(eq(chainsTable.id, chainId), eq(chainsTable.isEnabled, true)));
+
+  if (!chain) {
+    res.status(404).json({ error: "Chain not found or disabled" });
+    return;
+  }
+  if (!chain.adClaimEnabled) {
+    res.status(400).json({ error: "Ad claims are not enabled for this chain" });
+    return;
+  }
+
+  const chainType = chain.chainType as ChainType;
+  const addressValid = await isValidAddress(chainType, address);
+  if (!addressValid) {
+    res.status(400).json({ error: `Invalid ${chain.name} address format` });
+    return;
+  }
+
+  const token = crypto.randomUUID();
+  const now = new Date();
+  const durationSeconds = chain.adDurationSeconds;
+  const validAfter = new Date(now.getTime() + durationSeconds * 1000);
+  const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
+
+  await db.insert(adTokensTable).values({
+    chainId,
+    address: address.toLowerCase(),
+    token,
+    validAfter,
+    expiresAt,
+  });
+
+  res.json({ token, durationSeconds, adContent: chain.adNetworkCode ?? null });
+});
+
+router.post("/faucet/ad-claim", claimLimiter, async (req, res): Promise<void> => {
+  const parsed = ClaimFaucetWithAdBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { token, chainId, address, captchaToken } = parsed.data;
+  const clientIp = getClientIp(req);
+
+  const captchaValid = await verifyCaptcha(captchaToken ?? "");
+  if (!captchaValid) {
+    res.status(400).json({ error: "CAPTCHA verification failed. Please try again." });
+    return;
+  }
+
+  const [adToken] = await db
+    .select()
+    .from(adTokensTable)
+    .where(eq(adTokensTable.token, token))
+    .limit(1);
+
+  if (!adToken) {
+    res.status(400).json({ error: "Invalid ad token" });
+    return;
+  }
+  if (adToken.usedAt) {
+    res.status(400).json({ error: "This ad token has already been used" });
+    return;
+  }
+  if (adToken.chainId !== chainId) {
+    res.status(400).json({ error: "Token chain mismatch" });
+    return;
+  }
+  if (adToken.address !== address.toLowerCase()) {
+    res.status(400).json({ error: "Token address mismatch" });
+    return;
+  }
+
+  const now = new Date();
+  if (now < adToken.validAfter) {
+    const remaining = Math.ceil((adToken.validAfter.getTime() - now.getTime()) / 1000);
+    res.status(400).json({ error: `Ad not complete yet. Please wait ${remaining} more second(s).` });
+    return;
+  }
+  if (now > adToken.expiresAt) {
+    res.status(400).json({ error: "Ad token has expired. Please watch the ad again." });
+    return;
+  }
+
+  const [chain] = await db
+    .select()
+    .from(chainsTable)
+    .where(and(eq(chainsTable.id, chainId), eq(chainsTable.isEnabled, true)));
+
+  if (!chain || !chain.adClaimEnabled) {
+    res.status(404).json({ error: "Chain not found or ad claims disabled" });
+    return;
+  }
+
+  const [blockedIp] = await db.select().from(ipBlocksTable).where(eq(ipBlocksTable.ip, clientIp)).limit(1);
+  if (blockedIp) {
+    res.status(403).json({ error: "Your IP address has been blocked from using the faucet." });
+    return;
+  }
+
+  const [blocked] = await db
+    .select()
+    .from(blockedAddressesTable)
+    .where(eq(blockedAddressesTable.address, address.toLowerCase()))
+    .limit(1);
+  if (blocked) {
+    res.status(403).json({ error: "This address has been blocked from using the faucet." });
+    return;
+  }
+
+  await db.update(adTokensTable).set({ usedAt: now }).where(eq(adTokensTable.token, token));
+
+  const claimAmount = chain.adClaimAmount ?? chain.claimAmount;
+  const chainType = chain.chainType as ChainType;
+
+  let txHash: string;
+  try {
+    const result = await sendTokens(
+      chainType,
+      parseRpcUrls(chain.rpcUrls, chain.rpcUrl),
+      chain.privateKey,
+      address,
+      claimAmount,
+      { gasPriceGwei: chain.gasPriceGwei }
+    );
+    txHash = result.txHash;
+  } catch (err) {
+    await db.update(adTokensTable).set({ usedAt: null }).where(eq(adTokensTable.token, token));
+    req.log.error({ err }, "Failed to send tokens for ad claim");
+    res.status(500).json({ error: "Transaction failed. Please try again later." });
+    return;
+  }
+
+  broadcast({
+    type: "claim_success",
+    chainId,
+    chainName: chain.name,
+    address: address.toLowerCase(),
+    txHash,
+    amount: claimAmount,
+    symbol: chain.symbol,
+    ip: clientIp,
+  });
+
+  res.json({
+    txHash,
+    address: address.toLowerCase(),
+    amount: claimAmount,
+    symbol: chain.symbol,
+    chainName: chain.name,
+    claimedAt: new Date().toISOString(),
+  });
 });
 
 export default router;

@@ -40,5 +40,7 @@ export interface ChainPublic {
   coingeckoId?: string | null;
   /** @nullable */
   soonMessage?: string | null;
+  adClaimEnabled?: boolean;
+  adDurationSeconds?: number;
   sortOrder: number;
 }

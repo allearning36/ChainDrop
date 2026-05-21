@@ -53,6 +53,15 @@ export interface ChainAdmin {
   coingeckoId?: string | null;
   /** @nullable */
   soonMessage?: string | null;
+  adClaimEnabled?: boolean;
+  /** @nullable */
+  adClaimAmount?: string | null;
+  adDurationSeconds?: number;
+  /**
+     * URL or HTML embed code for the ad to display (shown in iframe)
+     * @nullable
+     */
+  adNetworkCode?: string | null;
   sortOrder: number;
   createdAt: Date;
 }

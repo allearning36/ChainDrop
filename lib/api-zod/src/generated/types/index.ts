@@ -6,9 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './adClaimBody';
 export * from './adminAuthInput';
 export * from './adminAuthResult';
 export * from './adminStats';
+export * from './adTokenBody';
+export * from './adTokenResponse';
 export * from './announcement';
 export * from './announcementInput';
 export * from './announcementUpdate';

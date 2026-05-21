@@ -44,6 +44,8 @@ export const GetChainsResponseItem = zod.object({
   "explorerUrl": zod.string().nullish(),
   "coingeckoId": zod.string().nullish(),
   "soonMessage": zod.string().nullish(),
+  "adClaimEnabled": zod.boolean().optional(),
+  "adDurationSeconds": zod.number().optional(),
   "sortOrder": zod.number()
 })
 export const GetChainsResponse = zod.array(GetChainsResponseItem)
@@ -156,6 +158,41 @@ export const SubmitBuyResponse = zod.object({
   "testnetAmountSent": zod.string(),
   "symbol": zod.string(),
   "chainName": zod.string()
+})
+
+
+/**
+ * @summary Request a time-locked ad-watch token for an extra claim during cooldown
+ */
+export const RequestAdTokenBody = zod.object({
+  "chainId": zod.number(),
+  "address": zod.string()
+})
+
+export const RequestAdTokenResponse = zod.object({
+  "token": zod.string(),
+  "durationSeconds": zod.number(),
+  "adContent": zod.string().nullish().describe('URL or HTML embed code for the ad to display')
+})
+
+
+/**
+ * @summary Claim tokens after watching an ad using a verified time-locked token
+ */
+export const ClaimFaucetWithAdBody = zod.object({
+  "token": zod.string(),
+  "chainId": zod.number(),
+  "address": zod.string(),
+  "captchaToken": zod.string().optional()
+})
+
+export const ClaimFaucetWithAdResponse = zod.object({
+  "txHash": zod.string(),
+  "address": zod.string(),
+  "amount": zod.string(),
+  "symbol": zod.string(),
+  "chainName": zod.string(),
+  "claimedAt": zod.coerce.date()
 })
 
 
@@ -277,6 +314,10 @@ export const GetAdminChainsResponseItem = zod.object({
   "tokenPrice": zod.string().nullish(),
   "coingeckoId": zod.string().nullish(),
   "soonMessage": zod.string().nullish(),
+  "adClaimEnabled": zod.boolean().optional(),
+  "adClaimAmount": zod.string().nullish(),
+  "adDurationSeconds": zod.number().optional(),
+  "adNetworkCode": zod.string().nullish().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date()
 })
@@ -313,6 +354,10 @@ export const CreateChainBody = zod.object({
   "tokenPrice": zod.string().optional(),
   "coingeckoId": zod.string().optional(),
   "soonMessage": zod.string().optional(),
+  "adClaimEnabled": zod.boolean().optional(),
+  "adClaimAmount": zod.string().optional(),
+  "adDurationSeconds": zod.number().optional(),
+  "adNetworkCode": zod.string().optional().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
   "sortOrder": zod.number().optional()
 })
 
@@ -367,6 +412,10 @@ export const UpdateChainBody = zod.object({
   "tokenPrice": zod.string().optional(),
   "coingeckoId": zod.string().optional(),
   "soonMessage": zod.string().optional(),
+  "adClaimEnabled": zod.boolean().optional(),
+  "adClaimAmount": zod.string().optional(),
+  "adDurationSeconds": zod.number().optional(),
+  "adNetworkCode": zod.string().optional().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
   "sortOrder": zod.number().optional()
 })
 
@@ -398,6 +447,10 @@ export const UpdateChainResponse = zod.object({
   "tokenPrice": zod.string().nullish(),
   "coingeckoId": zod.string().nullish(),
   "soonMessage": zod.string().nullish(),
+  "adClaimEnabled": zod.boolean().optional(),
+  "adClaimAmount": zod.string().nullish(),
+  "adDurationSeconds": zod.number().optional(),
+  "adNetworkCode": zod.string().nullish().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date()
 })

@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X, ShoppingCart, Pin, PinOff, Server, Shield, Droplets, Globe, Settings2, Clock, ArrowUp, ArrowDown, Activity, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X, ShoppingCart, Pin, PinOff, Server, Shield, Droplets, Globe, Settings2, Clock, ArrowUp, ArrowDown, Activity, CheckCircle2, XCircle, RefreshCw, Tv2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getToken } from "@/lib/auth";
 import { formatCooldown, secondsToHms, hmsToSeconds } from "@/lib/utils";
@@ -91,6 +91,10 @@ const DEFAULT_CHAIN = {
   coingeckoId: "",
   soonMessage: "",
   gasPriceGwei: "",
+  adClaimEnabled: false,
+  adClaimAmount: "",
+  adDurationSeconds: 30,
+  adNetworkCode: "",
   sortOrder: 0
 };
 
@@ -247,6 +251,10 @@ export function ChainManagement() {
       buyMinAmount: chain.buyMinAmount || "0.0005",
       buyMaxAmount: (chain as any).buyMaxAmount ?? "",
       buyCurrencies: chain.buyCurrencies || '["eth"]',
+      adClaimEnabled: (chain as any).adClaimEnabled ?? false,
+      adClaimAmount: (chain as any).adClaimAmount ?? "",
+      adDurationSeconds: (chain as any).adDurationSeconds ?? 30,
+      adNetworkCode: (chain as any).adNetworkCode ?? "",
     });
     setFormError("");
     setIsFormOpen(true);
@@ -285,7 +293,7 @@ export function ChainManagement() {
     };
 
     // Strip empty strings and nulls for optional fields — backend Zod rejects null
-    const optionalFields = ["logoUrl", "buyUrl", "explorerUrl", "tokenPrice", "coingeckoId", "receiveAddress", "soonMessage", "gasPriceGwei", "buyMaxAmount"];
+    const optionalFields = ["logoUrl", "buyUrl", "explorerUrl", "tokenPrice", "coingeckoId", "receiveAddress", "soonMessage", "gasPriceGwei", "buyMaxAmount", "adClaimAmount", "adNetworkCode"];
     for (const key of optionalFields) {
       if (payload[key] === null || payload[key] === "") delete payload[key];
     }
@@ -729,6 +737,66 @@ export function ChainManagement() {
               ) : (
                 <div className="px-4 py-3 text-[11px] font-mono text-muted-foreground">
                   Enable Buy to let users purchase testnet tokens with real ETH.
+                </div>
+              )}
+            </div>
+
+            {/* ── SECTION 5b: Ad Claim Feature ── */}
+            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(217,119,6,0.2)" }}>
+              <div className="flex items-center justify-between px-4 py-2.5" style={{ background: "rgba(217,119,6,0.05)", borderBottom: "1px solid rgba(217,119,6,0.15)" }}>
+                <div className="flex items-center gap-2.5">
+                  <Tv2 className="w-3.5 h-3.5" style={{ color: "#d97706" }} />
+                  <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: "#d97706" }}>Ad Claim Feature</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-muted-foreground">{formData.adClaimEnabled ? "ON" : "OFF"}</span>
+                  <Switch checked={!!formData.adClaimEnabled} onCheckedChange={c => setFormData({...formData, adClaimEnabled: c})} />
+                </div>
+              </div>
+              {formData.adClaimEnabled ? (
+                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Ad Duration (seconds)</Label>
+                    <Input
+                      type="number" min="5" step="1"
+                      value={formData.adDurationSeconds}
+                      onChange={e => setFormData({...formData, adDurationSeconds: Number(e.target.value)})}
+                      className="font-mono text-sm h-9"
+                      placeholder="30"
+                    />
+                    <p className="text-[10px] text-muted-foreground font-mono">User must watch for {formData.adDurationSeconds}s before claiming</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Ad Claim Amount <span className="text-muted-foreground font-normal">(blank = same as free claim)</span></Label>
+                    <div className="relative">
+                      <Input
+                        type="number" step="0.00001" min="0"
+                        value={formData.adClaimAmount}
+                        onChange={e => setFormData({...formData, adClaimAmount: e.target.value})}
+                        className="font-mono text-sm h-9 pr-16"
+                        placeholder={formData.claimAmount || "same as free"}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono text-muted-foreground">{formData.symbol || "TOKEN"}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground font-mono">
+                      {formData.adClaimAmount ? `${formData.adClaimAmount} ${formData.symbol || "tokens"} per ad claim` : `Uses free claim amount (${formData.claimAmount || "0"} ${formData.symbol || "tokens"})`}
+                    </p>
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label className="text-xs">Ad URL or Embed Code <span className="text-muted-foreground font-normal">(shown in iframe during ad watch)</span></Label>
+                    <textarea
+                      value={formData.adNetworkCode}
+                      onChange={e => setFormData({...formData, adNetworkCode: e.target.value})}
+                      placeholder="https://your-ad-network.com/ad-unit or paste HTML embed code"
+                      rows={3}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground"
+                    />
+                    <p className="text-[10px] text-muted-foreground font-mono">Leave blank to show a placeholder. Users see this for {formData.adDurationSeconds}s before they can claim.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="px-4 py-3 text-[11px] font-mono text-muted-foreground">
+                  Enable Ad Claims to let users watch an ad and claim extra tokens during their cooldown period — unlimited times.
                 </div>
               )}
             </div>

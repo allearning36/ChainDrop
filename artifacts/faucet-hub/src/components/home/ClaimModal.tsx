@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ChainPublic, useGetFaucetStatus, useClaimFaucet, getGetChainQueryKey, getGetFaucetStatusQueryKey } from "@workspace/api-client-react";
+import { ChainPublic, useGetFaucetStatus, useClaimFaucet, useRequestAdToken, useClaimFaucetWithAd, getGetChainQueryKey, getGetFaucetStatusQueryKey } from "@workspace/api-client-react";
 import { formatCooldown } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, ExternalLink, Clock, Zap, ShoppingCart, CheckCircle2, Copy, Check, AlertCircle } from "lucide-react";
+import { Loader2, ExternalLink, Clock, Zap, ShoppingCart, CheckCircle2, Copy, Check, AlertCircle, Play } from "lucide-react";
 import { BuyModal } from "./BuyModal";
 import { formatDistanceToNow } from "date-fns";
 import ReCAPTCHA from "react-google-recaptcha";
@@ -80,17 +80,23 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [address, setAddress] = useState("");
   const [debouncedAddress, setDebouncedAddress] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
-  const [step, setStep] = useState<"input" | "ad" | "result">("input");
+  const [step, setStep] = useState<"input" | "watch-ad" | "ad" | "result">("input");
   const [adCountdown, setAdCountdown] = useState(5);
   const [txHash, setTxHash] = useState("");
   const [claimedAmount, setClaimedAmount] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [buyOpen, setBuyOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [adWatchCountdown, setAdWatchCountdown] = useState(0);
+  const [adWatchToken, setAdWatchToken] = useState("");
+  const [adWatchContent, setAdWatchContent] = useState<string | null>(null);
+  const [adWatchError, setAdWatchError] = useState("");
   const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   const queryClient = useQueryClient();
   const claimMutation = useClaimFaucet();
+  const requestAdTokenMutation = useRequestAdToken();
+  const adClaimMutation = useClaimFaucetWithAd();
 
   const chainType = chain?.chainType ?? "evm";
 
@@ -119,6 +125,13 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
     return undefined;
   }, [step, adCountdown]);
 
+  useEffect(() => {
+    if (step !== "watch-ad") return;
+    if (adWatchCountdown <= 0) return;
+    const timer = setTimeout(() => setAdWatchCountdown(c => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [step, adWatchCountdown]);
+
   const handleClaim = () => {
     if (!chain || !debouncedAddress || !captchaToken) return;
     setErrorMsg("");
@@ -139,6 +152,46 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
     });
   };
 
+  const handleWatchAd = () => {
+    if (!chain || !debouncedAddress) return;
+    setAdWatchError("");
+    requestAdTokenMutation.mutate(
+      { data: { chainId: chain.id, address: debouncedAddress } },
+      {
+        onSuccess: (res) => {
+          setAdWatchToken(res.token);
+          setAdWatchContent(res.adContent ?? null);
+          setAdWatchCountdown(res.durationSeconds);
+          setStep("watch-ad");
+        },
+        onError: (err: any) => {
+          setAdWatchError(err?.data?.error || "Could not start ad. Please try again.");
+        },
+      }
+    );
+  };
+
+  const handleAdClaim = () => {
+    if (!chain || !debouncedAddress || !adWatchToken) return;
+    setAdWatchError("");
+    adClaimMutation.mutate(
+      { data: { token: adWatchToken, chainId: chain.id, address: debouncedAddress } },
+      {
+        onSuccess: (res) => {
+          setTxHash(res.txHash);
+          setClaimedAmount(res.amount);
+          setAdWatchToken("");
+          setAdCountdown(5);
+          setStep("ad");
+          queryClient.invalidateQueries({ queryKey: getGetChainQueryKey(chain.id) });
+        },
+        onError: (err: any) => {
+          setAdWatchError(err?.data?.error || "Claim failed. Please try again.");
+        },
+      }
+    );
+  };
+
   const handleCopy = () => {
     navigator.clipboard.writeText(txHash);
     setCopied(true);
@@ -150,6 +203,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
       setTimeout(() => {
         setStep("input"); setAddress(""); setDebouncedAddress("");
         setAdCountdown(5); setErrorMsg(""); setCaptchaToken("");
+        setAdWatchToken(""); setAdWatchContent(null); setAdWatchCountdown(0); setAdWatchError("");
         recaptchaRef.current?.reset();
       }, 300);
       onClose();
@@ -294,17 +348,48 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
 
                 {/* Claim Button OR Cooldown Button */}
                 {inCooldown ? (
-                  <button
-                    disabled
-                    className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2"
-                    style={{
-                      background: "linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)",
-                      color: "rgba(255,255,255,0.6)",
-                      cursor: "not-allowed",
-                    }}
-                  >
-                    <Clock className="w-4 h-4" /> Come Back in {formatCooldown(chain.cooldownSeconds)}
-                  </button>
+                  <>
+                    <button
+                      disabled
+                      className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2"
+                      style={{
+                        background: "linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)",
+                        color: "rgba(255,255,255,0.6)",
+                        cursor: "not-allowed",
+                      }}
+                    >
+                      <Clock className="w-4 h-4" /> Come Back in {formatCooldown(chain.cooldownSeconds)}
+                    </button>
+
+                    {(chain as any).adClaimEnabled && (
+                      <>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+                          <span className="text-[10px] font-bold font-mono" style={{ color: "rgba(255,255,255,0.25)" }}>OR</span>
+                          <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+                        </div>
+                        <button
+                          onClick={handleWatchAd}
+                          disabled={requestAdTokenMutation.isPending}
+                          className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all duration-200"
+                          style={{
+                            background: requestAdTokenMutation.isPending ? "rgba(234,179,8,0.1)" : "linear-gradient(135deg, #78350f 0%, #d97706 100%)",
+                            color: requestAdTokenMutation.isPending ? "rgba(234,179,8,0.4)" : "white",
+                            boxShadow: requestAdTokenMutation.isPending ? "none" : "0 0 20px rgba(217,119,6,0.3)",
+                            cursor: requestAdTokenMutation.isPending ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {requestAdTokenMutation.isPending
+                            ? <><Loader2 className="w-4 h-4 animate-spin" /> Starting Ad...</>
+                            : <><Play className="w-4 h-4" /> Claim More · Watch Ad</>
+                          }
+                        </button>
+                        {adWatchError && (
+                          <p className="text-xs font-mono text-red-400 text-center">{adWatchError}</p>
+                        )}
+                      </>
+                    )}
+                  </>
                 ) : (
                   <button
                     onClick={handleClaim}
@@ -360,6 +445,115 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                     <p className="text-sm font-bold font-mono" style={{ color: "#a855f7" }}>{formatCooldown(chain.cooldownSeconds)}</p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* ── STEP: WATCH AD ── */}
+            {step === "watch-ad" && (
+              <div className="px-5 py-6 flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-bold font-mono text-white flex items-center gap-2">
+                    <Play className="w-4 h-4" style={{ color: "#d97706" }} /> Watch Ad to Claim
+                  </h3>
+                  <span className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>
+                    {adWatchCountdown > 0 ? `${adWatchCountdown}s left` : "Complete!"}
+                  </span>
+                </div>
+
+                {/* Ad display */}
+                <div
+                  className="rounded-xl overflow-hidden"
+                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", minHeight: "120px" }}
+                >
+                  {adWatchContent ? (
+                    adWatchContent.startsWith("http") ? (
+                      <iframe
+                        src={adWatchContent}
+                        className="w-full"
+                        style={{ height: "120px", border: "none" }}
+                        sandbox="allow-scripts allow-same-origin allow-popups"
+                        title="Advertisement"
+                      />
+                    ) : (
+                      <div
+                        className="w-full p-3"
+                        style={{ minHeight: "120px" }}
+                        dangerouslySetInnerHTML={{ __html: adWatchContent }}
+                      />
+                    )
+                  ) : (
+                    <div className="flex items-center justify-center" style={{ height: "120px" }}>
+                      <p className="text-xs font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.15)" }}>
+                        — Advertisement —
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Countdown */}
+                <div className="flex flex-col items-center gap-2">
+                  {adWatchCountdown > 0 ? (
+                    <>
+                      <div className="relative w-16 h-16">
+                        <div className="absolute inset-0 rounded-full" style={{ border: "3px solid rgba(217,119,6,0.2)" }} />
+                        <div
+                          className="absolute inset-0 rounded-full border-4 border-transparent border-t-amber-500 animate-spin"
+                          style={{ animationDuration: "1s" }}
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center font-bold font-mono text-xl" style={{ color: "#d97706" }}>
+                          {adWatchCountdown}
+                        </div>
+                      </div>
+                      <p className="text-xs font-mono" style={{ color: "rgba(255,255,255,0.35)" }}>
+                        Please wait for the ad to finish…
+                      </p>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-2 py-1" style={{ color: "#22c55e" }}>
+                      <CheckCircle2 className="w-5 h-5" />
+                      <p className="text-sm font-mono font-bold">Ad complete! Claim your tokens.</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Error */}
+                {adWatchError && (
+                  <div
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl"
+                    style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0" style={{ color: "#f87171" }} />
+                    <p className="text-xs font-mono" style={{ color: "#f87171" }}>{adWatchError}</p>
+                  </div>
+                )}
+
+                {/* Claim button */}
+                <button
+                  onClick={handleAdClaim}
+                  disabled={adWatchCountdown > 0 || adClaimMutation.isPending}
+                  className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all duration-200"
+                  style={{
+                    background: adWatchCountdown === 0 && !adClaimMutation.isPending
+                      ? "linear-gradient(135deg, #15803d 0%, #22c55e 100%)"
+                      : "rgba(34,197,94,0.08)",
+                    color: adWatchCountdown === 0 && !adClaimMutation.isPending ? "white" : "rgba(34,197,94,0.3)",
+                    boxShadow: adWatchCountdown === 0 && !adClaimMutation.isPending ? "0 0 20px rgba(34,197,94,0.3)" : "none",
+                    cursor: adWatchCountdown === 0 && !adClaimMutation.isPending ? "pointer" : "not-allowed",
+                  }}
+                >
+                  {adClaimMutation.isPending
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
+                    : <><Zap className="w-4 h-4" /> Claim Now</>
+                  }
+                </button>
+
+                <button
+                  onClick={() => { setStep("input"); setAdWatchError(""); }}
+                  className="w-full h-10 rounded-xl text-sm font-mono transition-colors"
+                  style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}
+                >
+                  Back
+                </button>
               </div>
             )}
 
@@ -449,6 +643,32 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                 >
                   <Clock className="w-4 h-4" /> Come Back in {formatCooldown(chain.cooldownSeconds)}
                 </button>
+
+                {(chain as any).adClaimEnabled && (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+                      <span className="text-xs font-bold font-mono" style={{ color: "rgba(255,255,255,0.25)" }}>OR</span>
+                      <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+                    </div>
+                    <button
+                      onClick={handleWatchAd}
+                      disabled={requestAdTokenMutation.isPending}
+                      className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all duration-200"
+                      style={{
+                        background: requestAdTokenMutation.isPending ? "rgba(234,179,8,0.1)" : "linear-gradient(135deg, #78350f 0%, #d97706 100%)",
+                        color: requestAdTokenMutation.isPending ? "rgba(234,179,8,0.4)" : "white",
+                        boxShadow: requestAdTokenMutation.isPending ? "none" : "0 0 20px rgba(217,119,6,0.3)",
+                        cursor: requestAdTokenMutation.isPending ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {requestAdTokenMutation.isPending
+                        ? <><Loader2 className="w-4 h-4 animate-spin" /> Starting Ad...</>
+                        : <><Play className="w-4 h-4" /> Claim More · Watch Ad</>
+                      }
+                    </button>
+                  </>
+                )}
 
                 {chain.buyEnabled && (
                   <>
