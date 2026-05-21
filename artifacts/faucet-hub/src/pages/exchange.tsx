@@ -618,14 +618,18 @@ export default function ExchangePage() {
                             color: fromAmount && !amountValid ? "#f87171" : "white",
                           }}
                         />
-                        <span className="text-[11px] font-mono mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.3)" }}>
-                          {pair
-                            ? (fromAmount && !amountValid ? `${pair.minAmount}–${pair.maxAmount} ${pair.fromSymbol}` : `min ${pair.minAmount}`)
-                            : "enter amount"}
+                        <span className="text-[11px] font-mono mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>
+                          {pair ? `min ${pair.minAmount}` : "enter amount"}
                         </span>
                       </div>
                     </div>
                   </div>
+                  {/* Amount validation hint */}
+                  {pair && fromAmount && !amountValid && (
+                    <p className="text-xs font-mono px-1" style={{ color: "#f87171" }}>
+                      Range: {pair.minAmount} – {pair.maxAmount} {pair.fromSymbol}
+                    </p>
+                  )}
                 </div>
 
                 {/* ── Swap direction circle ───────────────────────────────── */}
@@ -698,7 +702,7 @@ export default function ExchangePage() {
                           {pair && from > 0 && amountValid ? toAmt.toFixed(6) : "0.00"}
                         </span>
                         <span className="text-[11px] font-mono mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>
-                          {toOptionIsValid && toOption ? toOption.chainName : "destination"}
+                          {pair && from > 0 && amountValid ? `on ${toOption?.chainName ?? ""}` : "you receive"}
                         </span>
                       </div>
                     </div>
