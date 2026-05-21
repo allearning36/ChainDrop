@@ -4,8 +4,10 @@ import { Footer } from "@/components/layout/Footer";
 import { WalletSelector } from "@/components/home/WalletSelector";
 import {
   ArrowLeftRight, Wallet, Loader2, CheckCircle2, AlertCircle,
-  ExternalLink, ChevronDown, X, RefreshCw, ArrowLeft, Search,
+  ExternalLink, ChevronDown, X, RefreshCw, ArrowLeft, Search, LogOut,
 } from "lucide-react";
+
+const WALLET_STORAGE_KEY = "chaindrop_exchange_wallet";
 
 function parseEtherToHex(amount: string): string {
   const [intPart = "0", fracPart = ""] = amount.split(".");
@@ -346,12 +348,49 @@ export default function ExchangePage() {
 
   const canSwapDirection = !!(fromOption && toOption);
 
-  const handleWalletConnected = (addr: string, _type: string, provider?: any) => {
+  // Restore wallet from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(WALLET_STORAGE_KEY);
+      if (!saved) return;
+      const { address, type } = JSON.parse(saved) as { address: string; type: string };
+      if (!address) return;
+      if (type === "injected" && window.ethereum) {
+        (window.ethereum as any).request({ method: "eth_accounts" })
+          .then((accounts: string[]) => {
+            const match = accounts.find(a => a.toLowerCase() === address.toLowerCase());
+            if (match) {
+              setWalletAddress(match);
+              setWalletProvider(window.ethereum);
+            } else {
+              localStorage.removeItem(WALLET_STORAGE_KEY);
+            }
+          })
+          .catch(() => localStorage.removeItem(WALLET_STORAGE_KEY));
+      } else {
+        // WalletConnect session — restore address optimistically; tx will fail if actually disconnected
+        setWalletAddress(address);
+      }
+    } catch {
+      localStorage.removeItem(WALLET_STORAGE_KEY);
+    }
+  }, []);
+
+  const handleDisconnect = () => {
+    setWalletAddress("");
+    setWalletProvider(null);
+    setUserBalance(null);
+    localStorage.removeItem(WALLET_STORAGE_KEY);
+    if (step !== "select") setStep("select");
+  };
+
+  const handleWalletConnected = (addr: string, type: string, provider?: any) => {
     setWalletAddress(addr);
     const prov = provider || window.ethereum;
     setWalletProvider(prov);
     setWalletOpen(false);
-    setStep("review");
+    setStep("select");
+    localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify({ address: addr, type }));
     // Fetch user balance from fromChain RPC
     setUserBalance(null);
     if (pair) {
@@ -416,9 +455,9 @@ export default function ExchangePage() {
   };
 
   const reset = () => {
+    // wallet stays connected — only swap state is cleared
     setStep("select"); setFromAmount(""); setOrder(null); setOrderStatus(null);
-    setErrorMsg(""); setWalletAddress(""); setWalletProvider(null);
-    setUserBalance(null);
+    setErrorMsg("");
   };
 
   // ── card ──────────────────────────────────────────────────────────────────
@@ -589,7 +628,30 @@ export default function ExchangePage() {
                   </div>
                 )}
 
-                {/* ── Wallet & Swap button ───────────────────────────────── */}
+                {/* ── Wallet chip (always visible when connected) ────────── */}
+                {walletAddress && (
+                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+                    style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.2)" }}>
+                    <Wallet className="w-4 h-4 shrink-0" style={{ color: "#22c55e" }} />
+                    <span className="text-xs font-mono text-white truncate flex-1 min-w-0">{walletAddress}</span>
+                    {userBalance !== null && pair && (
+                      <span className="text-xs font-mono shrink-0" style={{ color: "rgba(34,197,94,0.7)" }}>
+                        {userBalance} {pair.fromSymbol}
+                      </span>
+                    )}
+                    <button
+                      onClick={handleDisconnect}
+                      title="Disconnect wallet"
+                      className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-mono transition-all"
+                      style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.18)", color: "rgba(239,100,100,0.8)" }}
+                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(239,68,68,0.15)"; e.currentTarget.style.color = "#f87171"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "rgba(239,68,68,0.08)"; e.currentTarget.style.color = "rgba(239,100,100,0.8)"; }}>
+                      <LogOut className="w-3 h-3" /> Disconnect
+                    </button>
+                  </div>
+                )}
+
+                {/* ── Swap / Connect button ──────────────────────────────── */}
                 {(() => {
                   const swapBlocked = !!(pair && exchangeBalance?.warning);
                   const btnDisabled = !amountValid || swapBlocked;
@@ -599,26 +661,12 @@ export default function ExchangePage() {
                     boxShadow: btnDisabled ? "none" : "0 0 24px rgba(124,58,237,0.3)",
                     cursor: btnDisabled ? "not-allowed" : "pointer",
                   };
-                  if (pair && step === "review") return (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl"
-                        style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.2)" }}>
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Wallet className="w-4 h-4 shrink-0" style={{ color: "#22c55e" }} />
-                          <span className="text-xs font-mono text-white truncate">{walletAddress}</span>
-                        </div>
-                        {userBalance !== null && (
-                          <span className="text-xs font-mono shrink-0" style={{ color: "rgba(34,197,94,0.8)" }}>
-                            {userBalance} {pair.fromSymbol}
-                          </span>
-                        )}
-                      </div>
-                      <button onClick={handleInitiateOrder} disabled={btnDisabled}
-                        className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all"
-                        style={btnStyle}>
-                        <ArrowLeftRight className="w-4 h-4" /> Swap Now
-                      </button>
-                    </div>
+                  if (pair && walletAddress) return (
+                    <button onClick={handleInitiateOrder} disabled={btnDisabled}
+                      className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all"
+                      style={btnStyle}>
+                      <ArrowLeftRight className="w-4 h-4" /> Swap Now
+                    </button>
                   );
                   if (pair) return (
                     <button onClick={() => !btnDisabled && setWalletOpen(true)} disabled={btnDisabled}

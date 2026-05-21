@@ -223,6 +223,7 @@ export function WalletSelector({ open, onClose, onConnected, targetChainId }: Wa
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <DialogContent
         className="p-0 gap-0 overflow-hidden"
+        onOpenAutoFocus={e => e.preventDefault()}
         style={{
           background: "#111118",
           border: "1px solid rgba(255,255,255,0.09)",
