@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useGetFaucetHistory, getGetFaucetHistoryQueryKey } from "@workspace/api-client-react";
 import { formatDistanceToNow } from "date-fns";
 import { ExternalLink, ShoppingCart, Droplets, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { formatTokenAmount } from "@/lib/utils";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
@@ -128,7 +129,7 @@ export function RecentFeed() {
               {/* Right */}
               <div className="flex items-center gap-3 shrink-0">
                 <span className="font-mono text-xs font-bold" style={{ color: isBuy ? "#a5b4fc" : "#4ade80" }}>
-                  +{parseFloat(record.amount).toFixed(4)} {record.symbol}
+                  +{formatTokenAmount(record.amount)} {record.symbol}
                 </span>
                 <span className="text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.3)" }}>
                   {formatDistanceToNow(new Date(record.claimedAt), { addSuffix: true })}

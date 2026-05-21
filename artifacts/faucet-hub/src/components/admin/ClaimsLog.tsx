@@ -3,6 +3,7 @@ import { getToken } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Download, Search, ChevronLeft, ChevronRight, ExternalLink, Loader2, RefreshCw } from "lucide-react";
+import { formatTokenAmount } from "@/lib/utils";
 
 type ClaimRow = {
   id: number; address: string; chainId: number; chainName: string;
@@ -124,7 +125,7 @@ export function ClaimsLog() {
                     </span>
                     <span className="ml-1 text-muted-foreground">{c.chainName}</span>
                   </td>
-                  <td className="px-3 py-2 text-green-400 font-semibold">{Number(c.amount).toFixed(4)}</td>
+                  <td className="px-3 py-2 text-green-400 font-semibold">{formatTokenAmount(c.amount)}</td>
                   <td className="px-3 py-2">
                     <a href={`https://sepolia.etherscan.io/tx/${c.txHash}`} target="_blank" rel="noreferrer"
                       className="flex items-center gap-1 text-blue-400 hover:text-blue-300" title={c.txHash}>

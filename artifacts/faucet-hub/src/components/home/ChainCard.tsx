@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ChainPublic, useGetChain, getGetChainQueryKey } from "@workspace/api-client-react";
 import { Droplet, Wallet, Zap, Clock } from "lucide-react";
-import { formatCooldown } from "@/lib/utils";
+import { formatCooldown, formatTokenAmount } from "@/lib/utils";
 
 interface ChainCardProps {
   chain: ChainPublic;
@@ -139,8 +139,8 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
               <Wallet className="w-3.5 h-3.5" /> Reserve
             </span>
             <span className="font-mono text-xs font-semibold" style={{ color: "rgba(255,255,255,0.6)" }}>
-              {"walletBalanceEth" in displayChain && displayChain.walletBalanceEth
-                ? `${parseFloat(String(displayChain.walletBalanceEth)).toFixed(4)} ${displayChain.symbol}`
+              {"walletBalanceEth" in displayChain && displayChain.walletBalanceEth != null
+                ? `${formatTokenAmount(displayChain.walletBalanceEth as string | number)} ${displayChain.symbol}`
                 : "—"}
             </span>
           </div>
@@ -158,7 +158,7 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
                 backgroundClip: "text",
               }}
             >
-              {displayChain.claimAmount} {displayChain.symbol}
+              {formatTokenAmount(displayChain.claimAmount)} {displayChain.symbol}
             </span>
           </div>
 

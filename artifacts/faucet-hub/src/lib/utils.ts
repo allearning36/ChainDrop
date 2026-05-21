@@ -30,3 +30,17 @@ export function secondsToHms(total: number): { h: number; m: number; s: number }
   const s = total % 60;
   return { h, m, s };
 }
+
+/**
+ * Format a token/ETH amount with smart precision:
+ * - Normal values (≥ 0.0001): always 4 decimal places → "0.0500"
+ * - Tiny values (< 0.0001): enough decimals to show the first significant digits
+ *   e.g. 0.00001 → "0.00001", 0.000000123 → "0.000000123"
+ */
+export function formatTokenAmount(value: string | number): string {
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  if (isNaN(num) || num === 0) return "0";
+  if (num >= 0.0001) return num.toFixed(4);
+  const decimals = Math.min(Math.ceil(-Math.log10(num)) + 2, 10);
+  return num.toFixed(decimals).replace(/0+$/, "").replace(/\.$/, "");
+}
