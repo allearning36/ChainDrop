@@ -6,6 +6,7 @@ import { sendTokens, isValidAddress, type ChainType } from "../lib/chains/index"
 import { parseRpcUrls } from "../lib/rpcFailover";
 import { claimLimiter } from "../lib/rateLimiters";
 import { broadcast, broadcastError, classifyError, getErrorMeta } from "../lib/liveEvents";
+import { decryptPrivateKey } from "../lib/encryption";
 
 function getClientIp(req: Request): string {
   const fwd = req.headers["x-forwarded-for"];
@@ -16,7 +17,7 @@ function getClientIp(req: Request): string {
 const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET_KEY;
 
 async function verifyCaptcha(token: string): Promise<boolean> {
-  if (!RECAPTCHA_SECRET) return true;
+  if (!RECAPTCHA_SECRET) return false;
   if (!token) return false;
   try {
     const res = await fetch(
@@ -123,7 +124,7 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
 
   let txHash: string;
   try {
-    const result = await sendTokens(chainType, parseRpcUrls(chain.rpcUrls, chain.rpcUrl), chain.privateKey, address, chain.claimAmount, { gasPriceGwei: chain.gasPriceGwei, gasLimit: chain.gasLimit });
+    const result = await sendTokens(chainType, parseRpcUrls(chain.rpcUrls, chain.rpcUrl), decryptPrivateKey(chain.privateKey), address, chain.claimAmount, { gasPriceGwei: chain.gasPriceGwei, gasLimit: chain.gasLimit });
     txHash = result.txHash;
   } catch (err) {
     req.log.error({ err }, "Failed to send tokens");
@@ -423,7 +424,7 @@ router.post("/faucet/ad-claim", claimLimiter, async (req, res): Promise<void> =>
     const result = await sendTokens(
       chainType,
       parseRpcUrls(chain.rpcUrls, chain.rpcUrl),
-      chain.privateKey,
+      decryptPrivateKey(chain.privateKey),
       address,
       claimAmount,
       { gasPriceGwei: chain.gasPriceGwei, gasLimit: chain.gasLimit }

@@ -8,6 +8,7 @@ import { sendTokens } from "../lib/faucet";
 import { requireAdmin } from "../lib/adminAuth";
 import { parseRpcUrls, checkRpcHealth } from "../lib/rpcFailover";
 import { randomUUID } from "crypto";
+import { encryptPrivateKey, decryptPrivateKey } from "../lib/encryption";
 
 const router = Router();
 
@@ -15,10 +16,10 @@ const SYSTEM_PRIVATE_KEY = process.env.FAUCET_PRIVATE_KEY ?? "";
 
 // ── Resolve which private key to use for a pair ───────────────────────────────
 async function resolvePrivateKey(pair: { pairPrivateKey?: string | null }): Promise<string> {
-  if (pair.pairPrivateKey?.trim()) return pair.pairPrivateKey.trim();
+  if (pair.pairPrivateKey?.trim()) return decryptPrivateKey(pair.pairPrivateKey.trim());
   // Try settings table for default exchange key
   const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "exchange_default_private_key")).limit(1);
-  if (row?.value?.trim()) return row.value.trim();
+  if (row?.value?.trim()) return decryptPrivateKey(row.value.trim());
   return SYSTEM_PRIVATE_KEY;
 }
 
@@ -353,8 +354,9 @@ router.put("/admin/exchange/settings", requireAdmin, async (req, res): Promise<v
     res.status(400).json({ error: "Invalid private key — could not derive wallet address" }); return;
   }
   if (trimmed) {
-    await db.insert(settingsTable).values({ key: "exchange_default_private_key", value: trimmed })
-      .onConflictDoUpdate({ target: settingsTable.key, set: { value: trimmed } });
+    const encrypted = encryptPrivateKey(trimmed);
+    await db.insert(settingsTable).values({ key: "exchange_default_private_key", value: encrypted })
+      .onConflictDoUpdate({ target: settingsTable.key, set: { value: encrypted } });
   } else {
     await db.delete(settingsTable).where(eq(settingsTable.key, "exchange_default_private_key"));
   }
@@ -403,7 +405,7 @@ router.post("/admin/exchange/pairs", requireAdmin, async (req, res): Promise<voi
     ...data,
     fromChainId: Number(data.fromChainId),
     toChainId: Number(data.toChainId),
-    pairPrivateKey: data.pairPrivateKey?.trim() || null,
+    pairPrivateKey: data.pairPrivateKey?.trim() ? encryptPrivateKey(data.pairPrivateKey.trim()) : null,
   }).returning();
   res.status(201).json(pair);
 });
@@ -414,7 +416,10 @@ router.put("/admin/exchange/pairs/:id", requireAdmin, async (req, res): Promise<
   const update: Record<string, unknown> = { ...body };
   if (update.fromChainId !== undefined) update.fromChainId = Number(update.fromChainId);
   if (update.toChainId !== undefined) update.toChainId = Number(update.toChainId);
-  if ("pairPrivateKey" in update) update.pairPrivateKey = (update.pairPrivateKey as string)?.trim() || null;
+  if ("pairPrivateKey" in update) {
+    const pk = (update.pairPrivateKey as string)?.trim() || null;
+    update.pairPrivateKey = pk ? encryptPrivateKey(pk) : null;
+  }
   const [pair] = await db.update(exchangePairsTable).set(update).where(eq(exchangePairsTable.id, id)).returning();
   if (!pair) { res.status(404).json({ error: "Pair not found" }); return; }
   res.json(pair);

@@ -61,12 +61,18 @@ router.post("/uploads/banner", requireAdmin, upload.single("image"), (req, res):
 });
 
 router.get("/uploads/:filename", (req, res): void => {
-  const filename = path.basename(req.params.filename as string);
+  const rawFilename = req.params.filename as string;
+  // Reject null bytes (path traversal via null-byte injection)
+  if (rawFilename.includes("\0")) {
+    res.status(400).json({ error: "Invalid filename" });
+    return;
+  }
+  const filename = path.basename(rawFilename);
   const filePath = path.join(UPLOADS_DIR, filename);
   // Prevent directory traversal — path.basename already strips any path,
   // but ensure the resolved path is still inside UPLOADS_DIR.
   const resolved = path.resolve(filePath);
-  if (!resolved.startsWith(path.resolve(UPLOADS_DIR))) {
+  if (!resolved.startsWith(path.resolve(UPLOADS_DIR) + path.sep)) {
     res.status(400).json({ error: "Invalid filename" });
     return;
   }

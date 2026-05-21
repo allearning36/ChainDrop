@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import crypto from "crypto";
 import { eq, desc, count } from "drizzle-orm";
+import { encryptPrivateKey } from "../lib/encryption";
 import { db, chainsTable, claimsTable, bannersTable, announcementsTable, settingsTable } from "@workspace/db";
 import { getStoredPasswordHash, verifyPassword } from "./adminTools";
 import { upload } from "./upload";
@@ -172,7 +173,9 @@ router.post("/admin/chains", async (req, res): Promise<void> => {
     return;
   }
 
-  const [chain] = await db.insert(chainsTable).values({ ...parsed.data, rpcUrls: rpcUrlsForDb }).returning();
+  const insertData = { ...parsed.data, rpcUrls: rpcUrlsForDb };
+  if (insertData.privateKey) insertData.privateKey = encryptPrivateKey(insertData.privateKey);
+  const [chain] = await db.insert(chainsTable).values(insertData).returning();
 
   res.status(201).json({
     id: chain.id,
@@ -235,9 +238,12 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const updateData = rpcUrlsForDb !== undefined
+  const updateData: Record<string, unknown> = rpcUrlsForDb !== undefined
     ? { ...parsed.data, rpcUrls: rpcUrlsForDb }
-    : parsed.data;
+    : { ...parsed.data };
+  if (typeof updateData.privateKey === "string" && updateData.privateKey) {
+    updateData.privateKey = encryptPrivateKey(updateData.privateKey as string);
+  }
 
   const [chain] = await db
     .update(chainsTable)

@@ -6,6 +6,7 @@ import { GetBuyInfoParams, SubmitBuyBody } from "@workspace/api-zod";
 import { sendTokens as sendChainTokens, isValidAddress, type ChainType } from "../lib/chains/index";
 import { parseRpcUrls } from "../lib/rpcFailover";
 import { buyLimiter } from "../lib/rateLimiters";
+import { decryptPrivateKey } from "../lib/encryption";
 
 const router: IRouter = Router();
 
@@ -173,7 +174,7 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
   // Send testnet tokens
   let testnetTxHash: string;
   try {
-    const result = await sendChainTokens(chain.chainType as ChainType, parseRpcUrls(chain.rpcUrls, chain.rpcUrl), chain.privateKey, userAddress, testnetAmount);
+    const result = await sendChainTokens(chain.chainType as ChainType, parseRpcUrls(chain.rpcUrls, chain.rpcUrl), decryptPrivateKey(chain.privateKey), userAddress, testnetAmount);
     testnetTxHash = result.txHash;
   } catch (err) {
     req.log.error({ err }, "Failed to send testnet tokens for purchase");
