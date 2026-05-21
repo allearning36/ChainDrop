@@ -38,12 +38,16 @@ export async function sendTokens(
 
   // Get fee data and bump priority fee to ensure inclusion on fast networks (Polygon etc.)
   const feeData = await provider.getFeeData();
-  const txOverrides: Record<string, unknown> = { to: toAddress, value: amountWei };
-  if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
-    // EIP-1559 — bump priority fee by 30% to avoid getting stuck
+  // Simple ETH transfer — always 21 000 gas
+  const txOverrides: Record<string, unknown> = { to: toAddress, value: amountWei, gasLimit: 21000n };
+  if (feeData.maxFeePerGas != null && feeData.maxPriorityFeePerGas != null) {
+    // EIP-1559 path (includes Arbitrum where maxPriorityFeePerGas == 0n)
+    // Bump maxFeePerGas by 30% to avoid getting stuck; keep tip >= 0
     txOverrides.maxFeePerGas = (feeData.maxFeePerGas * 130n) / 100n;
-    txOverrides.maxPriorityFeePerGas = (feeData.maxPriorityFeePerGas * 130n) / 100n;
-  } else if (feeData.gasPrice) {
+    txOverrides.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas > 0n
+      ? (feeData.maxPriorityFeePerGas * 130n) / 100n
+      : feeData.maxPriorityFeePerGas; // keep 0n for Arbitrum/zero-tip chains
+  } else if (feeData.gasPrice != null) {
     txOverrides.gasPrice = (feeData.gasPrice * 130n) / 100n;
   }
 
