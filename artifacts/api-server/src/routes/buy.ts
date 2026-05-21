@@ -53,6 +53,7 @@ router.get("/faucet/buy/info/:chainId", async (req, res): Promise<void> => {
     receiveAddress,
     buyRate: chain.buyRate,
     minAmount: chain.buyMinAmount,
+    maxAmount: chain.buyMaxAmount ?? null,
     networks,
   });
 });
@@ -136,6 +137,13 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
     if (amountEth < minAmount) {
       res.status(400).json({ error: `Minimum amount is ${chain.buyMinAmount} ETH` });
       return;
+    }
+    if (chain.buyMaxAmount) {
+      const maxAmount = parseFloat(chain.buyMaxAmount);
+      if (amountEth > maxAmount) {
+        res.status(400).json({ error: `Maximum amount is ${chain.buyMaxAmount} ETH` });
+        return;
+      }
     }
 
     mainnetAmountPaid = ethers.formatEther(tx.value);

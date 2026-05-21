@@ -36,6 +36,11 @@ export interface ChainAdmin {
   buyUrl?: string | null;
   buyRate: string;
   buyMinAmount: string;
+  /**
+     * Maximum ETH purchase amount (null = unlimited)
+     * @nullable
+     */
+  buyMaxAmount?: string | null;
   /** JSON array of enabled payment network IDs e.g. ["eth","base"] */
   buyCurrencies: string;
   /** @nullable */

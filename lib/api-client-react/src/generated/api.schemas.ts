@@ -29,6 +29,11 @@ export interface BuyInfo {
   buyRate: string;
   /** Minimum ETH to send */
   minAmount: string;
+  /**
+     * Maximum ETH to send (null = unlimited)
+     * @nullable
+     */
+  maxAmount?: string | null;
   networks: PaymentNetwork[];
 }
 
@@ -197,6 +202,11 @@ export interface ChainAdmin {
   buyUrl?: string | null;
   buyRate: string;
   buyMinAmount: string;
+  /**
+     * Maximum ETH purchase amount (null = unlimited)
+     * @nullable
+     */
+  buyMaxAmount?: string | null;
   /** JSON array of enabled payment network IDs e.g. ["eth","base"] */
   buyCurrencies: string;
   /** @nullable */
@@ -246,6 +256,8 @@ export interface ChainInput {
   buyUrl?: string;
   buyRate?: string;
   buyMinAmount?: string;
+  /** Maximum ETH purchase amount (empty = unlimited) */
+  buyMaxAmount?: string;
   buyCurrencies?: string;
   receiveAddress?: string;
   explorerUrl?: string;
@@ -288,6 +300,8 @@ export interface ChainUpdate {
   buyUrl?: string;
   buyRate?: string;
   buyMinAmount?: string;
+  /** Maximum ETH purchase amount (empty = unlimited) */
+  buyMaxAmount?: string;
   buyCurrencies?: string;
   receiveAddress?: string;
   explorerUrl?: string;

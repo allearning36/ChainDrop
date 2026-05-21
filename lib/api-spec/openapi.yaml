@@ -830,6 +830,9 @@ components:
         minAmount:
           type: string
           description: "Minimum ETH to send"
+        maxAmount:
+          type: ["string", "null"]
+          description: "Maximum ETH to send (null = unlimited)"
         networks:
           type: array
           items:
@@ -1023,6 +1026,9 @@ components:
           type: string
         buyMinAmount:
           type: string
+        buyMaxAmount:
+          type: ["string", "null"]
+          description: "Maximum ETH purchase amount (null = unlimited)"
         buyCurrencies:
           type: string
           description: "JSON array of enabled payment network IDs e.g. [\"eth\",\"base\"]"
@@ -1086,6 +1092,9 @@ components:
           type: string
         buyMinAmount:
           type: string
+        buyMaxAmount:
+          type: string
+          description: "Maximum ETH purchase amount (empty = unlimited)"
         buyCurrencies:
           type: string
         receiveAddress:
@@ -1144,6 +1153,9 @@ components:
           type: string
         buyMinAmount:
           type: string
+        buyMaxAmount:
+          type: string
+          description: "Maximum ETH purchase amount (empty = unlimited)"
         buyCurrencies:
           type: string
         receiveAddress:

@@ -16,5 +16,10 @@ export interface BuyInfo {
   buyRate: string;
   /** Minimum ETH to send */
   minAmount: string;
+  /**
+     * Maximum ETH to send (null = unlimited)
+     * @nullable
+     */
+  maxAmount?: string | null;
   networks: PaymentNetwork[];
 }

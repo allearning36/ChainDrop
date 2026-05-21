@@ -84,6 +84,7 @@ const DEFAULT_CHAIN = {
   buyUrl: "",
   buyRate: "1000",
   buyMinAmount: "0.0005",
+  buyMaxAmount: "",
   buyCurrencies: '["eth"]',
   receiveAddress: "",
   tokenPrice: "",
@@ -244,6 +245,7 @@ export function ChainManagement() {
       receiveAddress: chain.receiveAddress ?? "",
       buyRate: chain.buyRate || "1000",
       buyMinAmount: chain.buyMinAmount || "0.0005",
+      buyMaxAmount: (chain as any).buyMaxAmount ?? "",
       buyCurrencies: chain.buyCurrencies || '["eth"]',
     });
     setFormError("");
@@ -283,7 +285,7 @@ export function ChainManagement() {
     };
 
     // Strip empty strings and nulls for optional fields — backend Zod rejects null
-    const optionalFields = ["logoUrl", "buyUrl", "explorerUrl", "tokenPrice", "coingeckoId", "receiveAddress", "soonMessage", "gasPriceGwei"];
+    const optionalFields = ["logoUrl", "buyUrl", "explorerUrl", "tokenPrice", "coingeckoId", "receiveAddress", "soonMessage", "gasPriceGwei", "buyMaxAmount"];
     for (const key of optionalFields) {
       if (payload[key] === null || payload[key] === "") delete payload[key];
     }
@@ -687,6 +689,15 @@ export function ChainManagement() {
                     <p className="text-[10px] text-muted-foreground font-mono">
                       Min {formData.buyMinAmount || "0.0005"} ETH = {((parseFloat(formData.buyMinAmount || "0.0005") || 0) * parseFloat(formData.buyRate || "1000")).toFixed(4)} {formData.symbol || "tokens"}
                     </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Maximum Purchase (ETH) <span className="text-muted-foreground font-normal">(blank = unlimited)</span></Label>
+                    <Input type="number" step="0.0001" min="0.0001" value={formData.buyMaxAmount} onChange={e => setFormData({...formData, buyMaxAmount: e.target.value})} className="font-mono text-sm h-9" placeholder="unlimited" />
+                    {formData.buyMaxAmount && parseFloat(formData.buyMaxAmount) > 0 && (
+                      <p className="text-[10px] text-muted-foreground font-mono">
+                        Max {formData.buyMaxAmount} ETH = {((parseFloat(formData.buyMaxAmount) || 0) * parseFloat(formData.buyRate || "1000")).toFixed(4)} {formData.symbol || "tokens"}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1.5 sm:col-span-2">
                     <Label className="text-xs">Receive Address <span className="text-muted-foreground font-normal">(mainnet payment address — blank = faucet wallet)</span></Label>

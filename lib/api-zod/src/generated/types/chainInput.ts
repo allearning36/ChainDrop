@@ -29,6 +29,8 @@ export interface ChainInput {
   buyUrl?: string;
   buyRate?: string;
   buyMinAmount?: string;
+  /** Maximum ETH purchase amount (empty = unlimited) */
+  buyMaxAmount?: string;
   buyCurrencies?: string;
   receiveAddress?: string;
   explorerUrl?: string;
