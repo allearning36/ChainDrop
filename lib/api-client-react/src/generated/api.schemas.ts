@@ -361,7 +361,6 @@ export interface AdClaimBody {
   token: string;
   chainId: number;
   address: string;
-  captchaToken?: string;
 }
 
 export interface ClaimResult {

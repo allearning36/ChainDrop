@@ -1301,8 +1301,6 @@ components:
           type: integer
         address:
           type: string
-        captchaToken:
-          type: string
 
     ClaimResult:
       type: object

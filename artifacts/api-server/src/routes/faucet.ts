@@ -350,14 +350,8 @@ router.post("/faucet/ad-claim", claimLimiter, async (req, res): Promise<void> =>
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { token, chainId, address, captchaToken } = parsed.data;
+  const { token, chainId, address } = parsed.data;
   const clientIp = getClientIp(req);
-
-  const captchaValid = await verifyCaptcha(captchaToken ?? "");
-  if (!captchaValid) {
-    res.status(400).json({ error: "CAPTCHA verification failed. Please try again." });
-    return;
-  }
 
   const [adToken] = await db
     .select()

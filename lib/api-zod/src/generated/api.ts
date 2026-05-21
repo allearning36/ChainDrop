@@ -182,8 +182,7 @@ export const RequestAdTokenResponse = zod.object({
 export const ClaimFaucetWithAdBody = zod.object({
   "token": zod.string(),
   "chainId": zod.number(),
-  "address": zod.string(),
-  "captchaToken": zod.string().optional()
+  "address": zod.string()
 })
 
 export const ClaimFaucetWithAdResponse = zod.object({
