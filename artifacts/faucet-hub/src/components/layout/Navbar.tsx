@@ -60,7 +60,7 @@ export function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 w-full backdrop-blur-xl" style={{ background: "rgba(8,10,14,0.92)", borderBottom: "1px solid rgba(255,255,255,0.07)", boxShadow: "0 1px 20px rgba(0,0,0,0.4)" }}>
-      <div className="container mx-auto flex h-16 items-center px-4 gap-3">
+      <div className="w-full flex h-16 items-center px-2 gap-2">
 
         {/* ── LEFT: Hamburger menu ── */}
         <div className="relative shrink-0" ref={menuRef}>
@@ -114,7 +114,7 @@ export function Navbar() {
         <div className="flex-1" />
 
         {/* ── RIGHT: Logo + Name ── */}
-        <Link href="/" className="flex items-center gap-2 min-w-0 shrink overflow-hidden">
+        <Link href="/" className="flex items-center gap-2 shrink-0">
           <div className="flex flex-col leading-none min-w-0 items-end">
             <span
               className="font-black tracking-wider uppercase"
