@@ -28,7 +28,6 @@ export class EvmInsufficientBalanceError extends Error {
     this.name = "EvmInsufficientBalanceError";
     this.balance = balance;
     this.required = required;
-    // gasRelated = true means wallet has tokens but not enough to cover gas on top of the send amount
     (this as unknown as Record<string, unknown>).code = gasRelated ? "WALLET_GAS_LOW" : "INSUFFICIENT_FUNDS";
   }
 }
@@ -46,32 +45,28 @@ export async function sendEvm(
     const wallet = new ethers.Wallet(privateKey, provider);
     const amountWei = ethers.parseEther(amount);
 
-    const GAS_LIMIT = gasLimit != null ? BigInt(gasLimit) : 21_000n;
-    logger.info({ toAddress, amount, gasPriceGwei: gasPriceGwei ?? "auto", gasLimit: GAS_LIMIT.toString() }, "Sending EVM tokens");
-
+    // ── Phase 1: fee overrides + balance ─────────────────────────────────────
     let balanceWei: bigint;
     let effectiveGasPrice: bigint;
-    const txOverrides: Record<string, unknown> = { to: toAddress, value: amountWei, gasLimit: GAS_LIMIT };
+    const txOverrides: Record<string, unknown> = { to: toAddress, value: amountWei };
 
     if (gasPriceGwei) {
-      // ── Manual gas price override (set by admin per chain) ──────────────────
+      // Manual gas price override set by admin
       const customWei = ethers.parseUnits(gasPriceGwei, "gwei");
       txOverrides.gasPrice = customWei;
       effectiveGasPrice = customWei;
       balanceWei = await withTimeout(provider.getBalance(wallet.address), RPC_TIMEOUT_MS, "getBalance");
     } else {
-      // ── Auto: fetch balance and fee data in parallel ─────────────────────────
+      // Auto: fetch live fee data from network (EIP-1559 when available, legacy fallback)
       const [bal, feeData] = await Promise.all([
         withTimeout(provider.getBalance(wallet.address), RPC_TIMEOUT_MS, "getBalance"),
         withTimeout(provider.getFeeData(), RPC_TIMEOUT_MS, "getFeeData"),
       ]);
       balanceWei = bal;
 
-      // Native ETH transfers always use 21 000 gas; explicit limit prevents
-      // the node mis-estimating and lets us predict the maximum cost upfront.
       if (feeData.maxFeePerGas != null && feeData.maxPriorityFeePerGas != null) {
-        // EIP-1559 path — Arbitrum returns maxPriorityFeePerGas = 0n (valid, not falsy-safe with &&)
-        const inflatedMax      = (feeData.maxFeePerGas      * 120n) / 100n;
+        // EIP-1559 path — Arbitrum returns maxPriorityFeePerGas = 0n (falsy but valid)
+        const inflatedMax      = (feeData.maxFeePerGas * 120n) / 100n;
         const inflatedPriority = feeData.maxPriorityFeePerGas > 0n
           ? (feeData.maxPriorityFeePerGas * 120n) / 100n
           : feeData.maxPriorityFeePerGas; // keep 0n for zero-tip chains like Arbitrum
@@ -85,14 +80,41 @@ export async function sendEvm(
       }
     }
 
-    // ── Pre-flight: wallet must cover amount + worst-case gas ─────────────────
+    // ── Phase 2: determine gas limit ─────────────────────────────────────────
+    // Admin override → use that. Otherwise: ask the network (handles Arbitrum
+    // L1 data fees, token contracts, and any chain-specific overhead).
+    let GAS_LIMIT: bigint;
+    if (gasLimit != null) {
+      GAS_LIMIT = BigInt(gasLimit);
+      logger.info({ toAddress, amount, gasLimit: GAS_LIMIT.toString(), source: "admin" }, "Using admin-set gas limit");
+    } else {
+      try {
+        const estimated = await withTimeout(
+          provider.estimateGas({ to: toAddress, value: amountWei, from: wallet.address }),
+          RPC_TIMEOUT_MS,
+          "estimateGas"
+        );
+        // 30% safety buffer — same as MetaMask "Normal" mode
+        GAS_LIMIT = (estimated * 130n) / 100n;
+        logger.info({ toAddress, amount, estimated: estimated.toString(), withBuffer: GAS_LIMIT.toString() }, "Gas estimated from network");
+      } catch (estimateErr) {
+        // estimateGas failing usually means the tx would revert — but let the
+        // actual sendTransaction surface a cleaner error. Fall back to a safe
+        // upper bound so we can still attempt the send.
+        GAS_LIMIT = 100_000n;
+        logger.warn({ estimateErr, toAddress }, "estimateGas failed — falling back to 100 000");
+      }
+    }
+
+    txOverrides.gasLimit = GAS_LIMIT;
+
+    // ── Phase 3: pre-flight balance check ────────────────────────────────────
     const maxGasCost    = GAS_LIMIT * effectiveGasPrice;
     const totalRequired = amountWei + maxGasCost;
     if (balanceWei < totalRequired) {
       const balanceEth  = ethers.formatEther(balanceWei);
       const requiredEth = ethers.formatEther(totalRequired);
-      // gasRelated=true when the wallet has SOME balance but gas tips it over
-      const gasRelated = balanceWei >= amountWei;
+      const gasRelated  = balanceWei >= amountWei;
       logger.warn(
         { balance: balanceEth, required: requiredEth, gasPrice: effectiveGasPrice.toString(), gasRelated, walletAddress: wallet.address },
         gasRelated
@@ -101,15 +123,15 @@ export async function sendEvm(
       );
       throw new EvmInsufficientBalanceError(balanceEth, requiredEth, gasRelated);
     }
-    // ─────────────────────────────────────────────────────────────────────────
 
+    // ── Phase 4: send ────────────────────────────────────────────────────────
     const tx = await withTimeout(
       wallet.sendTransaction(txOverrides),
       TX_TIMEOUT_MS,
       "sendTransaction"
     );
 
-    logger.info({ txHash: tx.hash, toAddress }, "EVM transaction submitted — waiting for confirmation");
+    logger.info({ txHash: tx.hash, toAddress, gasLimit: GAS_LIMIT.toString() }, "EVM transaction submitted — waiting for confirmation");
 
     const receipt = await withTimeout(tx.wait(1), TX_CONFIRM_TIMEOUT_MS, "waitForConfirmation");
     if (!receipt || receipt.status !== 1) {
