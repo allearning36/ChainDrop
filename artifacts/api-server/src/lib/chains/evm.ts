@@ -69,9 +69,12 @@ export async function sendEvm(
 
       // Native ETH transfers always use 21 000 gas; explicit limit prevents
       // the node mis-estimating and lets us predict the maximum cost upfront.
-      if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
+      if (feeData.maxFeePerGas != null && feeData.maxPriorityFeePerGas != null) {
+        // EIP-1559 path — Arbitrum returns maxPriorityFeePerGas = 0n (valid, not falsy-safe with &&)
         const inflatedMax      = (feeData.maxFeePerGas      * 120n) / 100n;
-        const inflatedPriority = (feeData.maxPriorityFeePerGas * 120n) / 100n;
+        const inflatedPriority = feeData.maxPriorityFeePerGas > 0n
+          ? (feeData.maxPriorityFeePerGas * 120n) / 100n
+          : feeData.maxPriorityFeePerGas; // keep 0n for zero-tip chains like Arbitrum
         txOverrides.maxFeePerGas = inflatedMax;
         txOverrides.maxPriorityFeePerGas = inflatedPriority;
         effectiveGasPrice = inflatedMax;
