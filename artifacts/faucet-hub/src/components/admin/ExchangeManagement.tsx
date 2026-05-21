@@ -509,33 +509,36 @@ export function ExchangeManagement() {
             </div>
           ) : pairs.map(p => (
             <div key={p.id} className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-              <div className="flex items-center justify-between px-4 py-3"
-                style={{ background: "rgba(255,255,255,0.03)" }}>
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex items-center gap-1.5">
+              <div className="px-4 py-3 space-y-2" style={{ background: "rgba(255,255,255,0.03)" }}>
+                {/* Row 1: symbol + actions */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <span className="font-bold font-mono text-sm text-white">{p.fromSymbol}</span>
                     <ArrowLeftRight className="w-3.5 h-3.5 shrink-0" style={{ color: "#a78bfa" }} />
                     <span className="font-bold font-mono text-sm text-white">{p.toSymbol}</span>
+                    <span className="text-xs font-mono text-muted-foreground truncate hidden sm:inline ml-1.5">{p.name}</span>
+                    {p.pairPrivateKey && (
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full shrink-0"
+                        style={{ background: "rgba(167,139,250,0.12)", color: "#a78bfa" }}>Custom Key</span>
+                    )}
                   </div>
-                  <span className="text-xs font-mono text-muted-foreground hidden sm:inline truncate">{p.name}</span>
-                  {p.pairPrivateKey && (
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full"
-                      style={{ background: "rgba(167,139,250,0.12)", color: "#a78bfa" }}>Custom Key</span>
-                  )}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Switch checked={p.isEnabled} onCheckedChange={() => handleToggle(p)} />
+                    <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg transition-colors hover:bg-white/10">
+                      <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
+                    </button>
+                    <button onClick={() => handleDelete(p.id)} disabled={deleting === p.id}
+                      className="p-1.5 rounded-lg transition-colors hover:bg-red-500/10">
+                      {deleting === p.id
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin text-red-400" />
+                        : <Trash2 className="w-3.5 h-3.5 text-red-400" />}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                {/* Row 2: balance chip + fee */}
+                <div className="flex items-center gap-2">
                   <PairBalanceChip pairId={p.id} toSymbol={p.toSymbol} toChainName={p.toChainName} />
                   <span className="text-[10px] font-mono text-muted-foreground">{p.feePercent}% fee</span>
-                  <Switch checked={p.isEnabled} onCheckedChange={() => handleToggle(p)} />
-                  <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg transition-colors hover:bg-white/10">
-                    <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
-                  </button>
-                  <button onClick={() => handleDelete(p.id)} disabled={deleting === p.id}
-                    className="p-1.5 rounded-lg transition-colors hover:bg-red-500/10">
-                    {deleting === p.id
-                      ? <Loader2 className="w-3.5 h-3.5 animate-spin text-red-400" />
-                      : <Trash2 className="w-3.5 h-3.5 text-red-400" />}
-                  </button>
                 </div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-4 py-3 text-xs font-mono text-muted-foreground"
