@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { getToken } from "@/lib/auth";
 import {
   ArrowLeftRight, Plus, Trash2, Edit2, Save, X,
-  ToggleLeft, ToggleRight, AlertCircle, CheckCircle2, Loader2,
-  ClipboardList, Activity, ArrowUp, ArrowDown, Upload, XCircle,
+  AlertCircle, CheckCircle2, Loader2,
+  ClipboardList, Activity, ArrowUp, ArrowDown, Upload, XCircle, RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -251,6 +251,7 @@ export function ExchangeManagement() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [retrying, setRetrying] = useState<string | null>(null);
 
   const fetchPairs = async () => {
     const res = await fetch("/api/admin/exchange/pairs", { headers: authHeaders() });
@@ -350,6 +351,24 @@ export function ExchangeManagement() {
     await fetch(`/api/admin/exchange/pairs/${id}`, { method: "DELETE", headers: authHeaders() });
     await fetchPairs();
     setDeleting(null);
+  };
+
+  const handleRetry = async (orderId: string) => {
+    setRetrying(orderId);
+    try {
+      const res = await fetch(`/api/admin/exchange/orders/${orderId}/retry`, {
+        method: "POST", headers: authHeaders(),
+      });
+      const d = await res.json() as any;
+      if (!res.ok) throw new Error(d.error || "Retry failed");
+      setSuccess("Retry started — check order status in a few seconds.");
+      setTimeout(() => fetchOrders(), 4000);
+      setTimeout(() => fetchOrders(), 10000);
+    } catch (e: any) {
+      setSuccess(""); setError(e.message);
+    } finally {
+      setRetrying(null);
+    }
   };
 
   const handleToggle = async (p: ExchangePair) => {
@@ -469,21 +488,48 @@ export function ExchangeManagement() {
             </div>
           ) : orders.map(o => (
             <div key={o.id} className="rounded-xl px-4 py-3 space-y-2"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+              style={{
+                background: "rgba(255,255,255,0.03)",
+                border: `1px solid ${o.status === "failed" && o.fromTxHash ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.07)"}`,
+              }}>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2 min-w-0">
                   <code className="text-[10px] font-mono text-muted-foreground truncate">{o.id.slice(0, 12)}…</code>
                   <StatusBadge status={o.status} />
                 </div>
-                <span className="text-[10px] font-mono text-muted-foreground">
-                  {new Date(o.createdAt).toLocaleString()}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-muted-foreground">
+                    {new Date(o.createdAt).toLocaleString()}
+                  </span>
+                  {o.status === "failed" && o.fromTxHash && (
+                    <button
+                      onClick={() => handleRetry(o.id)}
+                      disabled={retrying === o.id}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold transition-colors"
+                      style={{ background: "rgba(167,139,250,0.12)", border: "1px solid rgba(167,139,250,0.25)", color: "#a78bfa" }}
+                      title="Re-attempt sending toToken to user"
+                    >
+                      {retrying === o.id
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <RefreshCw className="w-3 h-3" />}
+                      Retry
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-4 text-xs font-mono flex-wrap">
                 <span className="text-white">{o.fromAmount} → {o.toAmount}</span>
                 <span className="text-muted-foreground truncate">{o.userAddress.slice(0, 10)}…</span>
-                {o.failReason && <span style={{ color: "#f87171" }}>{o.failReason}</span>}
               </div>
+              {o.failReason && (
+                <div className="text-[11px] font-mono px-2 py-1.5 rounded-lg"
+                  style={{ background: "rgba(239,68,68,0.07)", color: "#f87171" }}>
+                  {o.failReason}
+                  {o.status === "failed" && o.fromTxHash && (
+                    <span className="ml-2 opacity-60">— User funds received, toToken not sent yet</span>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

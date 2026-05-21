@@ -13,6 +13,25 @@ const router = Router();
 
 const PRIVATE_KEY = process.env.FAUCET_PRIVATE_KEY ?? "";
 
+// ── Try sendTokens across all fallback RPCs ───────────────────────────────────
+async function sendTokensWithFallback(
+  rpcUrls: string[],
+  privateKey: string,
+  toAddress: string,
+  amount: string,
+): Promise<{ txHash: string }> {
+  let lastErr: unknown;
+  for (const rpc of rpcUrls) {
+    try {
+      return await sendTokens(rpc, privateKey, toAddress, amount);
+    } catch (err) {
+      lastErr = err;
+      logger.warn({ rpc, err }, "sendTokens failed on RPC, trying next");
+    }
+  }
+  throw lastErr;
+}
+
 // ── Helper: parse RPC list from pair ─────────────────────────────────────────
 function getPairRpcs(pair: { fromRpcUrls?: string | null; fromRpcUrl: string }, side: "from"): string[];
 function getPairRpcs(pair: { toRpcUrls?: string | null; toRpcUrl: string }, side: "to"): string[];
@@ -179,8 +198,9 @@ router.post("/exchange/orders/:id/confirm", async (req, res): Promise<void> => {
         return;
       }
 
-      // Send toToken
-      const { txHash: toTxHash } = await sendTokens(pair.toRpcUrl, PRIVATE_KEY, order.userAddress, order.toAmount);
+      // Send toToken — try all fallback RPCs
+      const toRpcs = getPairRpcs(pair, "to");
+      const { txHash: toTxHash } = await sendTokensWithFallback(toRpcs, PRIVATE_KEY, order.userAddress, order.toAmount);
       await db.update(exchangeOrdersTable).set({
         status: "completed",
         toTxHash,
@@ -248,6 +268,59 @@ router.delete("/admin/exchange/pairs/:id", requireAdmin, async (req, res): Promi
 router.get("/admin/exchange/orders", requireAdmin, async (_req, res): Promise<void> => {
   const orders = await db.select().from(exchangeOrdersTable).orderBy(exchangeOrdersTable.createdAt).limit(100);
   res.json(orders.reverse());
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN: POST /admin/exchange/orders/:id/retry
+// Re-attempt the toToken send for a failed order that already received fromToken.
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/admin/exchange/orders/:id/retry", requireAdmin, async (req, res): Promise<void> => {
+  const orderId = String(req.params.id);
+  const [order] = await db.select().from(exchangeOrdersTable).where(eq(exchangeOrdersTable.id, orderId)).limit(1);
+  if (!order) { res.status(404).json({ error: "Order not found" }); return; }
+
+  if (order.status !== "failed") {
+    res.status(400).json({ error: `Cannot retry order with status "${order.status}". Only failed orders can be retried.` });
+    return;
+  }
+  if (!order.fromTxHash) {
+    res.status(400).json({ error: "Order has no fromTxHash — user may not have sent funds." });
+    return;
+  }
+  if (!PRIVATE_KEY) {
+    res.status(500).json({ error: "Exchange wallet private key not configured." });
+    return;
+  }
+
+  const [pair] = await db.select().from(exchangePairsTable).where(eq(exchangePairsTable.id, order.pairId)).limit(1);
+  if (!pair) { res.status(404).json({ error: "Exchange pair no longer exists." }); return; }
+
+  // Mark as confirming so admin can see it's retrying
+  await db.update(exchangeOrdersTable)
+    .set({ status: "confirming", failReason: null })
+    .where(eq(exchangeOrdersTable.id, orderId));
+
+  res.json({ status: "retrying", message: "Retry started — sending toToken now." });
+
+  void (async () => {
+    try {
+      const toRpcs = getPairRpcs(pair, "to");
+      const { txHash: toTxHash } = await sendTokensWithFallback(toRpcs, PRIVATE_KEY, order.userAddress, order.toAmount);
+      await db.update(exchangeOrdersTable).set({
+        status: "completed",
+        toTxHash,
+        completedAt: new Date(),
+        failReason: null,
+      }).where(eq(exchangeOrdersTable.id, orderId));
+      logger.info({ orderId, toTxHash }, "Exchange order completed via admin retry");
+    } catch (err: any) {
+      logger.error({ err, orderId }, "Admin retry failed");
+      await db.update(exchangeOrdersTable).set({
+        status: "failed",
+        failReason: `Retry failed: ${err?.message ?? "Unexpected error"}`,
+      }).where(eq(exchangeOrdersTable.id, orderId));
+    }
+  })();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
