@@ -115,10 +115,11 @@ function ChainPickerModal({
             style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
             <Search className="w-4 h-4 shrink-0" style={{ color: "rgba(255,255,255,0.35)" }} />
             <input
-              autoFocus
               type="text"
+              inputMode="none"
               placeholder="Search chain or token…"
               value={search}
+              onFocus={e => { (e.target as HTMLInputElement).removeAttribute("inputMode"); }}
               onChange={e => setSearch(e.target.value)}
               className="flex-1 bg-transparent outline-none text-sm text-white font-mono placeholder:text-white/30"
             />
@@ -311,26 +312,28 @@ export default function ExchangePage() {
     setFromAmount("");
   };
 
-  // Handle swap direction toggle
+  // Handle swap direction toggle — always swap visually, pair validation happens in render
   const handleSwapDirection = () => {
     if (!fromOption || !toOption) return;
-    // Check if reverse pair exists
+    const prevFrom = fromOption;
+    const prevTo = toOption;
+    // Try to find exact reverse pair first
     const reversePair = pairs.find(p =>
-      pairToOption(p, "from").key === toOption.key &&
-      pairToOption(p, "to").key === fromOption.key
+      pairToOption(p, "from").key === prevTo.key &&
+      pairToOption(p, "to").key === prevFrom.key
     );
     if (reversePair) {
       setFromOption(pairToOption(reversePair, "from"));
       setToOption(pairToOption(reversePair, "to"));
-      setFromAmount("");
+    } else {
+      // Swap visually even without a matching pair — show "no route" message
+      setFromOption({ ...prevTo, side: "from" });
+      setToOption({ ...prevFrom, side: "to" });
     }
+    setFromAmount("");
   };
 
-  // Check if reverse direction is possible
-  const canSwapDirection = !!(fromOption && toOption && pairs.some(p =>
-    pairToOption(p, "from").key === toOption.key &&
-    pairToOption(p, "to").key === fromOption.key
-  ));
+  const canSwapDirection = !!(fromOption && toOption);
 
   const handleWalletConnected = (addr: string, _type: string, provider?: any) => {
     setWalletAddress(addr);
