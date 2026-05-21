@@ -46,6 +46,7 @@ import type {
   GetPricesParams,
   HealthStatus,
   PriceItem,
+  RpcHealthResult,
   SiteSettings,
   SupportConversation,
   SupportConversationDetail,
@@ -1218,6 +1219,83 @@ export const useCreateChain = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getCreateChainMutationOptions(options));
     }
+
+export const getGetChainRpcHealthUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/chains/${id}/rpc-health`
+}
+
+/**
+ * @summary Check health/latency of all RPC URLs for a chain
+ */
+export const getChainRpcHealth = async (id: number, options?: RequestInit): Promise<RpcHealthResult[]> => {
+
+  return customFetch<RpcHealthResult[]>(getGetChainRpcHealthUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetChainRpcHealthQueryKey = (id: number,) => {
+    return [
+    `/api/admin/chains/${id}/rpc-health`
+    ] as const;
+    }
+
+
+export const getGetChainRpcHealthQueryOptions = <TData = Awaited<ReturnType<typeof getChainRpcHealth>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getChainRpcHealth>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetChainRpcHealthQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getChainRpcHealth>>> = ({ signal }) => getChainRpcHealth(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getChainRpcHealth>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetChainRpcHealthQueryResult = NonNullable<Awaited<ReturnType<typeof getChainRpcHealth>>>
+export type GetChainRpcHealthQueryError = ErrorType<void>
+
+
+/**
+ * @summary Check health/latency of all RPC URLs for a chain
+ */
+
+export function useGetChainRpcHealth<TData = Awaited<ReturnType<typeof getChainRpcHealth>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getChainRpcHealth>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetChainRpcHealthQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getUpdateChainUrl = (id: number,) => {
 

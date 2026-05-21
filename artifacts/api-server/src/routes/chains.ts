@@ -3,6 +3,7 @@ import { eq, asc, desc } from "drizzle-orm";
 import { db, chainsTable } from "@workspace/db";
 import { GetChainsQueryParams, GetChainParams } from "@workspace/api-zod";
 import { getWalletBalance, type ChainType } from "../lib/chains/index";
+import { parseRpcUrls } from "../lib/rpcFailover";
 
 const router: IRouter = Router();
 
@@ -66,7 +67,7 @@ router.get("/chains/:id", async (req, res): Promise<void> => {
 
   const walletBalanceEth = await getWalletBalance(
     chain.chainType as ChainType,
-    chain.rpcUrl,
+    parseRpcUrls(chain.rpcUrls, chain.rpcUrl),
     chain.walletAddress
   );
 

@@ -141,6 +141,22 @@ export interface ChainDetail {
   walletBalanceEth?: string | null;
 }
 
+export type RpcHealthResultStatus = typeof RpcHealthResultStatus[keyof typeof RpcHealthResultStatus];
+
+
+export const RpcHealthResultStatus = {
+  ok: 'ok',
+  error: 'error',
+} as const;
+
+export interface RpcHealthResult {
+  url: string;
+  status: RpcHealthResultStatus;
+  latencyMs: number;
+  /** @nullable */
+  error?: string | null;
+}
+
 export type ChainAdminChainType = typeof ChainAdminChainType[keyof typeof ChainAdminChainType];
 
 
@@ -165,6 +181,8 @@ export interface ChainAdmin {
   /** @nullable */
   logoUrl?: string | null;
   rpcUrl: string;
+  /** Ordered list of RPC URLs — primary first, fallbacks after */
+  rpcUrls: string[];
   walletAddress: string;
   claimAmount: string;
   cooldownSeconds: number;

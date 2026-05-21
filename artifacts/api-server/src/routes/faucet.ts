@@ -3,6 +3,7 @@ import { desc, eq, and } from "drizzle-orm";
 import { db, claimsTable, chainsTable, blockedAddressesTable, ipBlocksTable, settingsTable, purchasesTable } from "@workspace/db";
 import { ClaimFaucetBody, GetFaucetStatusParams } from "@workspace/api-zod";
 import { sendTokens, isValidAddress, type ChainType } from "../lib/chains/index";
+import { parseRpcUrls } from "../lib/rpcFailover";
 import { claimLimiter } from "../lib/rateLimiters";
 import { broadcast, broadcastError, classifyError, getErrorMeta } from "../lib/liveEvents";
 
@@ -122,7 +123,7 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
 
   let txHash: string;
   try {
-    const result = await sendTokens(chainType, chain.rpcUrl, chain.privateKey, address, chain.claimAmount, { gasPriceGwei: chain.gasPriceGwei });
+    const result = await sendTokens(chainType, parseRpcUrls(chain.rpcUrls, chain.rpcUrl), chain.privateKey, address, chain.claimAmount, { gasPriceGwei: chain.gasPriceGwei });
     txHash = result.txHash;
   } catch (err) {
     req.log.error({ err }, "Failed to send tokens");

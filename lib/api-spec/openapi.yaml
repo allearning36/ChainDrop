@@ -326,6 +326,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/ChainAdmin"
 
+  /admin/chains/{id}/rpc-health:
+    get:
+      operationId: getChainRpcHealth
+      tags: [admin]
+      summary: Check health/latency of all RPC URLs for a chain
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: RPC health results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RpcHealthResult"
+        "404":
+          description: Not found
+
   /admin/chains/{id}:
     patch:
       operationId: updateChain
@@ -935,9 +960,23 @@ components:
         walletBalanceEth:
           type: ["string", "null"]
 
+    RpcHealthResult:
+      type: object
+      required: [url, status, latencyMs]
+      properties:
+        url:
+          type: string
+        status:
+          type: string
+          enum: [ok, error]
+        latencyMs:
+          type: integer
+        error:
+          type: ["string", "null"]
+
     ChainAdmin:
       type: object
-      required: [id, name, symbol, chainType, rpcUrl, walletAddress, claimAmount, cooldownSeconds, isTestnet, isEnabled, availableStatus, buyEnabled, buyRate, buyMinAmount, buyCurrencies, sortOrder, createdAt]
+      required: [id, name, symbol, chainType, rpcUrl, rpcUrls, walletAddress, claimAmount, cooldownSeconds, isTestnet, isEnabled, availableStatus, buyEnabled, buyRate, buyMinAmount, buyCurrencies, sortOrder, createdAt]
       properties:
         id:
           type: integer
@@ -955,6 +994,11 @@ components:
           type: ["string", "null"]
         rpcUrl:
           type: string
+        rpcUrls:
+          type: array
+          items:
+            type: string
+          description: "Ordered list of RPC URLs — primary first, fallbacks after"
         walletAddress:
           type: string
         claimAmount:

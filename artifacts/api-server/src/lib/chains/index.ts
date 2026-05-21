@@ -1,3 +1,5 @@
+import { withRpcFailover } from "../rpcFailover";
+
 export type ChainType = "evm" | "solana" | "ton" | "sui" | "aptos";
 
 export const CHAIN_TYPES: ChainType[] = ["evm", "solana", "ton", "sui", "aptos"];
@@ -30,62 +32,78 @@ export const CHAIN_TYPE_KEY_HINT: Record<ChainType, string> = {
 
 export async function sendTokens(
   chainType: ChainType,
-  rpcUrl: string,
+  rpcUrls: string[],
   privateKey: string,
   toAddress: string,
   amount: string,
   options?: { gasPriceGwei?: string | null }
 ): Promise<{ txHash: string }> {
-  switch (chainType) {
-    case "evm": {
-      const { sendEvm } = await import("./evm");
-      return sendEvm(rpcUrl, privateKey, toAddress, amount, options?.gasPriceGwei);
-    }
-    case "solana": {
-      const { sendSolana } = await import("./solana");
-      return sendSolana(rpcUrl, privateKey, toAddress, amount);
-    }
-    case "ton": {
-      const { sendTon } = await import("./ton");
-      return sendTon(rpcUrl, privateKey, toAddress, amount);
-    }
-    case "sui": {
-      const { sendSui } = await import("./sui");
-      return sendSui(rpcUrl, privateKey, toAddress, amount);
-    }
-    case "aptos": {
-      const { sendAptos } = await import("./aptos");
-      return sendAptos(rpcUrl, privateKey, toAddress, amount);
-    }
-  }
+  return withRpcFailover(
+    rpcUrls,
+    async (rpcUrl) => {
+      switch (chainType) {
+        case "evm": {
+          const { sendEvm } = await import("./evm");
+          return sendEvm(rpcUrl, privateKey, toAddress, amount, options?.gasPriceGwei);
+        }
+        case "solana": {
+          const { sendSolana } = await import("./solana");
+          return sendSolana(rpcUrl, privateKey, toAddress, amount);
+        }
+        case "ton": {
+          const { sendTon } = await import("./ton");
+          return sendTon(rpcUrl, privateKey, toAddress, amount);
+        }
+        case "sui": {
+          const { sendSui } = await import("./sui");
+          return sendSui(rpcUrl, privateKey, toAddress, amount);
+        }
+        case "aptos": {
+          const { sendAptos } = await import("./aptos");
+          return sendAptos(rpcUrl, privateKey, toAddress, amount);
+        }
+      }
+    },
+    `sendTokens:${chainType}`
+  );
 }
 
 export async function getWalletBalance(
   chainType: ChainType,
-  rpcUrl: string,
+  rpcUrls: string[],
   address: string
 ): Promise<string | null> {
-  switch (chainType) {
-    case "evm": {
-      const { getEvmBalance } = await import("./evm");
-      return getEvmBalance(rpcUrl, address);
-    }
-    case "solana": {
-      const { getSolanaBalance } = await import("./solana");
-      return getSolanaBalance(rpcUrl, address);
-    }
-    case "ton": {
-      const { getTonBalance } = await import("./ton");
-      return getTonBalance(rpcUrl, address);
-    }
-    case "sui": {
-      const { getSuiBalance } = await import("./sui");
-      return getSuiBalance(rpcUrl, address);
-    }
-    case "aptos": {
-      const { getAptosBalance } = await import("./aptos");
-      return getAptosBalance(rpcUrl, address);
-    }
+  try {
+    return await withRpcFailover(
+      rpcUrls,
+      async (rpcUrl) => {
+        switch (chainType) {
+          case "evm": {
+            const { getEvmBalance } = await import("./evm");
+            return getEvmBalance(rpcUrl, address);
+          }
+          case "solana": {
+            const { getSolanaBalance } = await import("./solana");
+            return getSolanaBalance(rpcUrl, address);
+          }
+          case "ton": {
+            const { getTonBalance } = await import("./ton");
+            return getTonBalance(rpcUrl, address);
+          }
+          case "sui": {
+            const { getSuiBalance } = await import("./sui");
+            return getSuiBalance(rpcUrl, address);
+          }
+          case "aptos": {
+            const { getAptosBalance } = await import("./aptos");
+            return getAptosBalance(rpcUrl, address);
+          }
+        }
+      },
+      `getBalance:${chainType}`
+    );
+  } catch {
+    return null;
   }
 }
 

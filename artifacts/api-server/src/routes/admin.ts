@@ -20,6 +20,7 @@ import {
   DeleteAnnouncementParams,
 } from "@workspace/api-zod";
 import { signAdminToken, requireAdmin, checkLoginRateLimit, recordFailedLogin, recordSuccessfulLogin } from "../lib/adminAuth";
+import { parseRpcUrls, checkRpcHealth } from "../lib/rpcFailover";
 
 const router: IRouter = Router();
 
@@ -116,6 +117,7 @@ router.get("/admin/chains", async (_req, res): Promise<void> => {
       chainType: c.chainType,
       logoUrl: c.logoUrl,
       rpcUrl: c.rpcUrl,
+      rpcUrls: parseRpcUrls(c.rpcUrls, c.rpcUrl),
       walletAddress: c.walletAddress,
       claimAmount: c.claimAmount,
       cooldownSeconds: c.cooldownSeconds,
@@ -147,13 +149,25 @@ function stripNulls(obj: Record<string, unknown>): Record<string, unknown> {
 }
 
 router.post("/admin/chains", async (req, res): Promise<void> => {
-  const parsed = CreateChainBody.safeParse(stripNulls(req.body));
+  const body = stripNulls(req.body) as Record<string, unknown>;
+
+  // Extract and serialize rpcUrls before Zod validation (DB column is text, not array)
+  let rpcUrlsForDb: string = '[]';
+  if (Array.isArray(body.rpcUrls) && body.rpcUrls.length > 0) {
+    body.rpcUrl = body.rpcUrls[0];
+    rpcUrlsForDb = JSON.stringify(body.rpcUrls);
+  } else if (typeof body.rpcUrl === "string") {
+    rpcUrlsForDb = JSON.stringify([body.rpcUrl]);
+  }
+  delete body.rpcUrls;
+
+  const parsed = CreateChainBody.safeParse(body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
 
-  const [chain] = await db.insert(chainsTable).values(parsed.data).returning();
+  const [chain] = await db.insert(chainsTable).values({ ...parsed.data, rpcUrls: rpcUrlsForDb }).returning();
 
   res.status(201).json({
     id: chain.id,
@@ -163,11 +177,13 @@ router.post("/admin/chains", async (req, res): Promise<void> => {
     chainType: chain.chainType,
     logoUrl: chain.logoUrl,
     rpcUrl: chain.rpcUrl,
+    rpcUrls: parseRpcUrls(chain.rpcUrls, chain.rpcUrl),
     walletAddress: chain.walletAddress,
     claimAmount: chain.claimAmount,
     cooldownSeconds: chain.cooldownSeconds,
     isTestnet: chain.isTestnet,
     isEnabled: chain.isEnabled,
+    isPinned: chain.isPinned,
     availableStatus: chain.availableStatus,
     buyEnabled: chain.buyEnabled,
     buyUrl: chain.buyUrl,
@@ -191,15 +207,31 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const parsed = UpdateChainBody.safeParse(stripNulls(req.body));
+  const body = stripNulls(req.body) as Record<string, unknown>;
+
+  // Extract and serialize rpcUrls before Zod validation (DB column is text, not array)
+  let rpcUrlsForDb: string | undefined;
+  if (Array.isArray(body.rpcUrls) && body.rpcUrls.length > 0) {
+    body.rpcUrl = body.rpcUrls[0];
+    rpcUrlsForDb = JSON.stringify(body.rpcUrls);
+  } else if (typeof body.rpcUrl === "string") {
+    rpcUrlsForDb = JSON.stringify([body.rpcUrl]);
+  }
+  delete body.rpcUrls;
+
+  const parsed = UpdateChainBody.safeParse(body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
 
+  const updateData = rpcUrlsForDb !== undefined
+    ? { ...parsed.data, rpcUrls: rpcUrlsForDb }
+    : parsed.data;
+
   const [chain] = await db
     .update(chainsTable)
-    .set(parsed.data)
+    .set(updateData)
     .where(eq(chainsTable.id, params.data.id))
     .returning();
 
@@ -216,6 +248,7 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     chainType: chain.chainType,
     logoUrl: chain.logoUrl,
     rpcUrl: chain.rpcUrl,
+    rpcUrls: parseRpcUrls(chain.rpcUrls, chain.rpcUrl),
     walletAddress: chain.walletAddress,
     claimAmount: chain.claimAmount,
     cooldownSeconds: chain.cooldownSeconds,
@@ -236,6 +269,19 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     sortOrder: chain.sortOrder,
     createdAt: chain.createdAt.toISOString(),
   });
+});
+
+// RPC Health Check
+router.get("/admin/chains/:id/rpc-health", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) { res.status(400).json({ error: "Invalid chain id" }); return; }
+
+  const [chain] = await db.select().from(chainsTable).where(eq(chainsTable.id, id));
+  if (!chain) { res.status(404).json({ error: "Chain not found" }); return; }
+
+  const urls = parseRpcUrls(chain.rpcUrls, chain.rpcUrl);
+  const results = await Promise.all(urls.map((url) => checkRpcHealth(url)));
+  res.json(results);
 });
 
 router.patch("/admin/chains/:id/pin", async (req, res): Promise<void> => {

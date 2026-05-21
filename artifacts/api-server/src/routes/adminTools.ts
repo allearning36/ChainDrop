@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { db, claimsTable, chainsTable, blockedAddressesTable, settingsTable } from "@workspace/db";
 import { requireAdmin } from "../lib/adminAuth";
 import { getWalletBalance, type ChainType } from "../lib/chains/index";
+import { parseRpcUrls } from "../lib/rpcFailover";
 
 const router: IRouter = Router();
 
@@ -185,7 +186,7 @@ router.get("/admin/wallet-health", requireAdmin, async (_req, res): Promise<void
       isEnabled: c.isEnabled,
       walletAddress: c.walletAddress,
       claimAmount: c.claimAmount,
-      balance: await getWalletBalance(c.chainType as ChainType, c.rpcUrl, c.walletAddress),
+      balance: await getWalletBalance(c.chainType as ChainType, parseRpcUrls(c.rpcUrls, c.rpcUrl), c.walletAddress),
     }))
   );
 

@@ -9,6 +9,7 @@ export const chainsTable = pgTable("chains", {
   chainId: integer("chain_id"),
   logoUrl: text("logo_url"),
   rpcUrl: text("rpc_url").notNull(),
+  rpcUrls: text("rpc_urls").notNull().default('[]'),
   privateKey: text("private_key").notNull(),
   walletAddress: text("wallet_address").notNull(),
   claimAmount: numeric("claim_amount", { precision: 18, scale: 8 }).notNull().default("0.05"),

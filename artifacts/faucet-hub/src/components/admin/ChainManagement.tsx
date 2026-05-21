@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X, ShoppingCart, Pin, PinOff, Server, Shield, Droplets, Globe, Settings2, Clock } from "lucide-react";
+import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X, ShoppingCart, Pin, PinOff, Server, Shield, Droplets, Globe, Settings2, Clock, ArrowUp, ArrowDown, Activity, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getToken } from "@/lib/auth";
 import { formatCooldown, secondsToHms, hmsToSeconds } from "@/lib/utils";
@@ -109,6 +109,39 @@ export function ChainManagement() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Multiple RPC URLs state
+  const [rpcUrlsList, setRpcUrlsList] = useState<string[]>([""]);
+  const [rpcHealth, setRpcHealth] = useState<Record<string, { status: "ok" | "error"; latencyMs: number; error?: string }>>({});
+  const [checkingHealth, setCheckingHealth] = useState(false);
+
+  const handleCheckHealth = async () => {
+    if (!editingChain) return;
+    setCheckingHealth(true);
+    try {
+      const token = getToken();
+      const res = await fetch(`/api/admin/chains/${editingChain.id}/rpc-health`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Health check failed");
+      const data = await res.json() as Array<{ url: string; status: "ok" | "error"; latencyMs: number; error?: string }>;
+      const map: Record<string, { status: "ok" | "error"; latencyMs: number; error?: string }> = {};
+      for (const item of data) map[item.url] = item;
+      setRpcHealth(map);
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Could not run health check." });
+    } finally {
+      setCheckingHealth(false);
+    }
+  };
+
+  const moveRpc = (index: number, dir: -1 | 1) => {
+    const next = index + dir;
+    if (next < 0 || next >= rpcUrlsList.length) return;
+    const copy = [...rpcUrlsList];
+    [copy[index], copy[next]] = [copy[next]!, copy[index]!];
+    setRpcUrlsList(copy);
+  };
+
   // Cooldown H/M/S state (source of truth for the form)
   const [cdH, setCdH] = useState(24);
   const [cdM, setCdM] = useState(0);
@@ -180,6 +213,8 @@ export function ChainManagement() {
     setEditingChain(null);
     setFormData(DEFAULT_CHAIN);
     setCdH(24); setCdM(0); setCdS(0);
+    setRpcUrlsList([""]);
+    setRpcHealth({});
     setFormError("");
     setIsFormOpen(true);
   };
@@ -188,6 +223,11 @@ export function ChainManagement() {
     setEditingChain(chain);
     const { h, m, s } = secondsToHms(chain.cooldownSeconds ?? 86400);
     setCdH(h); setCdM(m); setCdS(s);
+    const urls = Array.isArray(chain.rpcUrls) && chain.rpcUrls.length > 0
+      ? chain.rpcUrls
+      : [chain.rpcUrl];
+    setRpcUrlsList(urls);
+    setRpcHealth({});
     setFormData({
       ...chain,
       // Never pre-fill private key
@@ -217,8 +257,9 @@ export function ChainManagement() {
 
   const handleSave = () => {
     setFormError("");
-    if (!formData.name || !formData.symbol || !formData.rpcUrl || !formData.walletAddress) {
-      setFormError("Name, symbol, RPC URL, and wallet address are required.");
+    const validRpcs = rpcUrlsList.filter(u => u.trim().length > 0);
+    if (!formData.name || !formData.symbol || validRpcs.length === 0 || !formData.walletAddress) {
+      setFormError("Name, symbol, at least one RPC URL, and wallet address are required.");
       return;
     }
     if (!editingChain && !formData.privateKey) {
@@ -232,6 +273,8 @@ export function ChainManagement() {
 
     const payload: Record<string, unknown> = {
       ...formData,
+      rpcUrls: validRpcs,
+      rpcUrl: validRpcs[0],
       chainId: formData.chainId !== "" ? Number(formData.chainId) : undefined,
       cooldownSeconds: hmsToSeconds(Number(cdH), Number(cdM), Number(cdS)),
       sortOrder: Number(formData.sortOrder),
@@ -450,9 +493,82 @@ export function ChainManagement() {
                   </Select>
                   <p className="text-[10px] text-muted-foreground font-mono">Changing chain type will clear address & private key fields.</p>
                 </div>
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label className="text-xs">RPC URL <span className="text-destructive">*</span></Label>
-                  <Input value={formData.rpcUrl} onChange={e => setFormData({...formData, rpcUrl: e.target.value})} placeholder="https://rpc.example.com" className="font-mono text-sm h-9" />
+                <div className="space-y-2 sm:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">RPC Endpoints <span className="text-destructive">*</span></Label>
+                    <div className="flex items-center gap-1.5">
+                      {editingChain && (
+                        <Button
+                          type="button" variant="outline" size="sm"
+                          className="h-6 px-2 text-[10px] font-mono gap-1"
+                          onClick={handleCheckHealth}
+                          disabled={checkingHealth}
+                          title="Check health of all RPC endpoints"
+                        >
+                          {checkingHealth
+                            ? <Loader2 className="w-3 h-3 animate-spin" />
+                            : <Activity className="w-3 h-3" />}
+                          Health
+                        </Button>
+                      )}
+                      <Button
+                        type="button" variant="outline" size="sm"
+                        className="h-6 px-2 text-[10px] font-mono gap-1"
+                        onClick={() => setRpcUrlsList(prev => [...prev, ""])}
+                      >
+                        <Plus className="w-3 h-3" /> Add RPC
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {rpcUrlsList.map((url, i) => {
+                      const health = rpcHealth[url];
+                      return (
+                        <div key={i} className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-mono text-muted-foreground w-14 shrink-0 text-right">
+                            {i === 0 ? "Primary" : `Fallback ${i}`}
+                          </span>
+                          <div className="relative flex-1">
+                            <Input
+                              value={url}
+                              onChange={e => {
+                                const copy = [...rpcUrlsList];
+                                copy[i] = e.target.value;
+                                setRpcUrlsList(copy);
+                                if (health) setRpcHealth(prev => { const n = {...prev}; delete n[url]; return n; });
+                              }}
+                              placeholder="https://rpc.example.com"
+                              className="font-mono text-xs h-8 pr-8"
+                            />
+                            {health && (
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                {health.status === "ok"
+                                  ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+                                  : <XCircle className="w-3.5 h-3.5 text-red-400" />}
+                              </span>
+                            )}
+                          </div>
+                          {health && (
+                            <span className={`text-[10px] font-mono shrink-0 w-16 ${health.status === "ok" ? "text-green-400" : "text-red-400"}`}>
+                              {health.status === "ok" ? `${health.latencyMs}ms` : "Down"}
+                            </span>
+                          )}
+                          <div className="flex gap-0.5 shrink-0">
+                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveRpc(i, -1)} disabled={i === 0} title="Move up">
+                              <ArrowUp className="w-3 h-3" />
+                            </Button>
+                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveRpc(i, 1)} disabled={i === rpcUrlsList.length - 1} title="Move down">
+                              <ArrowDown className="w-3 h-3" />
+                            </Button>
+                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setRpcUrlsList(prev => prev.filter((_, idx) => idx !== i))} disabled={rpcUrlsList.length === 1} title="Remove">
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground font-mono">Primary is used first. Fallbacks auto-activate if primary is down.</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Chain ID <span className="text-muted-foreground font-normal">(EVM only)</span></Label>

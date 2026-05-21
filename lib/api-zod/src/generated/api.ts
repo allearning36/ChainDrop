@@ -256,6 +256,7 @@ export const GetAdminChainsResponseItem = zod.object({
   "chainType": zod.enum(['evm', 'solana', 'ton', 'sui', 'aptos']),
   "logoUrl": zod.string().nullish(),
   "rpcUrl": zod.string(),
+  "rpcUrls": zod.array(zod.string()).describe('Ordered list of RPC URLs — primary first, fallbacks after'),
   "walletAddress": zod.string(),
   "claimAmount": zod.string(),
   "cooldownSeconds": zod.number(),
@@ -314,6 +315,22 @@ export const CreateChainBody = zod.object({
 
 
 /**
+ * @summary Check health/latency of all RPC URLs for a chain
+ */
+export const GetChainRpcHealthParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetChainRpcHealthResponseItem = zod.object({
+  "url": zod.string(),
+  "status": zod.enum(['ok', 'error']),
+  "latencyMs": zod.number(),
+  "error": zod.string().nullish()
+})
+export const GetChainRpcHealthResponse = zod.array(GetChainRpcHealthResponseItem)
+
+
+/**
  * @summary Update a chain
  */
 export const UpdateChainParams = zod.object({
@@ -357,6 +374,7 @@ export const UpdateChainResponse = zod.object({
   "chainType": zod.enum(['evm', 'solana', 'ton', 'sui', 'aptos']),
   "logoUrl": zod.string().nullish(),
   "rpcUrl": zod.string(),
+  "rpcUrls": zod.array(zod.string()).describe('Ordered list of RPC URLs — primary first, fallbacks after'),
   "walletAddress": zod.string(),
   "claimAmount": zod.string(),
   "cooldownSeconds": zod.number(),

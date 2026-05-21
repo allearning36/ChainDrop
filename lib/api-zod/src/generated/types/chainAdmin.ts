@@ -20,6 +20,8 @@ export interface ChainAdmin {
   /** @nullable */
   logoUrl?: string | null;
   rpcUrl: string;
+  /** Ordered list of RPC URLs — primary first, fallbacks after */
+  rpcUrls: string[];
   walletAddress: string;
   claimAmount: string;
   cooldownSeconds: number;

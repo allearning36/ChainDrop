@@ -40,6 +40,8 @@ export * from './getPricesParams';
 export * from './healthStatus';
 export * from './paymentNetwork';
 export * from './priceItem';
+export * from './rpcHealthResult';
+export * from './rpcHealthResultStatus';
 export * from './siteSettings';
 export * from './supportConversation';
 export * from './supportConversationDetail';
