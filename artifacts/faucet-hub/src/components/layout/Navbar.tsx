@@ -110,10 +110,7 @@ export function Navbar() {
           )}
         </div>
 
-        {/* ── CENTER: spacer ── */}
-        <div className="flex-1" />
-
-        {/* ── RIGHT: Logo + Name ── */}
+        {/* ── Logo + Name (right after hamburger) ── */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
           <img
             src={logo.logoUrl}
@@ -142,6 +139,8 @@ export function Navbar() {
             </span>
           </div>
         </Link>
+
+        <div className="flex-1" />
 
         {/* ── FAR RIGHT: Support + Bell ── */}
         <div className="flex items-center gap-1 shrink-0">
