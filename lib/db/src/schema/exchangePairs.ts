@@ -21,6 +21,7 @@ export const exchangePairsTable = pgTable("exchange_pairs", {
   feePercent: numeric("fee_percent", { precision: 5, scale: 2 }).notNull().default("1.00"),
   minAmount: numeric("min_amount", { precision: 18, scale: 8 }).notNull().default("0.001"),
   maxAmount: numeric("max_amount", { precision: 18, scale: 8 }).notNull().default("1.0"),
+  pairPrivateKey: text("pair_private_key"),
   isEnabled: boolean("is_enabled").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

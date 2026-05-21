@@ -4,6 +4,7 @@ import {
   ArrowLeftRight, Plus, Trash2, Edit2, Save, X,
   AlertCircle, CheckCircle2, Loader2,
   ClipboardList, Activity, ArrowUp, ArrowDown, Upload, XCircle, RefreshCw,
+  Key, Eye, EyeOff, Wallet, Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,9 @@ interface ExchangePair {
   toChainName: string; toSymbol: string; toChainId: number;
   toRpcUrl: string; toRpcUrls: string | null;
   toExplorerUrl: string | null; toLogoUrl: string | null;
-  feePercent: string; minAmount: string; maxAmount: string; isEnabled: boolean;
+  feePercent: string; minAmount: string; maxAmount: string;
+  pairPrivateKey: string | null;
+  isEnabled: boolean;
 }
 
 interface ExchangeOrder {
@@ -26,6 +29,11 @@ interface ExchangeOrder {
   fromAmount: string; feeAmount: string; toAmount: string;
   status: string; fromTxHash: string | null; toTxHash: string | null;
   failReason: string | null; createdAt: string; completedAt: string | null;
+}
+
+interface ExchangeSettings {
+  hasCustomKey: boolean;
+  walletAddress: string | null;
 }
 
 type RpcHealth = Record<string, { status: "ok" | "error"; latencyMs: number; error?: string }>;
@@ -37,6 +45,7 @@ interface FormData {
   toChainName: string; toSymbol: string; toChainId: number;
   toExplorerUrl: string; toLogoUrl: string;
   feePercent: string; minAmount: string; maxAmount: string; isEnabled: boolean;
+  useSystemKey: boolean; pairPrivateKey: string;
 }
 
 const DEFAULT_FORM: FormData = {
@@ -45,6 +54,7 @@ const DEFAULT_FORM: FormData = {
   toChainName: "", toSymbol: "", toChainId: 8453,
   toExplorerUrl: "", toLogoUrl: "",
   feePercent: "1.00", minAmount: "0.001", maxAmount: "1.0", isEnabled: true,
+  useSystemKey: true, pairPrivateKey: "",
 };
 
 function authHeaders(): Record<string, string> {
@@ -81,117 +91,75 @@ function RpcEditor({
   label, color, rpcList, setRpcList, health, onCheckHealth, checking, pairId,
 }: {
   label: string; color: string;
-  rpcList: string[]; setRpcList: (v: string[]) => void;
-  health: RpcHealth; onCheckHealth: () => void; checking: boolean;
-  pairId: number | null;
+  rpcList: string[]; setRpcList: (l: string[]) => void;
+  health: RpcHealth; onCheckHealth: () => void; checking: boolean; pairId: number | null;
 }) {
-  const move = (i: number, dir: -1 | 1) => {
-    const j = i + dir;
-    if (j < 0 || j >= rpcList.length) return;
-    const copy = [...rpcList];
-    [copy[i], copy[j]] = [copy[j]!, copy[i]!];
-    setRpcList(copy);
-  };
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <Label className="text-xs">{label}</Label>
-        <div className="flex items-center gap-1.5">
-          {pairId && (
-            <Button type="button" variant="outline" size="sm"
-              className="h-6 px-2 text-[10px] font-mono gap-1"
-              onClick={onCheckHealth} disabled={checking}>
-              {checking ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
-              Health
-            </Button>
-          )}
-          <Button type="button" variant="outline" size="sm"
-            className="h-6 px-2 text-[10px] font-mono gap-1"
-            onClick={() => setRpcList([...rpcList, ""])}>
-            <Plus className="w-3 h-3" /> Add
-          </Button>
-        </div>
+        {pairId !== null && (
+          <button onClick={onCheckHealth} disabled={checking}
+            className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-lg transition-colors"
+            style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)" }}>
+            {checking ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
+            Health Check
+          </button>
+        )}
       </div>
-      <div className="space-y-1.5">
-        {rpcList.map((url, i) => {
-          const h = health[url];
-          return (
-            <div key={i} className="flex items-center gap-1.5">
-              <span className="text-[10px] font-mono text-muted-foreground w-14 shrink-0 text-right">
-                {i === 0 ? "Primary" : `Fallback ${i}`}
+      {rpcList.map((url, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <div className="flex-1 flex items-center gap-1.5">
+            <Input value={url} onChange={e => {
+              const n = [...rpcList]; n[i] = e.target.value; setRpcList(n);
+            }} placeholder="https://rpc.example.com" className="font-mono text-xs h-8 flex-1" />
+            {health[url] && (
+              <span className="text-[10px] font-mono shrink-0"
+                style={{ color: health[url].status === "ok" ? "#22c55e" : "#f87171" }}>
+                {health[url].status === "ok" ? `✓ ${health[url].latencyMs}ms` : "✗ fail"}
               </span>
-              <div className="relative flex-1">
-                <Input
-                  value={url}
-                  onChange={e => {
-                    const copy = [...rpcList];
-                    copy[i] = e.target.value;
-                    setRpcList(copy);
-                  }}
-                  placeholder="https://rpc.example.com"
-                  className="font-mono text-xs h-8 pr-8"
-                />
-                {h && (
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2">
-                    {h.status === "ok"
-                      ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
-                      : <XCircle className="w-3.5 h-3.5 text-red-400" />}
-                  </span>
-                )}
-              </div>
-              {h && (
-                <span className={`text-[10px] font-mono shrink-0 w-14 ${h.status === "ok" ? "text-green-400" : "text-red-400"}`}>
-                  {h.status === "ok" ? `${h.latencyMs}ms` : "Down"}
-                </span>
-              )}
-              <div className="flex gap-0.5 shrink-0">
-                <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
-                  onClick={() => move(i, -1)} disabled={i === 0}>
-                  <ArrowUp className="w-3 h-3" />
-                </Button>
-                <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
-                  onClick={() => move(i, 1)} disabled={i === rpcList.length - 1}>
-                  <ArrowDown className="w-3 h-3" />
-                </Button>
-                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
-                  onClick={() => setRpcList(rpcList.filter((_, idx) => idx !== i))}
-                  disabled={rpcList.length === 1}>
-                  <X className="w-3 h-3" />
-                </Button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <p className="text-[10px] text-muted-foreground font-mono">
-        Primary used first. Fallbacks activate if primary is down.
-      </p>
+            )}
+          </div>
+          <div className="flex gap-0.5 shrink-0">
+            {i > 0 && (
+              <button onClick={() => { const n = [...rpcList]; [n[i-1], n[i]] = [n[i], n[i-1]]; setRpcList(n); }}
+                className="p-1 rounded hover:bg-white/10"><ArrowUp className="w-3 h-3 text-muted-foreground" /></button>
+            )}
+            {i < rpcList.length - 1 && (
+              <button onClick={() => { const n = [...rpcList]; [n[i], n[i+1]] = [n[i+1], n[i]]; setRpcList(n); }}
+                className="p-1 rounded hover:bg-white/10"><ArrowDown className="w-3 h-3 text-muted-foreground" /></button>
+            )}
+            {rpcList.length > 1 && (
+              <button onClick={() => setRpcList(rpcList.filter((_, j) => j !== i))}
+                className="p-1 rounded hover:bg-red-500/10"><XCircle className="w-3 h-3 text-red-400" /></button>
+            )}
+          </div>
+        </div>
+      ))}
+      <button onClick={() => setRpcList([...rpcList, ""])}
+        className="flex items-center gap-1 text-[10px] font-mono transition-colors hover:opacity-80"
+        style={{ color }}>
+        <Plus className="w-3 h-3" /> Add Fallback RPC
+      </button>
     </div>
   );
 }
 
 // ── Logo uploader ─────────────────────────────────────────────────────────────
-function LogoUploader({
-  value, onChange, label,
-}: { value: string; onChange: (url: string) => void; label: string }) {
-  const fileRef = useRef<HTMLInputElement>(null);
+function LogoUploader({ label, value, onChange }: { label: string; value: string; onChange: (url: string) => void }) {
+  const ref = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState("");
+  const [failed, setFailed] = useState(false);
 
-  const handleFile = async (file: File) => {
-    setUploading(true); setError("");
+  const upload = async (file: File) => {
+    setUploading(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/admin/upload", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${getToken() ?? ""}` },
-        body: fd,
-      });
+      const fd = new FormData(); fd.append("file", file);
+      const res = await fetch("/api/admin/upload", { method: "POST", headers: { Authorization: `Bearer ${getToken() ?? ""}` }, body: fd });
       if (!res.ok) throw new Error("Upload failed");
-      const data = await res.json() as { url: string };
-      onChange(data.url);
-    } catch (e: any) { setError(e.message); }
+      const d = await res.json() as any;
+      onChange(d.url); setFailed(false);
+    } catch { onChange(""); }
     finally { setUploading(false); }
   };
 
@@ -199,31 +167,49 @@ function LogoUploader({
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
       <div className="flex items-center gap-2">
-        {value && (
-          <img src={value} alt="" className="w-8 h-8 rounded-full object-contain shrink-0"
-            style={{ background: "rgba(255,255,255,0.08)" }}
-            onError={e => (e.currentTarget.style.display = "none")} />
+        <Input value={value} onChange={e => { onChange(e.target.value); setFailed(false); }}
+          placeholder="https://... or upload" className="font-mono text-xs h-8 flex-1" />
+        <button onClick={() => ref.current?.click()} disabled={uploading}
+          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-mono"
+          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)" }}>
+          {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />} Upload
+        </button>
+        {value && !failed && (
+          <img src={value} alt="" className="w-6 h-6 rounded-full object-contain shrink-0"
+            style={{ background: "rgba(255,255,255,0.1)" }} onError={() => setFailed(true)} />
         )}
-        <div className="flex-1 flex items-center gap-2">
-          <Input
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            placeholder="https://... or upload below"
-            className="font-mono text-xs h-8 flex-1"
-          />
-          <Button type="button" variant="outline" size="sm"
-            className="h-8 px-2.5 text-xs font-mono gap-1.5 shrink-0"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}>
-            {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-            {uploading ? "…" : "Upload"}
-          </Button>
-        </div>
-        <input ref={fileRef} type="file" accept="image/*" className="hidden"
-          onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); e.target.value = ""; }} />
       </div>
-      {error && <p className="text-[10px] font-mono" style={{ color: "#f87171" }}>{error}</p>}
+      <input ref={ref} type="file" accept="image/*" className="hidden"
+        onChange={e => { if (e.target.files?.[0]) upload(e.target.files[0]); }} />
     </div>
+  );
+}
+
+// ── Pair balance chip ─────────────────────────────────────────────────────────
+function PairBalanceChip({ pairId, toSymbol }: { pairId: number; toSymbol: string }) {
+  const [bal, setBal] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const check = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/exchange/pairs/${pairId}/wallet-balance`, { headers: authHeaders() });
+      const d = await res.json() as any;
+      setBal(d.balance ?? null);
+    } catch { setBal(null); }
+    setLoading(false);
+  };
+
+  useEffect(() => { check(); }, [pairId]);
+
+  if (loading) return <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />;
+  if (bal === null) return null;
+  const low = parseFloat(bal) < 0.001;
+  return (
+    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full"
+      style={{ background: low ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.08)", color: low ? "#f87171" : "#22c55e" }}>
+      {parseFloat(bal).toFixed(4)} {toSymbol}
+    </span>
   );
 }
 
@@ -231,17 +217,15 @@ function LogoUploader({
 export function ExchangeManagement() {
   const [pairs, setPairs] = useState<ExchangePair[]>([]);
   const [orders, setOrders] = useState<ExchangeOrder[]>([]);
+  const [settings, setSettings] = useState<ExchangeSettings | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"pairs" | "orders">("pairs");
+  const [tab, setTab] = useState<"pairs" | "orders" | "settings">("pairs");
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<FormData>(DEFAULT_FORM);
 
-  // RPC lists for from/to
   const [fromRpcs, setFromRpcs] = useState<string[]>([""]);
   const [toRpcs, setToRpcs] = useState<string[]>([""]);
-
-  // Health check state
   const [fromHealth, setFromHealth] = useState<RpcHealth>({});
   const [toHealth, setToHealth] = useState<RpcHealth>({});
   const [checkingFrom, setCheckingFrom] = useState(false);
@@ -253,6 +237,15 @@ export function ExchangeManagement() {
   const [deleting, setDeleting] = useState<number | null>(null);
   const [retrying, setRetrying] = useState<string | null>(null);
 
+  // Settings state
+  const [settingsKey, setSettingsKey] = useState("");
+  const [showSettingsKey, setShowSettingsKey] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsSuccess, setSettingsSuccess] = useState("");
+
+  // Per-pair key visibility in form
+  const [showPairKey, setShowPairKey] = useState(false);
+
   const fetchPairs = async () => {
     const res = await fetch("/api/admin/exchange/pairs", { headers: authHeaders() });
     if (res.ok) setPairs(await res.json());
@@ -261,9 +254,13 @@ export function ExchangeManagement() {
     const res = await fetch("/api/admin/exchange/orders", { headers: authHeaders() });
     if (res.ok) setOrders(await res.json());
   };
+  const fetchSettings = async () => {
+    const res = await fetch("/api/admin/exchange/settings", { headers: authHeaders() });
+    if (res.ok) setSettings(await res.json());
+  };
 
   useEffect(() => {
-    Promise.all([fetchPairs(), fetchOrders()]).finally(() => setLoading(false));
+    Promise.all([fetchPairs(), fetchOrders(), fetchSettings()]).finally(() => setLoading(false));
   }, []);
 
   const checkHealth = async (side: "from" | "to") => {
@@ -278,18 +275,20 @@ export function ExchangeManagement() {
       if (!res.ok) throw new Error();
       const data = await res.json() as Array<{ url: string; status: "ok" | "error"; latencyMs: number; error?: string }>;
       const map: RpcHealth = {};
-      for (const item of data) map[item.url] = item;
+      data.forEach(d => { map[d.url] = { status: d.status, latencyMs: d.latencyMs, error: d.error }; });
       setHealth(map);
     } catch { /* ignore */ }
-    finally { setSide(false); }
+    setSide(false);
   };
 
   const openCreate = () => {
     setEditId(null);
-    setForm(DEFAULT_FORM);
-    setFromRpcs([""]);
-    setToRpcs([""]);
+    // Auto-populate deposit address from system wallet
+    const systemAddr = settings?.walletAddress ?? "";
+    setForm({ ...DEFAULT_FORM, fromDepositAddress: systemAddr });
+    setFromRpcs([""]); setToRpcs([""]);
     setFromHealth({}); setToHealth({});
+    setShowPairKey(false);
     setError(""); setFormOpen(true);
   };
 
@@ -304,10 +303,13 @@ export function ExchangeManagement() {
       toExplorerUrl: p.toExplorerUrl ?? "", toLogoUrl: p.toLogoUrl ?? "",
       feePercent: p.feePercent, minAmount: p.minAmount, maxAmount: p.maxAmount,
       isEnabled: p.isEnabled,
+      useSystemKey: !p.pairPrivateKey,
+      pairPrivateKey: "",
     });
     setFromRpcs(parseRpcList(p.fromRpcUrls, p.fromRpcUrl));
     setToRpcs(parseRpcList(p.toRpcUrls, p.toRpcUrl));
     setFromHealth({}); setToHealth({});
+    setShowPairKey(false);
     setError(""); setFormOpen(true);
   };
 
@@ -330,6 +332,7 @@ export function ExchangeManagement() {
         fromRpcUrls: JSON.stringify(validFrom),
         toRpcUrl: validTo[0],
         toRpcUrls: JSON.stringify(validTo),
+        pairPrivateKey: form.useSystemKey ? null : (form.pairPrivateKey.trim() || null),
       };
       ["fromExplorerUrl","toExplorerUrl","fromLogoUrl","toLogoUrl"].forEach(k => {
         if (!body[k]) delete body[k];
@@ -356,19 +359,14 @@ export function ExchangeManagement() {
   const handleRetry = async (orderId: string) => {
     setRetrying(orderId);
     try {
-      const res = await fetch(`/api/admin/exchange/orders/${orderId}/retry`, {
-        method: "POST", headers: authHeaders(),
-      });
+      const res = await fetch(`/api/admin/exchange/orders/${orderId}/retry`, { method: "POST", headers: authHeaders() });
       const d = await res.json() as any;
       if (!res.ok) throw new Error(d.error || "Retry failed");
       setSuccess("Retry started — check order status in a few seconds.");
       setTimeout(() => fetchOrders(), 4000);
       setTimeout(() => fetchOrders(), 10000);
-    } catch (e: any) {
-      setSuccess(""); setError(e.message);
-    } finally {
-      setRetrying(null);
-    }
+    } catch (e: any) { setSuccess(""); setError(e.message); }
+    finally { setRetrying(null); }
   };
 
   const handleToggle = async (p: ExchangePair) => {
@@ -377,6 +375,23 @@ export function ExchangeManagement() {
       body: JSON.stringify({ isEnabled: !p.isEnabled }),
     });
     await fetchPairs();
+  };
+
+  const handleSaveSettings = async () => {
+    setSavingSettings(true); setSettingsSuccess("");
+    try {
+      const res = await fetch("/api/admin/exchange/settings", {
+        method: "PUT", headers: authHeaders(),
+        body: JSON.stringify({ defaultPrivateKey: settingsKey }),
+      });
+      const d = await res.json() as any;
+      if (!res.ok) throw new Error(d.error || "Failed to save");
+      setSettingsSuccess("Settings saved!");
+      setSettingsKey("");
+      setShowSettingsKey(false);
+      await fetchSettings();
+    } catch (e: any) { setError(e.message); }
+    finally { setSavingSettings(false); }
   };
 
   const f = (key: keyof FormData, label: string, type = "text", placeholder = "") => (
@@ -404,35 +419,46 @@ export function ExchangeManagement() {
           </h2>
           <p className="text-xs text-muted-foreground font-mono mt-0.5">Manage swap pairs, fees, limits, and orders</p>
         </div>
-        <Button size="sm" onClick={openCreate} className="gap-1.5 font-mono">
-          <Plus className="w-3.5 h-3.5" /> Add Pair
-        </Button>
+        {tab === "pairs" && (
+          <Button size="sm" onClick={openCreate} className="gap-1.5 font-mono">
+            <Plus className="w-3.5 h-3.5" /> Add Pair
+          </Button>
+        )}
       </div>
 
-      {success && (
+      {(success || settingsSuccess) && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm"
           style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e" }}>
-          <CheckCircle2 className="w-4 h-4 shrink-0" /> {success}
+          <CheckCircle2 className="w-4 h-4 shrink-0" /> {success || settingsSuccess}
+        </div>
+      )}
+      {error && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm"
+          style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+          <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+          <button onClick={() => setError("")} className="ml-auto"><X className="w-4 h-4" /></button>
         </div>
       )}
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 rounded-xl"
         style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-        {(["pairs", "orders"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
+        {(["pairs", "orders", "settings"] as const).map(t => (
+          <button key={t} onClick={() => { setTab(t); setSuccess(""); setSettingsSuccess(""); setError(""); }}
             className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-mono font-bold uppercase tracking-widest transition-colors"
             style={{
               background: tab === t ? "rgba(167,139,250,0.15)" : "transparent",
               color: tab === t ? "#a78bfa" : "rgba(255,255,255,0.4)",
             }}>
-            {t === "pairs" ? <ArrowLeftRight className="w-3.5 h-3.5" /> : <ClipboardList className="w-3.5 h-3.5" />}
+            {t === "pairs" ? <ArrowLeftRight className="w-3.5 h-3.5" />
+              : t === "orders" ? <ClipboardList className="w-3.5 h-3.5" />
+              : <Settings className="w-3.5 h-3.5" />}
             {t}
           </button>
         ))}
       </div>
 
-      {/* Pairs tab */}
+      {/* ── Pairs tab ── */}
       {tab === "pairs" && (
         <div className="space-y-3">
           {pairs.length === 0 ? (
@@ -451,8 +477,13 @@ export function ExchangeManagement() {
                     <span className="font-bold font-mono text-sm text-white">{p.toSymbol}</span>
                   </div>
                   <span className="text-xs font-mono text-muted-foreground hidden sm:inline truncate">{p.name}</span>
+                  {p.pairPrivateKey && (
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full"
+                      style={{ background: "rgba(167,139,250,0.12)", color: "#a78bfa" }}>Custom Key</span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  <PairBalanceChip pairId={p.id} toSymbol={p.toSymbol} />
                   <span className="text-[10px] font-mono text-muted-foreground">{p.feePercent}% fee</span>
                   <Switch checked={p.isEnabled} onCheckedChange={() => handleToggle(p)} />
                   <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg transition-colors hover:bg-white/10">
@@ -478,7 +509,7 @@ export function ExchangeManagement() {
         </div>
       )}
 
-      {/* Orders tab */}
+      {/* ── Orders tab ── */}
       {tab === "orders" && (
         <div className="space-y-2">
           {orders.length === 0 ? (
@@ -498,20 +529,12 @@ export function ExchangeManagement() {
                   <StatusBadge status={o.status} />
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono text-muted-foreground">
-                    {new Date(o.createdAt).toLocaleString()}
-                  </span>
+                  <span className="text-[10px] font-mono text-muted-foreground">{new Date(o.createdAt).toLocaleString()}</span>
                   {o.status === "failed" && o.fromTxHash && (
-                    <button
-                      onClick={() => handleRetry(o.id)}
-                      disabled={retrying === o.id}
+                    <button onClick={() => handleRetry(o.id)} disabled={retrying === o.id}
                       className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold transition-colors"
-                      style={{ background: "rgba(167,139,250,0.12)", border: "1px solid rgba(167,139,250,0.25)", color: "#a78bfa" }}
-                      title="Re-attempt sending toToken to user"
-                    >
-                      {retrying === o.id
-                        ? <Loader2 className="w-3 h-3 animate-spin" />
-                        : <RefreshCw className="w-3 h-3" />}
+                      style={{ background: "rgba(167,139,250,0.12)", border: "1px solid rgba(167,139,250,0.25)", color: "#a78bfa" }}>
+                      {retrying === o.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
                       Retry
                     </button>
                   )}
@@ -532,6 +555,94 @@ export function ExchangeManagement() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Settings tab ── */}
+      {tab === "settings" && (
+        <div className="space-y-5">
+
+          {/* Current wallet info */}
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(167,139,250,0.2)" }}>
+            <div className="px-4 py-2.5 flex items-center gap-2"
+              style={{ background: "rgba(167,139,250,0.05)", borderBottom: "1px solid rgba(167,139,250,0.15)" }}>
+              <Wallet className="w-4 h-4" style={{ color: "#a78bfa" }} />
+              <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: "#a78bfa" }}>
+                Exchange Wallet
+              </span>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-mono text-muted-foreground mb-1">Active Wallet Address</p>
+                  <code className="text-sm font-mono text-white break-all">
+                    {settings?.walletAddress ?? "Not configured"}
+                  </code>
+                </div>
+                {settings?.hasCustomKey && (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full shrink-0"
+                    style={{ background: "rgba(167,139,250,0.12)", color: "#a78bfa" }}>Custom Key</span>
+                )}
+                {!settings?.hasCustomKey && (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full shrink-0"
+                    style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>System Key</span>
+                )}
+              </div>
+              <p className="text-[11px] font-mono" style={{ color: "rgba(255,255,255,0.35)" }}>
+                This wallet sends tokens to users when swaps complete. It must have sufficient balance on each destination chain.
+              </p>
+            </div>
+          </div>
+
+          {/* Change default private key */}
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(250,204,21,0.2)" }}>
+            <div className="px-4 py-2.5 flex items-center gap-2"
+              style={{ background: "rgba(250,204,21,0.05)", borderBottom: "1px solid rgba(250,204,21,0.15)" }}>
+              <Key className="w-4 h-4" style={{ color: "#facc15" }} />
+              <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: "#facc15" }}>
+                Change Default Exchange Key
+              </span>
+            </div>
+            <div className="p-4 space-y-3">
+              <p className="text-[11px] font-mono" style={{ color: "rgba(255,255,255,0.4)" }}>
+                This key is used for all pairs unless a pair has its own custom key. Leave empty to use the system FAUCET_PRIVATE_KEY.
+              </p>
+              <div className="space-y-1.5">
+                <Label className="text-xs">New Default Private Key</Label>
+                <div className="relative">
+                  <Input
+                    type={showSettingsKey ? "text" : "password"}
+                    value={settingsKey}
+                    onChange={e => setSettingsKey(e.target.value)}
+                    placeholder="0x... (leave empty to reset to system key)"
+                    className="font-mono text-xs h-9 pr-10"
+                  />
+                  <button type="button" onClick={() => setShowSettingsKey(v => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded"
+                    style={{ color: "rgba(255,255,255,0.4)" }}>
+                    {showSettingsKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleSaveSettings} disabled={savingSettings} size="sm" className="font-mono gap-2">
+                  {savingSettings ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  Save Key
+                </Button>
+                {settings?.hasCustomKey && (
+                  <Button variant="outline" size="sm" className="font-mono text-red-400" onClick={() => {
+                    setSettingsKey(""); handleSaveSettings();
+                  }}>
+                    Reset to System Key
+                  </Button>
+                )}
+              </div>
+              <p className="text-[10px] font-mono px-2 py-1.5 rounded-lg"
+                style={{ background: "rgba(239,68,68,0.07)", color: "#f87171" }}>
+                ⚠ Private keys are sensitive. Never share them. The key is stored securely in the database.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -560,7 +671,6 @@ export function ExchangeManagement() {
                 </div>
               )}
 
-              {/* Pair name */}
               {f("name", "Pair Name", "text", "e.g. ETH → Base ETH")}
 
               {/* Fee & limits */}
@@ -580,6 +690,57 @@ export function ExchangeManagement() {
                 </div>
               </div>
 
+              {/* Private Key section */}
+              <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(250,204,21,0.2)" }}>
+                <div className="px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest flex items-center gap-2"
+                  style={{ background: "rgba(250,204,21,0.05)", color: "#facc15", borderBottom: "1px solid rgba(250,204,21,0.15)" }}>
+                  <Key className="w-3.5 h-3.5" /> Private Key (for sending toToken)
+                </div>
+                <div className="p-4 space-y-3">
+                  {/* Toggle: system vs custom */}
+                  <div className="flex gap-2">
+                    {[true, false].map(isSystem => (
+                      <button key={String(isSystem)} onClick={() => setForm(f => ({ ...f, useSystemKey: isSystem }))}
+                        className="flex-1 py-2 rounded-xl text-xs font-mono font-bold transition-all"
+                        style={{
+                          background: form.useSystemKey === isSystem ? (isSystem ? "rgba(34,197,94,0.1)" : "rgba(167,139,250,0.1)") : "rgba(255,255,255,0.03)",
+                          border: `1px solid ${form.useSystemKey === isSystem ? (isSystem ? "rgba(34,197,94,0.3)" : "rgba(167,139,250,0.3)") : "rgba(255,255,255,0.07)"}`,
+                          color: form.useSystemKey === isSystem ? (isSystem ? "#22c55e" : "#a78bfa") : "rgba(255,255,255,0.4)",
+                        }}>
+                        {isSystem ? "System Key" : "Custom Key"}
+                      </button>
+                    ))}
+                  </div>
+                  {form.useSystemKey ? (
+                    <div className="px-3 py-2 rounded-xl text-xs font-mono"
+                      style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)", color: "#22c55e" }}>
+                      Uses the default exchange wallet. Address: <span className="font-bold">{settings?.walletAddress ?? "Not set"}</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Custom Private Key</Label>
+                      <div className="relative">
+                        <Input
+                          type={showPairKey ? "text" : "password"}
+                          value={form.pairPrivateKey}
+                          onChange={e => setForm(f => ({ ...f, pairPrivateKey: e.target.value }))}
+                          placeholder="0x... private key for this pair"
+                          className="font-mono text-xs h-9 pr-10"
+                        />
+                        <button type="button" onClick={() => setShowPairKey(v => !v)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded"
+                          style={{ color: "rgba(255,255,255,0.4)" }}>
+                          {showPairKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <p className="text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.35)" }}>
+                        {editId ? "Leave blank to keep the existing custom key unchanged." : "The wallet from this key will send tokens to users."}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* FROM chain */}
               <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(34,197,94,0.2)" }}>
                 <div className="px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest"
@@ -591,7 +752,33 @@ export function ExchangeManagement() {
                     {f("fromChainName", "Chain Name", "text", "Ethereum Mainnet")}
                     {f("fromSymbol", "Token Symbol", "text", "ETH")}
                     {f("fromChainId", "Chain ID (EVM)", "number", "1")}
-                    {f("fromDepositAddress", "Deposit Address", "text", "0x... (users send ETH here)")}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Deposit Address</Label>
+                      <div className="flex gap-1.5">
+                        <Input
+                          type="text"
+                          value={form.fromDepositAddress}
+                          onChange={e => setForm(f => ({ ...f, fromDepositAddress: e.target.value }))}
+                          placeholder="0x... (users send ETH here)"
+                          className="font-mono text-sm h-9 flex-1"
+                        />
+                        {settings?.walletAddress && (
+                          <button
+                            type="button"
+                            onClick={() => setForm(f => ({ ...f, fromDepositAddress: settings.walletAddress! }))}
+                            className="text-[10px] font-mono px-2 rounded-lg shrink-0 transition-colors"
+                            style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e" }}
+                            title="Use system wallet address">
+                            Use System
+                          </button>
+                        )}
+                      </div>
+                      {settings?.walletAddress && (
+                        <p className="text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.3)" }}>
+                          System wallet: {settings.walletAddress.slice(0, 10)}…{settings.walletAddress.slice(-6)}
+                        </p>
+                      )}
+                    </div>
                     {f("fromExplorerUrl", "Explorer URL (optional)", "text", "https://etherscan.io")}
                   </div>
                   <RpcEditor
@@ -641,12 +828,6 @@ export function ExchangeManagement() {
                     onChange={url => setForm(f => ({ ...f, toLogoUrl: url }))}
                   />
                 </div>
-              </div>
-
-              <div className="rounded-xl p-3 text-xs font-mono"
-                style={{ background: "rgba(250,204,21,0.05)", border: "1px solid rgba(250,204,21,0.2)", color: "rgba(250,204,21,0.8)" }}>
-                ⚠ Ensure your FAUCET_PRIVATE_KEY wallet has sufficient {form.toSymbol || "token"} balance
-                on {form.toChainName || "the destination chain"} to fulfill swaps.
               </div>
 
               <div className="flex gap-3 pt-2">

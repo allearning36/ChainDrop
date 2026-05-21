@@ -210,6 +210,8 @@ export default function ExchangePage() {
   const [order, setOrder] = useState<OrderResult | null>(null);
   const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [userBalance, setUserBalance] = useState<string | null>(null);
+  const [exchangeBalance, setExchangeBalance] = useState<{ balance: string | null; warning: boolean } | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Load pairs
@@ -218,7 +220,6 @@ export default function ExchangePage() {
       .then(r => r.json())
       .then((data: ExchangePair[]) => {
         setPairs(data);
-        // Auto-select first pair
         if (data.length > 0) {
           const p = data[0];
           setFromOption(pairToOption(p, "from"));
@@ -291,6 +292,16 @@ export default function ExchangePage() {
   const toOptionIsValid = toOption && toOptions.some(o => o.key === toOption.key);
 
   const pair = selectedPair;
+
+  // Fetch exchange wallet balance when pair changes (low-balance warning for users)
+  useEffect(() => {
+    if (!pair) { setExchangeBalance(null); return; }
+    fetch(`/api/exchange/pairs/${pair.id}/wallet-balance`)
+      .then(r => r.json())
+      .then((d: any) => setExchangeBalance({ balance: d.balance ?? null, warning: !!d.warning }))
+      .catch(() => setExchangeBalance(null));
+  }, [pair?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const from = parseFloat(fromAmount) || 0;
   const feeAmt = pair ? (from * parseFloat(pair.feePercent)) / 100 : 0;
   const toAmt = from - feeAmt;
@@ -337,9 +348,28 @@ export default function ExchangePage() {
 
   const handleWalletConnected = (addr: string, _type: string, provider?: any) => {
     setWalletAddress(addr);
-    setWalletProvider(provider || window.ethereum);
+    const prov = provider || window.ethereum;
+    setWalletProvider(prov);
     setWalletOpen(false);
     setStep("review");
+    // Fetch user balance from fromChain RPC
+    setUserBalance(null);
+    if (pair) {
+      fetch(pair.fromRpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getBalance", params: [addr, "latest"] }),
+      })
+        .then(r => r.json())
+        .then((d: any) => {
+          if (d.result) {
+            const wei = BigInt(d.result);
+            const eth = Number(wei) / 1e18;
+            setUserBalance(eth.toFixed(6));
+          }
+        })
+        .catch(() => setUserBalance(null));
+    }
   };
 
   const handleInitiateOrder = async () => {
@@ -388,6 +418,7 @@ export default function ExchangePage() {
   const reset = () => {
     setStep("select"); setFromAmount(""); setOrder(null); setOrderStatus(null);
     setErrorMsg(""); setWalletAddress(""); setWalletProvider(null);
+    setUserBalance(null);
   };
 
   // ── card ──────────────────────────────────────────────────────────────────
@@ -538,13 +569,33 @@ export default function ExchangePage() {
                   </div>
                 )}
 
+                {/* ── Exchange wallet low balance warning ───────────────── */}
+                {pair && exchangeBalance?.warning && (
+                  <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl text-xs font-mono"
+                    style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>
+                      Exchange wallet has low {pair.toSymbol} balance
+                      {exchangeBalance.balance !== null ? ` (${parseFloat(exchangeBalance.balance).toFixed(6)} ${pair.toSymbol})` : ""}.
+                      Swaps may fail. Please contact support.
+                    </span>
+                  </div>
+                )}
+
                 {/* ── Wallet & Swap button ───────────────────────────────── */}
                 {pair && step === "review" ? (
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+                    <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl"
                       style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.2)" }}>
-                      <Wallet className="w-4 h-4 shrink-0" style={{ color: "#22c55e" }} />
-                      <span className="text-xs font-mono text-white truncate">{walletAddress}</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Wallet className="w-4 h-4 shrink-0" style={{ color: "#22c55e" }} />
+                        <span className="text-xs font-mono text-white truncate">{walletAddress}</span>
+                      </div>
+                      {userBalance !== null && (
+                        <span className="text-xs font-mono shrink-0" style={{ color: "rgba(34,197,94,0.8)" }}>
+                          {userBalance} {pair.fromSymbol}
+                        </span>
+                      )}
                     </div>
                     <button
                       onClick={handleInitiateOrder}

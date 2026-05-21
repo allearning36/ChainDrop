@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { ethers } from "ethers";
 import { db } from "@workspace/db";
-import { exchangePairsTable, exchangeOrdersTable } from "@workspace/db/schema";
+import { exchangePairsTable, exchangeOrdersTable, settingsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendTokens } from "../lib/faucet";
@@ -11,7 +11,24 @@ import { randomUUID } from "crypto";
 
 const router = Router();
 
-const PRIVATE_KEY = process.env.FAUCET_PRIVATE_KEY ?? "";
+const SYSTEM_PRIVATE_KEY = process.env.FAUCET_PRIVATE_KEY ?? "";
+
+// ── Resolve which private key to use for a pair ───────────────────────────────
+async function resolvePrivateKey(pair: { pairPrivateKey?: string | null }): Promise<string> {
+  if (pair.pairPrivateKey?.trim()) return pair.pairPrivateKey.trim();
+  // Try settings table for default exchange key
+  const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "exchange_default_private_key")).limit(1);
+  if (row?.value?.trim()) return row.value.trim();
+  return SYSTEM_PRIVATE_KEY;
+}
+
+// ── Derive wallet address from private key safely ─────────────────────────────
+function deriveAddress(privateKey: string): string | null {
+  try {
+    const w = new ethers.Wallet(privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`);
+    return w.address;
+  } catch { return null; }
+}
 
 // ── Try sendTokens across all fallback RPCs ───────────────────────────────────
 async function sendTokensWithFallback(
@@ -30,6 +47,18 @@ async function sendTokensWithFallback(
     }
   }
   throw lastErr;
+}
+
+// ── Get wallet balance on a chain ─────────────────────────────────────────────
+async function getWalletBalance(rpcUrls: string[], address: string): Promise<string | null> {
+  for (const rpc of rpcUrls) {
+    try {
+      const provider = new ethers.JsonRpcProvider(rpc);
+      const bal = await provider.getBalance(address);
+      return ethers.formatEther(bal);
+    } catch { /* try next */ }
+  }
+  return null;
 }
 
 // ── Helper: parse RPC list from pair ─────────────────────────────────────────
@@ -82,8 +111,50 @@ async function waitForTxReceipt(
 // PUBLIC: GET /exchange/pairs
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/exchange/pairs", async (_req, res): Promise<void> => {
-  const pairs = await db.select().from(exchangePairsTable).where(eq(exchangePairsTable.isEnabled, true));
+  const pairs = await db.select({
+    id: exchangePairsTable.id,
+    name: exchangePairsTable.name,
+    fromChainName: exchangePairsTable.fromChainName,
+    fromSymbol: exchangePairsTable.fromSymbol,
+    fromChainId: exchangePairsTable.fromChainId,
+    fromRpcUrl: exchangePairsTable.fromRpcUrl,
+    fromRpcUrls: exchangePairsTable.fromRpcUrls,
+    fromExplorerUrl: exchangePairsTable.fromExplorerUrl,
+    fromDepositAddress: exchangePairsTable.fromDepositAddress,
+    fromLogoUrl: exchangePairsTable.fromLogoUrl,
+    toChainName: exchangePairsTable.toChainName,
+    toSymbol: exchangePairsTable.toSymbol,
+    toChainId: exchangePairsTable.toChainId,
+    toRpcUrl: exchangePairsTable.toRpcUrl,
+    toRpcUrls: exchangePairsTable.toRpcUrls,
+    toExplorerUrl: exchangePairsTable.toExplorerUrl,
+    toLogoUrl: exchangePairsTable.toLogoUrl,
+    feePercent: exchangePairsTable.feePercent,
+    minAmount: exchangePairsTable.minAmount,
+    maxAmount: exchangePairsTable.maxAmount,
+    isEnabled: exchangePairsTable.isEnabled,
+  }).from(exchangePairsTable).where(eq(exchangePairsTable.isEnabled, true));
   res.json(pairs);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PUBLIC: GET /exchange/pairs/:id/wallet-balance  — check exchange wallet balance for a pair
+// Frontend uses this before initiating to warn user if wallet is low
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/exchange/pairs/:id/wallet-balance", async (req, res): Promise<void> => {
+  const id = parseInt(String(req.params.id));
+  const [pair] = await db.select().from(exchangePairsTable).where(eq(exchangePairsTable.id, id)).limit(1);
+  if (!pair || !pair.isEnabled) { res.status(404).json({ error: "Pair not found" }); return; }
+  try {
+    const pk = await resolvePrivateKey(pair);
+    const address = deriveAddress(pk);
+    if (!address) { res.json({ balance: null, address: null, warning: true }); return; }
+    const toRpcs = getPairRpcs(pair, "to");
+    const balance = await getWalletBalance(toRpcs, address);
+    res.json({ balance, address, warning: balance !== null && parseFloat(balance) < parseFloat(pair.minAmount) });
+  } catch {
+    res.json({ balance: null, address: null, warning: true });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -115,8 +186,28 @@ router.post("/exchange/orders", async (req, res): Promise<void> => {
   const feeAmt = (from * feePercent) / 100;
   const toAmt = from - feeAmt;
 
+  // Pre-check: does exchange wallet have enough balance?
+  try {
+    const pk = await resolvePrivateKey(pair);
+    if (!pk) {
+      res.status(503).json({ error: "Exchange wallet not configured. Please contact support." });
+      return;
+    }
+    const walletAddress = deriveAddress(pk);
+    if (walletAddress) {
+      const toRpcs = getPairRpcs(pair, "to");
+      const balance = await getWalletBalance(toRpcs, walletAddress);
+      if (balance !== null && parseFloat(balance) < toAmt) {
+        res.status(503).json({
+          error: `Exchange wallet has insufficient ${pair.toSymbol} balance (${parseFloat(balance).toFixed(6)} ${pair.toSymbol} available, ${toAmt.toFixed(6)} needed). Please try a smaller amount or contact support.`,
+        });
+        return;
+      }
+    }
+  } catch { /* balance check failure is non-fatal, proceed */ }
+
   const id = randomUUID();
-  const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 min
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
   await db.insert(exchangeOrdersTable).values({
     id,
@@ -145,7 +236,7 @@ router.post("/exchange/orders", async (req, res): Promise<void> => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PUBLIC: POST /exchange/orders/:id/confirm — user submits fromTxHash
+// PUBLIC: POST /exchange/orders/:id/confirm
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/exchange/orders/:id/confirm", async (req, res): Promise<void> => {
   const { fromTxHash } = req.body ?? {};
@@ -166,11 +257,9 @@ router.post("/exchange/orders/:id/confirm", async (req, res): Promise<void> => {
   const [pair] = await db.select().from(exchangePairsTable).where(eq(exchangePairsTable.id, order.pairId)).limit(1);
   if (!pair) { res.status(400).json({ error: "Exchange pair no longer available" }); return; }
 
-  // Mark as confirming
   await db.update(exchangeOrdersTable).set({ status: "confirming", fromTxHash }).where(eq(exchangeOrdersTable.id, orderId));
   res.json({ status: "confirming", message: "TX received — verifying on-chain…" });
 
-  // Background: verify TX + send toToken
   void (async () => {
     try {
       const receipt = await waitForTxReceipt(getPairRpcs(pair, "from"), fromTxHash);
@@ -179,13 +268,11 @@ router.post("/exchange/orders/:id/confirm", async (req, res): Promise<void> => {
         return;
       }
 
-      // Verify recipient
       if (receipt.to !== pair.fromDepositAddress.toLowerCase()) {
         await db.update(exchangeOrdersTable).set({ status: "failed", failReason: "TX sent to wrong address" }).where(eq(exchangeOrdersTable.id, orderId));
         return;
       }
 
-      // Verify amount (allow 0.5% tolerance for gas estimation differences)
       const expectedWei = ethers.parseEther(order.fromAmount);
       const tolerance = (expectedWei * 5n) / 1000n;
       if (receipt.value < expectedWei - tolerance) {
@@ -193,14 +280,15 @@ router.post("/exchange/orders/:id/confirm", async (req, res): Promise<void> => {
         return;
       }
 
-      if (!PRIVATE_KEY) {
+      const privateKey = await resolvePrivateKey(pair);
+      if (!privateKey) {
         await db.update(exchangeOrdersTable).set({ status: "failed", failReason: "Exchange wallet not configured" }).where(eq(exchangeOrdersTable.id, orderId));
         return;
       }
 
       // Send toToken — try all fallback RPCs
       const toRpcs = getPairRpcs(pair, "to");
-      const { txHash: toTxHash } = await sendTokensWithFallback(toRpcs, PRIVATE_KEY, order.userAddress, order.toAmount);
+      const { txHash: toTxHash } = await sendTokensWithFallback(toRpcs, privateKey, order.userAddress, order.toAmount);
       await db.update(exchangeOrdersTable).set({
         status: "completed",
         toTxHash,
@@ -215,12 +303,65 @@ router.post("/exchange/orders/:id/confirm", async (req, res): Promise<void> => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PUBLIC: GET /exchange/orders/:id — poll order status
+// PUBLIC: GET /exchange/orders/:id
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/exchange/orders/:id", async (req, res): Promise<void> => {
   const [order] = await db.select().from(exchangeOrdersTable).where(eq(exchangeOrdersTable.id, req.params.id)).limit(1);
   if (!order) { res.status(404).json({ error: "Order not found" }); return; }
   res.json(order);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN: Exchange Settings (default private key)
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/admin/exchange/settings", requireAdmin, async (_req, res): Promise<void> => {
+  const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "exchange_default_private_key")).limit(1);
+  const key = row?.value?.trim() || SYSTEM_PRIVATE_KEY;
+  const address = deriveAddress(key);
+  res.json({
+    hasCustomKey: !!(row?.value?.trim()),
+    walletAddress: address,
+    // We never return the actual key — just the derived address
+  });
+});
+
+router.put("/admin/exchange/settings", requireAdmin, async (req, res): Promise<void> => {
+  const { defaultPrivateKey } = req.body ?? {};
+  if (typeof defaultPrivateKey !== "string") {
+    res.status(400).json({ error: "defaultPrivateKey is required" }); return;
+  }
+  const trimmed = defaultPrivateKey.trim();
+  if (trimmed && !deriveAddress(trimmed)) {
+    res.status(400).json({ error: "Invalid private key — could not derive wallet address" }); return;
+  }
+  if (trimmed) {
+    await db.insert(settingsTable).values({ key: "exchange_default_private_key", value: trimmed })
+      .onConflictDoUpdate({ target: settingsTable.key, set: { value: trimmed } });
+  } else {
+    await db.delete(settingsTable).where(eq(settingsTable.key, "exchange_default_private_key"));
+  }
+  const activeKey = trimmed || SYSTEM_PRIVATE_KEY;
+  const address = deriveAddress(activeKey);
+  res.json({ ok: true, walletAddress: address });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN: Pair wallet balance check
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/admin/exchange/pairs/:id/wallet-balance", requireAdmin, async (req, res): Promise<void> => {
+  const id = parseInt(String(req.params.id));
+  const [pair] = await db.select().from(exchangePairsTable).where(eq(exchangePairsTable.id, id)).limit(1);
+  if (!pair) { res.status(404).json({ error: "Pair not found" }); return; }
+  try {
+    const pk = await resolvePrivateKey(pair);
+    const address = deriveAddress(pk);
+    if (!address) { res.json({ balance: null, address: null }); return; }
+    const toRpcs = getPairRpcs(pair, "to");
+    const balance = await getWalletBalance(toRpcs, address);
+    res.json({ balance, address, symbol: pair.toSymbol, chain: pair.toChainName });
+  } catch (err: any) {
+    res.json({ balance: null, address: null, error: err?.message });
+  }
 });
 
 function parsePairBody(body: any, requireAll = true) {
@@ -244,6 +385,7 @@ router.post("/admin/exchange/pairs", requireAdmin, async (req, res): Promise<voi
     ...data,
     fromChainId: Number(data.fromChainId),
     toChainId: Number(data.toChainId),
+    pairPrivateKey: data.pairPrivateKey?.trim() || null,
   }).returning();
   res.status(201).json(pair);
 });
@@ -254,6 +396,7 @@ router.put("/admin/exchange/pairs/:id", requireAdmin, async (req, res): Promise<
   const update: Record<string, unknown> = { ...body };
   if (update.fromChainId !== undefined) update.fromChainId = Number(update.fromChainId);
   if (update.toChainId !== undefined) update.toChainId = Number(update.toChainId);
+  if ("pairPrivateKey" in update) update.pairPrivateKey = (update.pairPrivateKey as string)?.trim() || null;
   const [pair] = await db.update(exchangePairsTable).set(update).where(eq(exchangePairsTable.id, id)).returning();
   if (!pair) { res.status(404).json({ error: "Pair not found" }); return; }
   res.json(pair);
@@ -271,8 +414,7 @@ router.get("/admin/exchange/orders", requireAdmin, async (_req, res): Promise<vo
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ADMIN: POST /admin/exchange/orders/:id/retry
-// Re-attempt the toToken send for a failed order that already received fromToken.
+// ADMIN: Retry failed order
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/admin/exchange/orders/:id/retry", requireAdmin, async (req, res): Promise<void> => {
   const orderId = String(req.params.id);
@@ -287,15 +429,16 @@ router.post("/admin/exchange/orders/:id/retry", requireAdmin, async (req, res): 
     res.status(400).json({ error: "Order has no fromTxHash — user may not have sent funds." });
     return;
   }
-  if (!PRIVATE_KEY) {
-    res.status(500).json({ error: "Exchange wallet private key not configured." });
-    return;
-  }
 
   const [pair] = await db.select().from(exchangePairsTable).where(eq(exchangePairsTable.id, order.pairId)).limit(1);
   if (!pair) { res.status(404).json({ error: "Exchange pair no longer exists." }); return; }
 
-  // Mark as confirming so admin can see it's retrying
+  const privateKey = await resolvePrivateKey(pair);
+  if (!privateKey) {
+    res.status(500).json({ error: "Exchange wallet private key not configured." });
+    return;
+  }
+
   await db.update(exchangeOrdersTable)
     .set({ status: "confirming", failReason: null })
     .where(eq(exchangeOrdersTable.id, orderId));
@@ -305,7 +448,7 @@ router.post("/admin/exchange/orders/:id/retry", requireAdmin, async (req, res): 
   void (async () => {
     try {
       const toRpcs = getPairRpcs(pair, "to");
-      const { txHash: toTxHash } = await sendTokensWithFallback(toRpcs, PRIVATE_KEY, order.userAddress, order.toAmount);
+      const { txHash: toTxHash } = await sendTokensWithFallback(toRpcs, privateKey, order.userAddress, order.toAmount);
       await db.update(exchangeOrdersTable).set({
         status: "completed",
         toTxHash,
@@ -324,7 +467,7 @@ router.post("/admin/exchange/orders/:id/retry", requireAdmin, async (req, res): 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ADMIN: GET /admin/exchange/pairs/:id/rpc-health?side=from|to
+// ADMIN: RPC health check
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/admin/exchange/pairs/:id/rpc-health", requireAdmin, async (req, res): Promise<void> => {
   const id = parseInt(String(req.params.id));
