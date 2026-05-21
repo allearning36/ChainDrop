@@ -164,22 +164,26 @@ function ChainSelectorBtn({ option, placeholder, onClick }: {
 }) {
   return (
     <button onClick={onClick}
-      className="flex-1 flex items-center gap-2.5 px-4 py-3.5 rounded-2xl transition-all min-w-0"
-      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}
+      className="w-full flex items-center gap-2.5 px-3 py-3 rounded-xl transition-all overflow-hidden"
+      style={{
+        background: "rgba(255,255,255,0.05)",
+        border: "1px solid rgba(255,255,255,0.09)",
+        height: "52px",
+      }}
       onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(167,139,250,0.3)")}
       onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.09)")}>
       {option ? (
         <>
-          <TokenLogo logoUrl={option.logoUrl} chainId={option.chainId} symbol={option.symbol} size={30} />
-          <div className="flex flex-col items-start min-w-0 flex-1">
+          <TokenLogo logoUrl={option.logoUrl} chainId={option.chainId} symbol={option.symbol} size={28} />
+          <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">
             <span className="font-bold text-sm text-white leading-tight">{option.symbol}</span>
-            <span className="text-[11px] font-mono truncate w-full text-left" style={{ color: "rgba(255,255,255,0.4)" }}>{option.chainName}</span>
+            <span className="text-[10px] font-mono truncate w-full text-left" style={{ color: "rgba(255,255,255,0.4)" }}>{option.chainName}</span>
           </div>
         </>
       ) : (
-        <span className="text-sm font-mono flex-1 text-left" style={{ color: "rgba(255,255,255,0.3)" }}>{placeholder}</span>
+        <span className="text-xs font-mono flex-1 text-left truncate" style={{ color: "rgba(255,255,255,0.3)" }}>{placeholder}</span>
       )}
-      <ChevronDown className="w-4 h-4 shrink-0" style={{ color: "rgba(255,255,255,0.35)" }} />
+      <ChevronDown className="w-3.5 h-3.5 shrink-0" style={{ color: "rgba(255,255,255,0.35)" }} />
     </button>
   );
 }
@@ -424,9 +428,9 @@ export default function ExchangePage() {
               <>
                 {/* ── Chain selector row ─────────────────────────────────── */}
                 <div>
-                  <div className="flex items-center gap-0 relative">
+                  <div className="grid items-end gap-2" style={{ gridTemplateColumns: "1fr 40px 1fr" }}>
                     {/* From */}
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0">
                       <p className="text-[10px] font-mono uppercase tracking-widest mb-1.5" style={{ color: "rgba(255,255,255,0.3)" }}>From</p>
                       <ChainSelectorBtn
                         option={fromOption}
@@ -435,13 +439,13 @@ export default function ExchangePage() {
                       />
                     </div>
 
-                    {/* Swap direction button */}
-                    <div className="flex flex-col items-center justify-center px-2 pt-5 shrink-0">
+                    {/* Swap direction button — centered in fixed 40px column */}
+                    <div className="flex items-center justify-center" style={{ height: "52px" }}>
                       <button
                         onClick={handleSwapDirection}
                         disabled={!canSwapDirection}
                         title={canSwapDirection ? "Swap direction" : "Reverse pair not available"}
-                        className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
+                        className="w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0"
                         style={{
                           background: canSwapDirection ? "rgba(167,139,250,0.1)" : "rgba(255,255,255,0.04)",
                           border: `1px solid ${canSwapDirection ? "rgba(167,139,250,0.25)" : "rgba(255,255,255,0.07)"}`,
@@ -453,7 +457,7 @@ export default function ExchangePage() {
                     </div>
 
                     {/* To */}
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0">
                       <p className="text-[10px] font-mono uppercase tracking-widest mb-1.5" style={{ color: "rgba(255,255,255,0.3)" }}>To</p>
                       <ChainSelectorBtn
                         option={toOptionIsValid ? toOption : null}
