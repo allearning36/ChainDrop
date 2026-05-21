@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getToken } from "@/lib/auth";
+import { adminFetch } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,11 +8,6 @@ import { Loader2, Globe, Trash2, PlusCircle } from "lucide-react";
 
 interface IpBlock { ip: string; reason: string; blockedAt: string; }
 
-function authHeaders(json = false) {
-  const h: Record<string, string> = { Authorization: `Bearer ${getToken() ?? ""}` };
-  if (json) h["Content-Type"] = "application/json";
-  return h;
-}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -34,7 +29,7 @@ export function IPBlocking() {
   const [removing, setRemoving] = useState<string | null>(null);
 
   const load = () =>
-    fetch("/api/admin/ip-blocks", { headers: authHeaders() })
+    adminFetch("/api/admin/ip-blocks")
       .then(r => r.json())
       .then((d: unknown) => setBlocks(Array.isArray(d) ? d as IpBlock[] : []))
       .catch(() => setBlocks([]))
@@ -49,9 +44,9 @@ export function IPBlocking() {
     }
     setAdding(true);
     try {
-      const res = await fetch("/api/admin/ip-blocks", {
+      const res = await adminFetch("/api/admin/ip-blocks", {
         method: "POST",
-        headers: authHeaders(true),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ip: ip.trim(), reason: reason.trim() }),
       });
       if (!res.ok) { const e = await res.json() as { error: string }; throw new Error(e.error); }
@@ -67,7 +62,7 @@ export function IPBlocking() {
   async function handleUnblock(ipAddr: string) {
     setRemoving(ipAddr);
     try {
-      await fetch(`/api/admin/ip-blocks/${encodeURIComponent(ipAddr)}`, { method: "DELETE", headers: authHeaders() });
+      await adminFetch(`/api/admin/ip-blocks/${encodeURIComponent(ipAddr)}`, { method: "DELETE" });
       setBlocks(prev => prev.filter(b => b.ip !== ipAddr));
       toast({ title: "Unblocked", description: `${ipAddr} has been unblocked.` });
     } catch {

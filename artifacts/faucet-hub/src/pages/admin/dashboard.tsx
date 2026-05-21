@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { isAuthenticated, removeToken, getToken } from "@/lib/auth";
+import { isAuthenticated, removeToken, getToken, registerUnauthorizedHandler, adminFetch } from "@/lib/auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,9 +25,7 @@ import { ExchangeManagement } from "@/components/admin/ExchangeManagement";
 
 async function fetchUnreadCount(): Promise<number> {
   try {
-    const res = await fetch("/api/admin/support/unread-count", {
-      headers: { Authorization: `Bearer ${getToken() ?? ""}` },
-    });
+    const res = await adminFetch("/api/admin/support/unread-count");
     if (!res.ok) return 0;
     const data = await res.json() as { count: number };
     return data.count ?? 0;
@@ -41,7 +39,13 @@ export default function AdminDashboard() {
   const [supportUnread, setSupportUnread] = useState(0);
 
   useEffect(() => {
-    if (!isAuthenticated()) setLocation("/admin/login");
+    const redirectToLogin = () => setLocation("/admin/login");
+    registerUnauthorizedHandler(redirectToLogin);
+    if (!isAuthenticated()) { redirectToLogin(); return; }
+    // Verify token is actually valid — if 401, the handler will redirect
+    fetch("/api/admin/stats", { headers: { Authorization: `Bearer ${getToken() ?? ""}` } })
+      .then(res => { if (res.status === 401) { removeToken(); redirectToLogin(); } })
+      .catch(() => {});
   }, [setLocation]);
 
   useEffect(() => {

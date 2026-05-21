@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getToken } from "@/lib/auth";
+import { adminFetch } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ShieldOff, ShieldCheck, Trash2, Plus, Loader2, AlertTriangle } from "lucide-react";
@@ -7,9 +7,9 @@ import { ShieldOff, ShieldCheck, Trash2, Plus, Loader2, AlertTriangle } from "lu
 type BlockedAddr = { address: string; reason: string; blockedAt: string };
 
 async function apiFetch(path: string, opts?: RequestInit) {
-  const res = await fetch(path, {
+  const res = await adminFetch(path, {
     ...opts,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken() ?? ""}`, ...(opts?.headers ?? {}) },
+    headers: { "Content-Type": "application/json", ...(opts?.headers ?? {}) },
   });
   if (res.status === 204) return null;
   return res.json();

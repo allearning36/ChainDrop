@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getToken } from "@/lib/auth";
+import { adminFetch } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -62,10 +62,7 @@ export function Audience() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = getToken();
-    fetch("/api/admin/audience", {
-      headers: { Authorization: `Bearer ${token ?? ""}` },
-    })
+    adminFetch("/api/admin/audience")
       .then(r => r.ok ? r.json() : Promise.reject("Failed to load"))
       .then((d: AudienceStats) => { setData(d); setLoading(false); })
       .catch(e => { setError(String(e)); setLoading(false); });

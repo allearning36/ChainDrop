@@ -18,7 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X, ShoppingCart, Pin, PinOff, Server, Shield, Droplets, Globe, Settings2, Clock, ArrowUp, ArrowDown, Activity, CheckCircle2, XCircle, RefreshCw, Tv2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getToken } from "@/lib/auth";
+import { adminFetch } from "@/lib/auth";
 import { formatCooldown, secondsToHms, hmsToSeconds } from "@/lib/utils";
 
 const ALL_PAYMENT_NETWORKS = [
@@ -123,10 +123,7 @@ export function ChainManagement() {
     if (!editingChain) return;
     setCheckingHealth(true);
     try {
-      const token = getToken();
-      const res = await fetch(`/api/admin/chains/${editingChain.id}/rpc-health`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch(`/api/admin/chains/${editingChain.id}/rpc-health`);
       if (!res.ok) throw new Error("Health check failed");
       const data = await res.json() as Array<{ url: string; status: "ok" | "error"; latencyMs: number; error?: string }>;
       const map: Record<string, { status: "ok" | "error"; latencyMs: number; error?: string }> = {};
@@ -164,11 +161,7 @@ export function ChainManagement() {
   const handleTogglePin = async (chain: ChainAdmin) => {
     setPinningId(chain.id);
     try {
-      const token = getToken();
-      const res = await fetch(`/api/admin/chains/${chain.id}/pin`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch(`/api/admin/chains/${chain.id}/pin`, { method: "PATCH" });
       if (!res.ok) throw new Error("Failed to toggle pin");
       const data = await res.json() as { isPinned: boolean };
       queryClient.setQueryData(getGetAdminChainsQueryKey(), (old: ChainAdmin[] | undefined) =>
@@ -195,14 +188,9 @@ export function ChainManagement() {
   const handleImageUpload = async (file: File) => {
     setUploading(true);
     try {
-      const token = getToken();
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/admin/upload", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: fd,
-      });
+      const res = await adminFetch("/api/admin/upload", { method: "POST", body: fd });
       if (!res.ok) throw new Error("Upload failed");
       const data = await res.json() as { url: string };
       setFormData((prev: any) => ({ ...prev, logoUrl: data.url }));

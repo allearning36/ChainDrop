@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { getToken } from "@/lib/auth";
+import { adminFetch } from "@/lib/auth";
 import {
   ArrowLeftRight, Plus, Trash2, Edit2, Save, X,
   AlertCircle, CheckCircle2, Loader2,
@@ -57,8 +57,8 @@ const DEFAULT_FORM: FormData = {
   useSystemKey: true, pairPrivateKey: "",
 };
 
-function authHeaders(): Record<string, string> {
-  return { "Content-Type": "application/json", Authorization: `Bearer ${getToken() ?? ""}` };
+function jsonHeaders(): Record<string, string> {
+  return { "Content-Type": "application/json" };
 }
 
 function parseRpcList(urls: string | null, fallback: string): string[] {
@@ -155,7 +155,7 @@ function LogoUploader({ label, value, onChange }: { label: string; value: string
     setUploading(true);
     try {
       const fd = new FormData(); fd.append("file", file);
-      const res = await fetch("/api/admin/upload", { method: "POST", headers: { Authorization: `Bearer ${getToken() ?? ""}` }, body: fd });
+      const res = await adminFetch("/api/admin/upload", { method: "POST", body: fd });
       if (!res.ok) throw new Error("Upload failed");
       const d = await res.json() as any;
       onChange(d.url); setFailed(false);
@@ -200,7 +200,7 @@ function PairBalanceChip({ pairId, toSymbol, toChainName }: { pairId: number; to
   const check = async () => {
     setState({ kind: "loading" });
     try {
-      const res = await fetch(`/api/admin/exchange/pairs/${pairId}/wallet-balance`, { headers: authHeaders() });
+      const res = await adminFetch(`/api/admin/exchange/pairs/${pairId}/wallet-balance`);
       const d = await res.json() as any;
       if (!d.address) { setState({ kind: "no_key" }); return; }
       if (d.balance === null) { setState({ kind: "rpc_error" }); return; }
@@ -290,15 +290,15 @@ export function ExchangeManagement() {
   const [showPairKey, setShowPairKey] = useState(false);
 
   const fetchPairs = async () => {
-    const res = await fetch("/api/admin/exchange/pairs", { headers: authHeaders() });
+    const res = await adminFetch("/api/admin/exchange/pairs");
     if (res.ok) setPairs(await res.json());
   };
   const fetchOrders = async () => {
-    const res = await fetch("/api/admin/exchange/orders", { headers: authHeaders() });
+    const res = await adminFetch("/api/admin/exchange/orders");
     if (res.ok) setOrders(await res.json());
   };
   const fetchSettings = async () => {
-    const res = await fetch("/api/admin/exchange/settings", { headers: authHeaders() });
+    const res = await adminFetch("/api/admin/exchange/settings");
     if (res.ok) setSettings(await res.json());
   };
 
@@ -312,9 +312,7 @@ export function ExchangeManagement() {
     const setHealth = side === "from" ? setFromHealth : setToHealth;
     setSide(true);
     try {
-      const res = await fetch(`/api/admin/exchange/pairs/${editId}/rpc-health?side=${side}`, {
-        headers: { Authorization: `Bearer ${getToken() ?? ""}` },
-      });
+      const res = await adminFetch(`/api/admin/exchange/pairs/${editId}/rpc-health?side=${side}`);
       if (!res.ok) throw new Error();
       const data = await res.json() as Array<{ url: string; status: "ok" | "error"; latencyMs: number; error?: string }>;
       const map: RpcHealth = {};
@@ -382,7 +380,7 @@ export function ExchangeManagement() {
       });
       const url = editId ? `/api/admin/exchange/pairs/${editId}` : "/api/admin/exchange/pairs";
       const method = editId ? "PUT" : "POST";
-      const res = await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(body) });
+      const res = await adminFetch(url, { method, headers: jsonHeaders(), body: JSON.stringify(body) });
       if (!res.ok) { const d = await res.json() as any; throw new Error(d.error || "Save failed"); }
       setSuccess(editId ? "Pair updated!" : "Pair created!");
       await fetchPairs();
@@ -394,7 +392,7 @@ export function ExchangeManagement() {
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this exchange pair?")) return;
     setDeleting(id);
-    await fetch(`/api/admin/exchange/pairs/${id}`, { method: "DELETE", headers: authHeaders() });
+    await adminFetch(`/api/admin/exchange/pairs/${id}`, { method: "DELETE" });
     await fetchPairs();
     setDeleting(null);
   };
@@ -402,7 +400,7 @@ export function ExchangeManagement() {
   const handleRetry = async (orderId: string) => {
     setRetrying(orderId);
     try {
-      const res = await fetch(`/api/admin/exchange/orders/${orderId}/retry`, { method: "POST", headers: authHeaders() });
+      const res = await adminFetch(`/api/admin/exchange/orders/${orderId}/retry`, { method: "POST" });
       const d = await res.json() as any;
       if (!res.ok) throw new Error(d.error || "Retry failed");
       setSuccess("Retry started — check order status in a few seconds.");
@@ -413,8 +411,8 @@ export function ExchangeManagement() {
   };
 
   const handleToggle = async (p: ExchangePair) => {
-    await fetch(`/api/admin/exchange/pairs/${p.id}`, {
-      method: "PUT", headers: authHeaders(),
+    await adminFetch(`/api/admin/exchange/pairs/${p.id}`, {
+      method: "PUT", headers: jsonHeaders(),
       body: JSON.stringify({ isEnabled: !p.isEnabled }),
     });
     await fetchPairs();
@@ -423,8 +421,8 @@ export function ExchangeManagement() {
   const handleSaveSettings = async () => {
     setSavingSettings(true); setSettingsSuccess("");
     try {
-      const res = await fetch("/api/admin/exchange/settings", {
-        method: "PUT", headers: authHeaders(),
+      const res = await adminFetch("/api/admin/exchange/settings", {
+        method: "PUT", headers: jsonHeaders(),
         body: JSON.stringify({ defaultPrivateKey: settingsKey }),
       });
       const d = await res.json() as any;

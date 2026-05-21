@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { getToken } from "@/lib/auth";
+import { adminFetch } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { KeyRound, Eye, EyeOff, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 
 async function changePassword(current: string, newPwd: string): Promise<{ ok?: boolean; error?: string }> {
-  const res = await fetch("/api/admin/change-password", {
+  const res = await adminFetch("/api/admin/change-password", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken() ?? ""}` },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ currentPassword: current, newPassword: newPwd }),
   });
   return res.json();

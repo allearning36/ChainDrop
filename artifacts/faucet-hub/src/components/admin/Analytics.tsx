@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getToken } from "@/lib/auth";
+import { adminFetch } from "@/lib/auth";
 import { Loader2, TrendingUp, Users, Layers, Coins } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -13,9 +13,6 @@ interface AnalyticsResponse { dailyClaims: DailyData[]; chainDistribution: Chain
 
 const COLORS = ["#22c55e", "#16a34a", "#15803d", "#166534", "#14532d", "#4ade80", "#86efac", "#bbf7d0"];
 
-function authHeaders() {
-  return { Authorization: `Bearer ${getToken() ?? ""}` };
-}
 
 function StatCard({ icon: Icon, label, value, sub }: { icon: React.ElementType; label: string; value: string | number; sub?: string }) {
   return (
@@ -47,7 +44,7 @@ export function Analytics() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/admin/analytics", { headers: authHeaders() })
+    adminFetch("/api/admin/analytics")
       .then(r => r.json())
       .then((d: AnalyticsResponse) => setData(d))
       .catch(() => {})

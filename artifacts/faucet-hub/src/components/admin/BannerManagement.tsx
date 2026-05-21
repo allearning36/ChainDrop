@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { getToken } from "@/lib/auth";
+import { adminFetch } from "@/lib/auth";
 import { 
   useGetAdminBanners, 
   useCreateBanner, 
@@ -83,11 +83,7 @@ export function BannerManagement() {
       const fd = new FormData();
       fd.append("image", file);
 
-      const res = await fetch("/api/uploads/banner", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${getToken() ?? ""}` },
-        body: fd,
-      });
+      const res = await adminFetch("/api/uploads/banner", { method: "POST", body: fd });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));

@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Upload, RefreshCw, Check, Image as ImageIcon, Sliders } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getToken } from "@/lib/auth";
+import { adminFetch } from "@/lib/auth";
 
 interface LogoSettings {
   logoUrl: string;
@@ -15,9 +15,9 @@ async function fetchSettings(): Promise<LogoSettings> {
 }
 
 async function patchSettings(updates: Partial<LogoSettings>): Promise<LogoSettings> {
-  const res = await fetch("/api/admin/settings", {
+  const res = await adminFetch("/api/admin/settings", {
     method: "PATCH",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updates),
   });
   return res.json();
@@ -26,11 +26,7 @@ async function patchSettings(updates: Partial<LogoSettings>): Promise<LogoSettin
 async function uploadLogo(file: File): Promise<string> {
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch("/api/admin/upload", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${getToken()}` },
-    body: form,
-  });
+  const res = await adminFetch("/api/admin/upload", { method: "POST", body: form });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || "Upload failed");
   return json.url;

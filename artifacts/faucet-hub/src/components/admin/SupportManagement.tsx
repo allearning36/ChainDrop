@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Loader2, MessageCircle, User, Mail, Clock, CheckCircle, Circle } from "lucide-react";
-import { getToken } from "@/lib/auth";
+import { adminFetch } from "@/lib/auth";
 
 type Msg = {
   id: number;
@@ -45,14 +45,9 @@ function formatDate(iso: string) {
 }
 
 async function apiFetch(path: string, opts?: RequestInit) {
-  const token = getToken();
-  const res = await fetch(path, {
+  const res = await adminFetch(path, {
     ...opts,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(opts?.headers ?? {}),
-    },
+    headers: { "Content-Type": "application/json", ...(opts?.headers ?? {}) },
   });
   if (!res.ok) throw new Error(`API error ${res.status}`);
   if (res.status === 204) return null;

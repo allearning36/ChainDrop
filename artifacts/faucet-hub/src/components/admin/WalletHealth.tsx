@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getToken } from "@/lib/auth";
+import { adminFetch } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Loader2, AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react";
 
@@ -10,7 +10,7 @@ type WalletInfo = {
 };
 
 async function fetchWallets(): Promise<WalletInfo[]> {
-  const res = await fetch("/api/admin/wallet-health", { headers: { Authorization: `Bearer ${getToken() ?? ""}` } });
+  const res = await adminFetch("/api/admin/wallet-health");
   if (!res.ok) return [];
   const data = await res.json();
   return Array.isArray(data) ? data : [];

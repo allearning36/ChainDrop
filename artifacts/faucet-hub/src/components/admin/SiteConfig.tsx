@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getToken } from "@/lib/auth";
+import { adminFetch } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,9 +9,6 @@ import { Loader2, Save, Globe, Search, Wrench, Shield, AlertTriangle, Puzzle, Pa
 import { LogoManagement } from "./LogoManagement";
 import { ChangePassword } from "./ChangePassword";
 
-function authHeaders() {
-  return { "Content-Type": "application/json", Authorization: `Bearer ${getToken() ?? ""}` };
-}
 
 type Tab = "social" | "seo" | "maintenance" | "ratelimit" | "integrations" | "logo" | "password";
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
@@ -258,7 +255,7 @@ export function SiteConfig() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/site-config", { headers: authHeaders() })
+    adminFetch("/api/admin/site-config")
       .then(r => r.json())
       .then((d: Partial<SiteConfigData>) => setCfg(prev => ({
         socialLinks:       { ...DEFAULT.socialLinks,       ...(d.socialLinks       ?? {}) },
@@ -274,8 +271,8 @@ export function SiteConfig() {
   const save: SaveFn = async (section, value) => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/site-config/${section}`, {
-        method: "PATCH", headers: authHeaders(), body: JSON.stringify(value),
+      const res = await adminFetch(`/api/admin/site-config/${section}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(value),
       });
       if (!res.ok) throw new Error();
       setCfg(prev => ({ ...prev, [section]: value }));

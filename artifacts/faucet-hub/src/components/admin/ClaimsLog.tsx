@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { getToken } from "@/lib/auth";
+import { adminFetch } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Download, Search, ChevronLeft, ChevronRight, ExternalLink, Loader2, RefreshCw } from "lucide-react";
@@ -12,7 +12,7 @@ type ClaimRow = {
 type Page = { claims: ClaimRow[]; total: number; page: number; limit: number; pages: number };
 
 async function apiFetch(path: string) {
-  const res = await fetch(path, { headers: { Authorization: `Bearer ${getToken() ?? ""}` } });
+  const res = await adminFetch(path);
   if (!res.ok) throw new Error(`${res.status}`);
   return res.json();
 }
@@ -49,7 +49,7 @@ export function ClaimsLog() {
   async function handleExport() {
     setExporting(true);
     try {
-      const res = await fetch("/api/admin/claims/export", { headers: { Authorization: `Bearer ${getToken() ?? ""}` } });
+      const res = await adminFetch("/api/admin/claims/export");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

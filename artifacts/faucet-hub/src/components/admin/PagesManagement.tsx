@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getToken } from "@/lib/auth";
+import { adminFetch } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,9 +22,6 @@ const PAGE_LABELS: Record<string, string> = {
 };
 const SLUGS = ["about", "contact", "privacy", "terms"];
 
-function authHeaders() {
-  return { "Content-Type": "application/json", Authorization: `Bearer ${getToken() ?? ""}` };
-}
 
 export function PagesManagement() {
   const { toast } = useToast();
@@ -35,7 +32,7 @@ export function PagesManagement() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/pages", { headers: authHeaders() })
+    adminFetch("/api/admin/pages")
       .then(r => r.json())
       .then((data: PageData[]) => {
         setPages(data);
@@ -55,9 +52,9 @@ export function PagesManagement() {
   async function handleSave() {
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/pages/${activeSlug}`, {
+      const res = await adminFetch(`/api/admin/pages/${activeSlug}`, {
         method: "PATCH",
-        headers: authHeaders(),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
       if (!res.ok) throw new Error();

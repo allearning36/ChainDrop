@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getToken } from "@/lib/auth";
+import { adminFetch } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,9 +7,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Save, Trash2, Type } from "lucide-react";
 
-function authHeaders() {
-  return { "Content-Type": "application/json", Authorization: `Bearer ${getToken() ?? ""}` };
-}
 
 interface HeadlineForm {
   headline: string;
@@ -51,9 +48,9 @@ export function HeadlineManagement() {
   async function save() {
     setSaving(true);
     try {
-      const res = await fetch("/api/admin/settings", {
+      const res = await adminFetch("/api/admin/settings", {
         method: "PATCH",
-        headers: authHeaders(),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
       if (!res.ok) throw new Error("Save failed");
@@ -70,9 +67,9 @@ export function HeadlineManagement() {
     setClearing(true);
     try {
       const cleared = { ...form, headline: "" };
-      const res = await fetch("/api/admin/settings", {
+      const res = await adminFetch("/api/admin/settings", {
         method: "PATCH",
-        headers: authHeaders(),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ headline: "" }),
       });
       if (!res.ok) throw new Error("Clear failed");

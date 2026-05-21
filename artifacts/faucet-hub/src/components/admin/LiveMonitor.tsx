@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getToken } from "@/lib/auth";
+import { adminFetch } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -58,16 +58,10 @@ export function LiveMonitor() {
 
     async function connect() {
       if (cancelled) return;
-      const token = getToken();
-      if (!token) return;
-
       // Step 1: get a short-lived SSE ticket (avoids JWT in URL)
       let ticket: string;
       try {
-        const r = await fetch("/api/admin/live-ticket", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const r = await adminFetch("/api/admin/live-ticket", { method: "POST" });
         if (!r.ok) { setTimeout(connect, 5000); return; }
         const data = await r.json() as { ticket: string };
         ticket = data.ticket;
