@@ -115,7 +115,13 @@ export function Navbar() {
 
         {/* ── RIGHT: Logo + Name ── */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
-          <div className="flex flex-col leading-none min-w-0 items-end">
+          <img
+            src={logo.logoUrl}
+            alt="ChainDrop"
+            className="shrink-0"
+            style={{ width: px, height: px, objectFit: "contain", filter: GLOW_FILTER[logo.logoGlow] ?? GLOW_FILTER.medium, transition: "all 0.3s" }}
+          />
+          <div className="flex flex-col leading-none">
             <span
               className="font-black tracking-wider uppercase"
               style={{
@@ -135,12 +141,6 @@ export function Navbar() {
               Your Ultimate Faucet Hub
             </span>
           </div>
-          <img
-            src={logo.logoUrl}
-            alt="ChainDrop"
-            className="shrink-0"
-            style={{ width: px, height: px, objectFit: "contain", filter: GLOW_FILTER[logo.logoGlow] ?? GLOW_FILTER.medium, transition: "all 0.3s" }}
-          />
         </Link>
 
         {/* ── FAR RIGHT: Support + Bell ── */}
