@@ -12,6 +12,7 @@ import TermsPage from "@/pages/terms";
 import FAQPage from "@/pages/faq";
 import LookupPage from "@/pages/lookup";
 import StatusPage from "@/pages/status";
+import ExchangePage from "@/pages/exchange";
 import AdminLogin from "@/pages/admin/login";
 import AdminDashboard from "@/pages/admin/dashboard";
 
@@ -51,6 +52,7 @@ function Router() {
       <Route path="/faq" component={FAQPage} />
       <Route path="/lookup" component={LookupPage} />
       <Route path="/status" component={StatusPage} />
+      <Route path="/exchange" component={ExchangePage} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin" component={AdminDashboard} />
       <Route component={NotFound} />

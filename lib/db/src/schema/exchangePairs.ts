@@ -1,0 +1,25 @@
+import { pgTable, text, serial, timestamp, boolean, numeric, integer } from "drizzle-orm/pg-core";
+
+export const exchangePairsTable = pgTable("exchange_pairs", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  fromChainName: text("from_chain_name").notNull(),
+  fromSymbol: text("from_symbol").notNull(),
+  fromChainId: integer("from_chain_id").notNull(),
+  fromRpcUrl: text("from_rpc_url").notNull(),
+  fromExplorerUrl: text("from_explorer_url"),
+  fromDepositAddress: text("from_deposit_address").notNull(),
+  fromLogoUrl: text("from_logo_url"),
+  toChainName: text("to_chain_name").notNull(),
+  toSymbol: text("to_symbol").notNull(),
+  toChainId: integer("to_chain_id").notNull(),
+  toRpcUrl: text("to_rpc_url").notNull(),
+  toExplorerUrl: text("to_explorer_url"),
+  toLogoUrl: text("to_logo_url"),
+  feePercent: numeric("fee_percent", { precision: 5, scale: 2 }).notNull().default("1.00"),
+  minAmount: numeric("min_amount", { precision: 18, scale: 8 }).notNull().default("0.001"),
+  maxAmount: numeric("max_amount", { precision: 18, scale: 8 }).notNull().default("1.0"),
+  isEnabled: boolean("is_enabled").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});

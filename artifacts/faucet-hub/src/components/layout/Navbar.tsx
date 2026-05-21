@@ -93,18 +93,18 @@ export function Navbar() {
                 <span className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>Navigation</span>
               </div>
               <div className="p-2">
-                <button
+                <Link href="/exchange"
                   onClick={() => setMenuOpen(false)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors group"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors"
                   style={{ color: "rgba(255,255,255,0.75)" }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "rgba(34,197,94,0.08)")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                  onMouseEnter={(e: any) => (e.currentTarget.style.background = "rgba(167,139,250,0.08)")}
+                  onMouseLeave={(e: any) => (e.currentTarget.style.background = "transparent")}
                 >
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)" }}>
-                    <ArrowLeftRight className="w-3.5 h-3.5" style={{ color: "#22c55e" }} />
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.2)" }}>
+                    <ArrowLeftRight className="w-3.5 h-3.5" style={{ color: "#a78bfa" }} />
                   </div>
                   <span className="font-mono font-semibold text-sm">Exchange</span>
-                </button>
+                </Link>
               </div>
             </div>
           )}

@@ -10,6 +10,7 @@ tags:
   - name: health
   - name: chains
   - name: faucet
+  - name: exchange
   - name: banners
   - name: announcements
   - name: prices

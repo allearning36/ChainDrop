@@ -10,3 +10,5 @@ export * from "./blockedAddresses";
 export * from "./pages";
 export * from "./ipBlocks";
 export * from "./pageViews";
+export * from "./exchangePairs";
+export * from "./exchangeOrders";

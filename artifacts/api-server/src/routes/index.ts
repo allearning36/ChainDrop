@@ -16,6 +16,7 @@ import siteConfigRouter from "./siteConfig";
 import lookupRouter from "./lookup";
 import audienceRouter from "./audience";
 import liveRouter from "./live";
+import exchangeRouter from "./exchange";
 
 const router: IRouter = Router();
 
@@ -23,6 +24,7 @@ router.use(healthRouter);
 router.use(chainsRouter);
 router.use(faucetRouter);
 router.use(buyRouter);
+router.use(exchangeRouter);
 router.use(bannersRouter);
 router.use(announcementsRouter);
 router.use(pricesRouter);

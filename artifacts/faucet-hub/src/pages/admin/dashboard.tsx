@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   LogOut, LayoutDashboard, Link as LinkIcon,
   HeadphonesIcon, ClipboardList, ShieldOff, Wallet,
-  FileText, BarChart2, Settings2, Globe, Send, Users, Radio
+  FileText, BarChart2, Settings2, Globe, Send, Users, Radio, ArrowLeftRight
 } from "lucide-react";
 import { StatsOverview } from "@/components/admin/Stats";
 import { ChainManagement } from "@/components/admin/ChainManagement";
@@ -21,6 +21,7 @@ import { SiteConfig } from "@/components/admin/SiteConfig";
 import { IPBlocking } from "@/components/admin/IPBlocking";
 import { Audience } from "@/components/admin/Audience";
 import { LiveMonitor } from "@/components/admin/LiveMonitor";
+import { ExchangeManagement } from "@/components/admin/ExchangeManagement";
 
 async function fetchUnreadCount(): Promise<number> {
   try {
@@ -112,6 +113,9 @@ export default function AdminDashboard() {
             <TabsTrigger value="pages" className={TAB} title="Pages">
               <FileText className="w-3.5 h-3.5" /> Pages
             </TabsTrigger>
+            <TabsTrigger value="exchange" className={TAB} title="Exchange">
+              <ArrowLeftRight className="w-3.5 h-3.5" /> Exchange
+            </TabsTrigger>
             <TabsTrigger value="siteconfig" className={TAB} title="Settings">
               <Settings2 className="w-3.5 h-3.5" /> Settings
             </TabsTrigger>
@@ -131,6 +135,7 @@ export default function AdminDashboard() {
             <SupportManagement onUnreadCount={setSupportUnread} />
           </TabsContent>
           <TabsContent value="pages" className="mt-0 outline-none"><PagesManagement /></TabsContent>
+          <TabsContent value="exchange" className="mt-0 outline-none"><ExchangeManagement /></TabsContent>
           <TabsContent value="siteconfig" className="mt-0 outline-none"><SiteConfig /></TabsContent>
         </Tabs>
       </main>
