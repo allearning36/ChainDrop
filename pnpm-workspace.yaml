@@ -75,6 +75,18 @@ onlyBuiltDependencies:
   - unrs-resolver
 
 overrides:
+  # Security: pin transitive dependencies to patched versions
+  # axios CVEs (GHSA-pmwg-cvhr-8vh7, GHSA-q8qp-cvcw-x6jj, GHSA-pf86-5x62-jrwf,
+  #   GHSA-vf2m-468p-8v99, GHSA-62hf-57xw-28j9, GHSA-w9j2-pvgh-6h63,
+  #   GHSA-xx6v-rp6x-q39c, GHSA-5c9x-8gcm-mpgx, GHSA-xhjh-pmcv-23jw,
+  #   GHSA-6chq-wfr3-2hj9, GHSA-3w6x-2g7m-8v23, GHSA-445q-vr5w-6q77,
+  #   GHSA-m7pr-hjqh-92cm) — patched in >=1.15.2
+  axios: ">=1.15.2"
+  # ip-address CVE (GHSA-v2v4-37r5-5v8g) — patched in >=10.1.1
+  ip-address: ">=10.1.1"
+  # ws CVE (GHSA-58qx-3vcg-4xpx) — patched in >=8.20.1
+  ws: ">=8.20.1"
+
   # replit uses linux-x64 only, we can exclude all other platforms
   "esbuild>@esbuild/darwin-arm64": "-"
   "esbuild>@esbuild/darwin-x64": "-"
