@@ -569,7 +569,7 @@ export default function ExchangePage() {
                     )}
                   </div>
                   {/* FROM card */}
-                  <div className="rounded-2xl px-4 py-4"
+                  <div className="rounded-2xl px-4 py-4 overflow-hidden"
                     style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.09)" }}>
                     <div className="flex items-center gap-3">
                       {/* Token selector */}
@@ -601,7 +601,7 @@ export default function ExchangePage() {
                         )}
                       </button>
                       {/* Amount input */}
-                      <div className="flex flex-col items-end flex-1 min-w-0">
+                      <div className="flex flex-col items-end flex-1 min-w-0 overflow-hidden">
                         <input
                           type="text"
                           inputMode="decimal"
@@ -618,18 +618,22 @@ export default function ExchangePage() {
                             color: fromAmount && !amountValid ? "#f87171" : "white",
                           }}
                         />
-                        <span className="text-[11px] font-mono mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>
-                          {pair ? `min ${pair.minAmount}` : "enter amount"}
-                        </span>
+                        {pair && (() => {
+                          const tooHigh = fromAmount && from > parseFloat(pair.maxAmount);
+                          const invalid = fromAmount && !amountValid;
+                          return (
+                            <span className="text-[11px] font-mono mt-0.5 truncate"
+                              style={{ color: invalid ? "#f87171" : "rgba(255,255,255,0.3)" }}>
+                              {tooHigh ? `max ${pair.maxAmount}` : `min ${pair.minAmount}`}
+                            </span>
+                          );
+                        })()}
+                        {!pair && (
+                          <span className="text-[11px] font-mono mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>enter amount</span>
+                        )}
                       </div>
                     </div>
                   </div>
-                  {/* Amount validation hint */}
-                  {pair && fromAmount && !amountValid && (
-                    <p className="text-xs font-mono px-1" style={{ color: "#f87171" }}>
-                      Range: {pair.minAmount} – {pair.maxAmount} {pair.fromSymbol}
-                    </p>
-                  )}
                 </div>
 
                 {/* ── Swap direction circle ───────────────────────────────── */}
