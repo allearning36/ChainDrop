@@ -747,24 +747,30 @@ export default function ExchangePage() {
                 {/* ── Swap / Connect button ──────────────────────────────── */}
                 {(() => {
                   const swapBlocked = !!(pair && exchangeBalance?.warning);
-                  const btnDisabled = !amountValid || swapBlocked;
-                  const btnStyle = {
-                    background: btnDisabled ? "rgba(124,58,237,0.06)" : "linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)",
-                    color: btnDisabled ? "rgba(255,255,255,0.2)" : "white",
-                    boxShadow: btnDisabled ? "none" : "0 0 24px rgba(124,58,237,0.3)",
-                    cursor: btnDisabled ? "not-allowed" : "pointer",
+                  const swapDisabled = !amountValid || swapBlocked;
+                  const swapStyle = {
+                    background: swapDisabled ? "rgba(124,58,237,0.06)" : "linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)",
+                    color: swapDisabled ? "rgba(255,255,255,0.2)" : "white",
+                    boxShadow: swapDisabled ? "none" : "0 0 24px rgba(124,58,237,0.3)",
+                    cursor: swapDisabled ? "not-allowed" : "pointer",
+                  };
+                  const connectStyle = {
+                    background: "linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)",
+                    color: "white",
+                    boxShadow: "0 0 24px rgba(124,58,237,0.3)",
+                    cursor: "pointer",
                   };
                   if (pair && walletAddress) return (
-                    <button onClick={handleInitiateOrder} disabled={btnDisabled}
+                    <button onClick={handleInitiateOrder} disabled={swapDisabled}
                       className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all"
-                      style={btnStyle}>
+                      style={swapStyle}>
                       <ArrowLeftRight className="w-4 h-4" /> Swap Now
                     </button>
                   );
                   if (pair) return (
-                    <button onClick={() => !btnDisabled && setWalletOpen(true)} disabled={btnDisabled}
+                    <button onClick={() => setWalletOpen(true)}
                       className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all"
-                      style={btnStyle}>
+                      style={connectStyle}>
                       <Wallet className="w-4 h-4" /> Connect Wallet
                     </button>
                   );
