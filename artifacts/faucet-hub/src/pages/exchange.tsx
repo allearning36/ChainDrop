@@ -710,7 +710,7 @@ export default function ExchangePage() {
                     <button onClick={() => !btnDisabled && setWalletOpen(true)} disabled={btnDisabled}
                       className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all"
                       style={btnStyle}>
-                      <Wallet className="w-4 h-4" /> Connect Wallet to Swap
+                      <Wallet className="w-4 h-4" /> Connect Wallet
                     </button>
                   );
                   return null;
@@ -875,13 +875,11 @@ export default function ExchangePage() {
         />
       )}
 
-      {walletOpen && (
-        <WalletSelector
-          open={walletOpen}
-          onClose={() => setWalletOpen(false)}
-          onConnected={handleWalletConnected}
-        />
-      )}
+      <WalletSelector
+        open={walletOpen}
+        onClose={() => setWalletOpen(false)}
+        onConnected={handleWalletConnected}
+      />
 
       <Footer />
     </div>
