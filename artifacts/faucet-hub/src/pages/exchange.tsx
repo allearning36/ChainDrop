@@ -569,61 +569,66 @@ export default function ExchangePage() {
                   </div>
                 )}
 
-                {/* ── Exchange wallet low balance warning ───────────────── */}
+                {/* ── Exchange wallet balance warning (blocking) ─────────── */}
                 {pair && exchangeBalance?.warning && (
-                  <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl text-xs font-mono"
-                    style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                    <span>
-                      Exchange wallet has low {pair.toSymbol} balance
-                      {exchangeBalance.balance !== null ? ` (${parseFloat(exchangeBalance.balance).toFixed(6)} ${pair.toSymbol})` : ""}.
-                      Swaps may fail. Please contact support.
-                    </span>
+                  <div className="rounded-xl overflow-hidden"
+                    style={{ border: "1px solid rgba(239,68,68,0.3)" }}>
+                    <div className="flex items-center gap-2 px-3 py-2"
+                      style={{ background: "rgba(239,68,68,0.12)", borderBottom: "1px solid rgba(239,68,68,0.15)" }}>
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" style={{ color: "#f87171" }} />
+                      <span className="text-xs font-mono font-bold" style={{ color: "#f87171" }}>Swaps Unavailable</span>
+                    </div>
+                    <div className="px-3 py-2.5 text-xs font-mono" style={{ background: "rgba(239,68,68,0.05)", color: "rgba(255,255,255,0.6)" }}>
+                      {exchangeBalance.balance !== null && parseFloat(exchangeBalance.balance) === 0
+                        ? `The exchange wallet has 0 ${pair.toSymbol} on ${pair.toChainName}. Cannot process swaps.`
+                        : exchangeBalance.balance !== null
+                        ? `Exchange wallet balance too low: ${parseFloat(exchangeBalance.balance).toFixed(6)} ${pair.toSymbol} on ${pair.toChainName}.`
+                        : `Cannot reach the ${pair.toChainName} network to verify exchange wallet. Please try again later.`
+                      }
+                    </div>
                   </div>
                 )}
 
                 {/* ── Wallet & Swap button ───────────────────────────────── */}
-                {pair && step === "review" ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl"
-                      style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.2)" }}>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Wallet className="w-4 h-4 shrink-0" style={{ color: "#22c55e" }} />
-                        <span className="text-xs font-mono text-white truncate">{walletAddress}</span>
+                {(() => {
+                  const swapBlocked = !!(pair && exchangeBalance?.warning);
+                  const btnDisabled = !amountValid || swapBlocked;
+                  const btnStyle = {
+                    background: btnDisabled ? "rgba(124,58,237,0.06)" : "linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)",
+                    color: btnDisabled ? "rgba(255,255,255,0.2)" : "white",
+                    boxShadow: btnDisabled ? "none" : "0 0 24px rgba(124,58,237,0.3)",
+                    cursor: btnDisabled ? "not-allowed" : "pointer",
+                  };
+                  if (pair && step === "review") return (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl"
+                        style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.2)" }}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Wallet className="w-4 h-4 shrink-0" style={{ color: "#22c55e" }} />
+                          <span className="text-xs font-mono text-white truncate">{walletAddress}</span>
+                        </div>
+                        {userBalance !== null && (
+                          <span className="text-xs font-mono shrink-0" style={{ color: "rgba(34,197,94,0.8)" }}>
+                            {userBalance} {pair.fromSymbol}
+                          </span>
+                        )}
                       </div>
-                      {userBalance !== null && (
-                        <span className="text-xs font-mono shrink-0" style={{ color: "rgba(34,197,94,0.8)" }}>
-                          {userBalance} {pair.fromSymbol}
-                        </span>
-                      )}
+                      <button onClick={handleInitiateOrder} disabled={btnDisabled}
+                        className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all"
+                        style={btnStyle}>
+                        <ArrowLeftRight className="w-4 h-4" /> Swap Now
+                      </button>
                     </div>
-                    <button
-                      onClick={handleInitiateOrder}
-                      disabled={!amountValid}
+                  );
+                  if (pair) return (
+                    <button onClick={() => !btnDisabled && setWalletOpen(true)} disabled={btnDisabled}
                       className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all"
-                      style={{
-                        background: amountValid ? "linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)" : "rgba(124,58,237,0.08)",
-                        color: amountValid ? "white" : "rgba(255,255,255,0.25)",
-                        boxShadow: amountValid ? "0 0 24px rgba(124,58,237,0.3)" : "none",
-                        cursor: amountValid ? "pointer" : "not-allowed",
-                      }}>
-                      <ArrowLeftRight className="w-4 h-4" /> Swap Now
+                      style={btnStyle}>
+                      <Wallet className="w-4 h-4" /> Connect Wallet to Swap
                     </button>
-                  </div>
-                ) : pair ? (
-                  <button
-                    onClick={() => setWalletOpen(true)}
-                    disabled={!amountValid}
-                    className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all"
-                    style={{
-                      background: amountValid ? "linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)" : "rgba(124,58,237,0.08)",
-                      color: amountValid ? "white" : "rgba(255,255,255,0.25)",
-                      boxShadow: amountValid ? "0 0 24px rgba(124,58,237,0.3)" : "none",
-                      cursor: amountValid ? "pointer" : "not-allowed",
-                    }}>
-                    <Wallet className="w-4 h-4" /> Connect Wallet to Swap
-                  </button>
-                ) : null}
+                  );
+                  return null;
+                })()}
               </>
             )}
           </>

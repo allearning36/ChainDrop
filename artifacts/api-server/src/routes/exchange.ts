@@ -151,7 +151,9 @@ router.get("/exchange/pairs/:id/wallet-balance", async (req, res): Promise<void>
     if (!address) { res.json({ balance: null, address: null, warning: true }); return; }
     const toRpcs = getPairRpcs(pair, "to");
     const balance = await getWalletBalance(toRpcs, address);
-    res.json({ balance, address, warning: balance !== null && parseFloat(balance) < parseFloat(pair.minAmount) });
+    // warning = true when balance is null (can't check) OR balance is zero/insufficient
+    const warning = balance === null || parseFloat(balance) < parseFloat(pair.minAmount);
+    res.json({ balance, address, warning });
   } catch {
     res.json({ balance: null, address: null, warning: true });
   }
@@ -186,25 +188,29 @@ router.post("/exchange/orders", async (req, res): Promise<void> => {
   const feeAmt = (from * feePercent) / 100;
   const toAmt = from - feeAmt;
 
-  // Pre-check: does exchange wallet have enough balance?
-  try {
-    const pk = await resolvePrivateKey(pair);
-    if (!pk) {
-      res.status(503).json({ error: "Exchange wallet not configured. Please contact support." });
-      return;
-    }
-    const walletAddress = deriveAddress(pk);
-    if (walletAddress) {
-      const toRpcs = getPairRpcs(pair, "to");
-      const balance = await getWalletBalance(toRpcs, walletAddress);
-      if (balance !== null && parseFloat(balance) < toAmt) {
-        res.status(503).json({
-          error: `Exchange wallet has insufficient ${pair.toSymbol} balance (${parseFloat(balance).toFixed(6)} ${pair.toSymbol} available, ${toAmt.toFixed(6)} needed). Please try a smaller amount or contact support.`,
-        });
-        return;
-      }
-    }
-  } catch { /* balance check failure is non-fatal, proceed */ }
+  // Pre-check: exchange wallet balance — HARD BLOCK (never skip)
+  const pk = await resolvePrivateKey(pair);
+  if (!pk) {
+    res.status(503).json({ error: "Exchange wallet is not configured. Swaps are currently unavailable." });
+    return;
+  }
+  const walletAddress = deriveAddress(pk);
+  if (!walletAddress) {
+    res.status(503).json({ error: "Exchange wallet configuration error. Please contact support." });
+    return;
+  }
+  const toRpcs = getPairRpcs(pair, "to");
+  const balance = await getWalletBalance(toRpcs, walletAddress);
+  if (balance === null) {
+    res.status(503).json({ error: `Cannot verify exchange wallet balance on ${pair.toChainName}. The destination chain RPC may be unavailable. Please try again later.` });
+    return;
+  }
+  if (parseFloat(balance) < toAmt) {
+    res.status(503).json({
+      error: `Exchange wallet has insufficient ${pair.toSymbol} balance on ${pair.toChainName}. Available: ${parseFloat(balance).toFixed(6)} ${pair.toSymbol}. Swaps are temporarily unavailable — please contact support.`,
+    });
+    return;
+  }
 
   const id = randomUUID();
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
