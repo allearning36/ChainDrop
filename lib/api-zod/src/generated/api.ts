@@ -263,6 +263,286 @@ export const GetPricesResponse = zod.array(GetPricesResponseItem)
 
 
 /**
+ * @summary Get referral dashboard for a wallet address
+ */
+export const GetReferralDashboardParams = zod.object({
+  "wallet": zod.coerce.string()
+})
+
+export const GetReferralDashboardResponse = zod.object({
+  "wallet": zod.string(),
+  "referralCode": zod.string(),
+  "referralLink": zod.string(),
+  "level1Count": zod.number(),
+  "level2Count": zod.number(),
+  "pendingCommissionEth": zod.string(),
+  "totalEarnedEth": zod.string(),
+  "claimableEth": zod.string(),
+  "commissions": zod.array(zod.object({
+  "id": zod.number(),
+  "refereeAddress": zod.string(),
+  "level": zod.number(),
+  "sourceType": zod.string(),
+  "chainId": zod.number(),
+  "amountEth": zod.string(),
+  "commissionPct": zod.string(),
+  "status": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
+  "claimRequests": zod.array(zod.object({
+  "id": zod.number(),
+  "amountEth": zod.string(),
+  "claimChainId": zod.number(),
+  "status": zod.string(),
+  "adminNote": zod.string().nullish(),
+  "txHash": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Get a signing nonce for wallet
+ */
+export const GetReferralNonceParams = zod.object({
+  "wallet": zod.coerce.string()
+})
+
+export const GetReferralNonceResponse = zod.object({
+  "nonce": zod.string(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Submit a commission claim request with wallet signature
+ */
+export const SubmitReferralClaimRequestBody = zod.object({
+  "wallet": zod.string(),
+  "signature": zod.string(),
+  "nonce": zod.string(),
+  "claimChainId": zod.number()
+})
+
+export const SubmitReferralClaimRequestResponse = zod.object({
+  "id": zod.number(),
+  "amountEth": zod.string(),
+  "status": zod.string()
+})
+
+
+/**
+ * @summary Register a referral relationship (called when referee first visits with ref param)
+ */
+export const RegisterReferralBody = zod.object({
+  "referrerAddress": zod.string(),
+  "refereeAddress": zod.string()
+})
+
+export const RegisterReferralResponse = zod.object({
+  "registered": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * @summary Get public referral settings (for maintenance mode check)
+ */
+export const GetReferralSettingsResponse = zod.object({
+  "enabled": zod.boolean(),
+  "maintenanceMode": zod.boolean(),
+  "maintenanceMessage": zod.string()
+})
+
+
+/**
+ * @summary Get full referral system settings
+ */
+export const GetAdminReferralSettingsResponse = zod.object({
+  "enabled": zod.boolean(),
+  "maintenanceMode": zod.boolean(),
+  "maintenanceMessage": zod.string(),
+  "level1Pct": zod.number(),
+  "level2Pct": zod.number(),
+  "commissionOnExchange": zod.boolean(),
+  "commissionOnBuy": zod.boolean(),
+  "commissionOnFaucetClaim": zod.boolean(),
+  "exchangeChainIds": zod.array(zod.number()),
+  "buyChainIds": zod.array(zod.number()),
+  "faucetClaimChainIds": zod.array(zod.number()),
+  "claimChainIds": zod.array(zod.number()),
+  "minClaimEth": zod.number()
+})
+
+
+/**
+ * @summary Update referral system settings
+ */
+export const UpdateAdminReferralSettingsBody = zod.object({
+  "enabled": zod.boolean(),
+  "maintenanceMode": zod.boolean(),
+  "maintenanceMessage": zod.string(),
+  "level1Pct": zod.number(),
+  "level2Pct": zod.number(),
+  "commissionOnExchange": zod.boolean(),
+  "commissionOnBuy": zod.boolean(),
+  "commissionOnFaucetClaim": zod.boolean(),
+  "exchangeChainIds": zod.array(zod.number()),
+  "buyChainIds": zod.array(zod.number()),
+  "faucetClaimChainIds": zod.array(zod.number()),
+  "claimChainIds": zod.array(zod.number()),
+  "minClaimEth": zod.number()
+})
+
+export const UpdateAdminReferralSettingsResponse = zod.object({
+  "enabled": zod.boolean(),
+  "maintenanceMode": zod.boolean(),
+  "maintenanceMessage": zod.string(),
+  "level1Pct": zod.number(),
+  "level2Pct": zod.number(),
+  "commissionOnExchange": zod.boolean(),
+  "commissionOnBuy": zod.boolean(),
+  "commissionOnFaucetClaim": zod.boolean(),
+  "exchangeChainIds": zod.array(zod.number()),
+  "buyChainIds": zod.array(zod.number()),
+  "faucetClaimChainIds": zod.array(zod.number()),
+  "claimChainIds": zod.array(zod.number()),
+  "minClaimEth": zod.number()
+})
+
+
+/**
+ * @summary List all referrers with stats
+ */
+export const GetAdminReferralUsersResponseItem = zod.object({
+  "wallet": zod.string(),
+  "level1Count": zod.number(),
+  "level2Count": zod.number(),
+  "totalCommissionEth": zod.string(),
+  "pendingCommissionEth": zod.string(),
+  "claimRequestCount": zod.number(),
+  "joinedAt": zod.coerce.date()
+})
+export const GetAdminReferralUsersResponse = zod.array(GetAdminReferralUsersResponseItem)
+
+
+/**
+ * @summary Get detailed referral info for a wallet
+ */
+export const GetAdminReferralUserParams = zod.object({
+  "wallet": zod.coerce.string()
+})
+
+export const GetAdminReferralUserResponse = zod.object({
+  "wallet": zod.string(),
+  "level1Referrals": zod.array(zod.object({
+  "id": zod.number(),
+  "refereeAddress": zod.string(),
+  "level": zod.number(),
+  "createdAt": zod.coerce.date()
+})),
+  "level2Referrals": zod.array(zod.object({
+  "id": zod.number(),
+  "refereeAddress": zod.string(),
+  "level": zod.number(),
+  "createdAt": zod.coerce.date()
+})),
+  "commissions": zod.array(zod.object({
+  "id": zod.number(),
+  "refereeAddress": zod.string(),
+  "level": zod.number(),
+  "sourceType": zod.string(),
+  "chainId": zod.number(),
+  "amountEth": zod.string(),
+  "commissionPct": zod.string(),
+  "status": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
+  "claimRequests": zod.array(zod.object({
+  "id": zod.number(),
+  "walletAddress": zod.string(),
+  "amountEth": zod.string(),
+  "claimChainId": zod.number(),
+  "status": zod.string(),
+  "adminNote": zod.string().nullish(),
+  "txHash": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "processedAt": zod.coerce.date().nullish()
+}))
+})
+
+
+/**
+ * @summary List all commission claim requests
+ */
+export const GetAdminReferralClaimRequestsQueryParams = zod.object({
+  "status": zod.enum(['pending', 'approved', 'rejected']).optional()
+})
+
+export const GetAdminReferralClaimRequestsResponseItem = zod.object({
+  "id": zod.number(),
+  "walletAddress": zod.string(),
+  "amountEth": zod.string(),
+  "claimChainId": zod.number(),
+  "status": zod.string(),
+  "adminNote": zod.string().nullish(),
+  "txHash": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "processedAt": zod.coerce.date().nullish()
+})
+export const GetAdminReferralClaimRequestsResponse = zod.array(GetAdminReferralClaimRequestsResponseItem)
+
+
+/**
+ * @summary Approve a commission claim request and send ETH
+ */
+export const ApproveReferralClaimRequestParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ApproveReferralClaimRequestBody = zod.object({
+  "chainId": zod.number(),
+  "note": zod.string().optional()
+})
+
+export const ApproveReferralClaimRequestResponse = zod.object({
+  "id": zod.number(),
+  "walletAddress": zod.string(),
+  "amountEth": zod.string(),
+  "claimChainId": zod.number(),
+  "status": zod.string(),
+  "adminNote": zod.string().nullish(),
+  "txHash": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "processedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Reject a commission claim request
+ */
+export const RejectReferralClaimRequestParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RejectReferralClaimRequestBody = zod.object({
+  "note": zod.string()
+})
+
+export const RejectReferralClaimRequestResponse = zod.object({
+  "id": zod.number(),
+  "walletAddress": zod.string(),
+  "amountEth": zod.string(),
+  "claimChainId": zod.number(),
+  "status": zod.string(),
+  "adminNote": zod.string().nullish(),
+  "txHash": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "processedAt": zod.coerce.date().nullish()
+})
+
+
+/**
  * @summary Admin login
  */
 export const AdminAuthBody = zod.object({

@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
-import { Bell, MessageCircle, ChevronDown, ChevronRight, Megaphone, Menu, ArrowLeftRight } from "lucide-react";
+import { Bell, MessageCircle, ChevronDown, ChevronRight, Megaphone, ArrowLeftRight, Users } from "lucide-react";
 import { useGetAnnouncements, getGetAnnouncementsQueryKey } from "@workspace/api-client-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { SupportModal } from "@/components/support/SupportModal";
+import { ReferralDashboardModal } from "@/components/home/ReferralDashboardModal";
 
 interface LogoSettings { logoUrl: string; logoGlow: string; logoSize: string; }
 
@@ -33,6 +34,7 @@ export function Navbar() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [supportOpen, setSupportOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [referralOpen, setReferralOpen] = useState(false);
   const [logo, setLogo] = useState<LogoSettings>({ logoUrl: "/logo.svg", logoGlow: "medium", logoSize: "medium" });
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -92,7 +94,7 @@ export function Navbar() {
               <div className="px-3 py-2 border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
                 <span className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>Navigation</span>
               </div>
-              <div className="p-2">
+              <div className="p-2 space-y-0.5">
                 <Link href="/exchange"
                   onClick={() => setMenuOpen(false)}
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors"
@@ -105,6 +107,18 @@ export function Navbar() {
                   </div>
                   <span className="font-mono font-semibold text-sm">Exchange</span>
                 </Link>
+                <button
+                  onClick={() => { setMenuOpen(false); setReferralOpen(true); }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors"
+                  style={{ color: "rgba(255,255,255,0.75)" }}
+                  onMouseEnter={(e: any) => (e.currentTarget.style.background = "rgba(34,197,94,0.08)")}
+                  onMouseLeave={(e: any) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)" }}>
+                    <Users className="w-3.5 h-3.5" style={{ color: "#22c55e" }} />
+                  </div>
+                  <span className="font-mono font-semibold text-sm">Referral</span>
+                </button>
               </div>
             </div>
           )}
@@ -227,6 +241,7 @@ export function Navbar() {
       </div>
 
       <SupportModal open={supportOpen} onOpenChange={setSupportOpen} />
+      <ReferralDashboardModal open={referralOpen} onClose={() => setReferralOpen(false)} />
     </nav>
   );
 }

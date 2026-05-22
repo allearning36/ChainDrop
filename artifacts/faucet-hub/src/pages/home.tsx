@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { SEOHead } from "@/components/layout/SEOHead";
@@ -8,13 +8,26 @@ import { Banners } from "@/components/home/Banners";
 import { ChainCard } from "@/components/home/ChainCard";
 import { RecentFeed } from "@/components/home/RecentFeed";
 import { ClaimModal } from "@/components/home/ClaimModal";
-import { useGetChains, getGetChainsQueryKey, ChainPublic } from "@workspace/api-client-react";
+import { useGetChains, getGetChainsQueryKey, ChainPublic, registerReferral } from "@workspace/api-client-react";
 import { Loader2, Search, X } from "lucide-react";
 
 export default function Home() {
   const [networkType, setNetworkType] = useState<"testnet" | "mainnet">("testnet");
   const [selectedChain, setSelectedChain] = useState<ChainPublic | null>(null);
   const [search, setSearch] = useState("");
+
+  // Handle ?ref= referral registration
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    if (!ref) return;
+    // Store referrer in sessionStorage until user connects wallet
+    sessionStorage.setItem("pendingReferrer", ref.toLowerCase());
+    // Clean URL
+    const url = new URL(window.location.href);
+    url.searchParams.delete("ref");
+    window.history.replaceState({}, "", url.toString());
+  }, []);
 
   const { data: testnetChains = [], isLoading: loadingTestnet } = useGetChains({ type: "testnet" }, {
     query: { queryKey: getGetChainsQueryKey({ type: "testnet" }) }

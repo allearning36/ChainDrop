@@ -550,6 +550,142 @@ export interface AdminStats {
 
 export interface SiteSettings {[key: string]: string}
 
+export interface ReferralCommissionRecord {
+  id: number;
+  refereeAddress: string;
+  level: number;
+  sourceType: string;
+  chainId: number;
+  amountEth: string;
+  commissionPct: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface ReferralClaimRequestRecord {
+  id: number;
+  amountEth: string;
+  claimChainId: number;
+  status: string;
+  /** @nullable */
+  adminNote?: string | null;
+  /** @nullable */
+  txHash?: string | null;
+  createdAt: string;
+}
+
+export interface ReferralDashboard {
+  wallet: string;
+  referralCode: string;
+  referralLink: string;
+  level1Count: number;
+  level2Count: number;
+  pendingCommissionEth: string;
+  totalEarnedEth: string;
+  claimableEth: string;
+  commissions: ReferralCommissionRecord[];
+  claimRequests: ReferralClaimRequestRecord[];
+}
+
+export interface ReferralNonce {
+  nonce: string;
+  message: string;
+}
+
+export interface ReferralClaimRequestInput {
+  wallet: string;
+  signature: string;
+  nonce: string;
+  claimChainId: number;
+}
+
+export interface ReferralClaimRequestResult {
+  id: number;
+  amountEth: string;
+  status: string;
+}
+
+export interface RegisterReferralInput {
+  referrerAddress: string;
+  refereeAddress: string;
+}
+
+export interface RegisterReferralResult {
+  registered: boolean;
+  message?: string;
+}
+
+export interface ReferralSettingsPublic {
+  enabled: boolean;
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+}
+
+export interface ReferralSettings {
+  enabled: boolean;
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+  level1Pct: number;
+  level2Pct: number;
+  commissionOnExchange: boolean;
+  commissionOnBuy: boolean;
+  commissionOnFaucetClaim: boolean;
+  exchangeChainIds: number[];
+  buyChainIds: number[];
+  faucetClaimChainIds: number[];
+  claimChainIds: number[];
+  minClaimEth: number;
+}
+
+export interface ReferralUserSummary {
+  wallet: string;
+  level1Count: number;
+  level2Count: number;
+  totalCommissionEth: string;
+  pendingCommissionEth: string;
+  claimRequestCount: number;
+  joinedAt: string;
+}
+
+export interface ReferralRecord {
+  id: number;
+  refereeAddress: string;
+  level: number;
+  createdAt: string;
+}
+
+export interface ReferralClaimRequestAdmin {
+  id: number;
+  walletAddress: string;
+  amountEth: string;
+  claimChainId: number;
+  status: string;
+  /** @nullable */
+  adminNote?: string | null;
+  /** @nullable */
+  txHash?: string | null;
+  createdAt: string;
+  /** @nullable */
+  processedAt?: string | null;
+}
+
+export interface ReferralUserDetail {
+  wallet: string;
+  level1Referrals: ReferralRecord[];
+  level2Referrals: ReferralRecord[];
+  commissions: ReferralCommissionRecord[];
+  claimRequests: ReferralClaimRequestAdmin[];
+}
+
+export interface ApproveClaimInput {
+  chainId: number;
+  note?: string;
+}
+
+export interface RejectClaimInput {
+  note: string;
+}
+
 export type GetChainsParams = {
 type?: GetChainsType;
 };
@@ -568,6 +704,19 @@ export type GetPricesParams = {
  */
 ids: string;
 };
+
+export type GetAdminReferralClaimRequestsParams = {
+status?: GetAdminReferralClaimRequestsStatus;
+};
+
+export type GetAdminReferralClaimRequestsStatus = typeof GetAdminReferralClaimRequestsStatus[keyof typeof GetAdminReferralClaimRequestsStatus];
+
+
+export const GetAdminReferralClaimRequestsStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
 
 export type UpdateSupportConversationBodyStatus = typeof UpdateSupportConversationBodyStatus[keyof typeof UpdateSupportConversationBodyStatus];
 

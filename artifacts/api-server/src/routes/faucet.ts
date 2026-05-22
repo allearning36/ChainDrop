@@ -7,6 +7,7 @@ import { parseRpcUrls } from "../lib/rpcFailover";
 import { claimLimiter } from "../lib/rateLimiters";
 import { broadcast, broadcastError, classifyError, getErrorMeta } from "../lib/liveEvents";
 import { decryptPrivateKey } from "../lib/encryption";
+import { creditCommissions, getReferralSettings } from "../lib/referral";
 
 function getClientIp(req: Request): string {
   const fwd = req.headers["x-forwarded-for"];
@@ -184,6 +185,20 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
     symbol: chain.symbol,
     ip: clientIp,
   });
+
+  // Referral commission (fire-and-forget)
+  void getReferralSettings().then(async settings => {
+    if (settings.commissionOnFaucetClaim && (settings.faucetClaimChainIds.length === 0 || settings.faucetClaimChainIds.includes(chainId))) {
+      await creditCommissions({
+        refereeAddress: address,
+        sourceType: "faucet_claim",
+        sourceId: claim.id,
+        chainId,
+        amountEth: chain.claimAmount,
+        settings,
+      });
+    }
+  }).catch(() => {/* non-critical */});
 
   res.json({
     txHash: claim.txHash,

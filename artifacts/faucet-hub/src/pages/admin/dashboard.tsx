@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   LogOut, LayoutDashboard, Link as LinkIcon,
   HeadphonesIcon, ClipboardList, ShieldOff, Wallet,
-  FileText, BarChart2, Settings2, Globe, Send, Users, Radio, ArrowLeftRight, Network
+  FileText, BarChart2, Settings2, Globe, Send, Users, Radio, ArrowLeftRight, Network, GitBranch
 } from "lucide-react";
 import { StatsOverview } from "@/components/admin/Stats";
 import { ChainManagement } from "@/components/admin/ChainManagement";
@@ -23,6 +23,7 @@ import { Audience } from "@/components/admin/Audience";
 import { LiveMonitor } from "@/components/admin/LiveMonitor";
 import { ExchangeManagement } from "@/components/admin/ExchangeManagement";
 import { PaymentNetworkManagement } from "@/components/admin/PaymentNetworkManagement";
+import { ReferralManagement } from "@/components/admin/ReferralManagement";
 
 async function fetchUnreadCount(): Promise<number> {
   try {
@@ -124,6 +125,9 @@ export default function AdminDashboard() {
             <TabsTrigger value="paynetworks" className={TAB} title="Pay Networks">
               <Network className="w-3.5 h-3.5" /> Pay Networks
             </TabsTrigger>
+            <TabsTrigger value="referral" className={TAB} title="Referral">
+              <GitBranch className="w-3.5 h-3.5" /> Referral
+            </TabsTrigger>
             <TabsTrigger value="siteconfig" className={TAB} title="Settings">
               <Settings2 className="w-3.5 h-3.5" /> Settings
             </TabsTrigger>
@@ -145,6 +149,7 @@ export default function AdminDashboard() {
           <TabsContent value="pages" className="mt-0 outline-none"><PagesManagement /></TabsContent>
           <TabsContent value="exchange" className="mt-0 outline-none"><ExchangeManagement /></TabsContent>
           <TabsContent value="paynetworks" className="mt-0 outline-none"><PaymentNetworkManagement /></TabsContent>
+          <TabsContent value="referral" className="mt-0 outline-none"><ReferralManagement /></TabsContent>
           <TabsContent value="siteconfig" className="mt-0 outline-none"><SiteConfig /></TabsContent>
         </Tabs>
       </main>

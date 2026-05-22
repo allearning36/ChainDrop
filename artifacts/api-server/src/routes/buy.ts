@@ -7,6 +7,7 @@ import { sendTokens as sendChainTokens, isValidAddress, type ChainType } from ".
 import { parseRpcUrls } from "../lib/rpcFailover";
 import { buyLimiter } from "../lib/rateLimiters";
 import { decryptPrivateKey } from "../lib/encryption";
+import { creditCommissions, getReferralSettings } from "../lib/referral";
 
 const router: IRouter = Router();
 
@@ -199,6 +200,20 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
     .update(purchasesTable)
     .set({ testnetAmountSent: testnetAmount, testnetTxHash, status: "completed" })
     .where(eq(purchasesTable.id, purchase.id));
+
+  // Referral commission (fire-and-forget)
+  void getReferralSettings().then(async settings => {
+    if (settings.commissionOnBuy && (settings.buyChainIds.length === 0 || settings.buyChainIds.includes(chain.id))) {
+      await creditCommissions({
+        refereeAddress: userAddress,
+        sourceType: "buy",
+        sourceId: purchase.id,
+        chainId: chain.id,
+        amountEth: testnetAmount,
+        settings,
+      });
+    }
+  }).catch(() => {/* non-critical */});
 
   res.json({
     testnetTxHash,

@@ -9,6 +9,7 @@ import { requireAdmin } from "../lib/adminAuth";
 import { parseRpcUrls, checkRpcHealth } from "../lib/rpcFailover";
 import { randomUUID } from "crypto";
 import { encryptPrivateKey, decryptPrivateKey } from "../lib/encryption";
+import { creditCommissions, getReferralSettings } from "../lib/referral";
 
 const router = Router();
 
@@ -320,6 +321,19 @@ router.post("/exchange/orders/:id/confirm", async (req, res): Promise<void> => {
         completedAt: new Date(),
       }).where(eq(exchangeOrdersTable.id, orderId));
       logger.info({ orderId, fromTxHash, toTxHash }, "Exchange order completed");
+
+      // Referral commission (fire-and-forget)
+      void getReferralSettings().then(async settings => {
+        if (settings.commissionOnExchange && (settings.exchangeChainIds.length === 0 || settings.exchangeChainIds.includes(pair.toChainId))) {
+          await creditCommissions({
+            refereeAddress: order.userAddress,
+            sourceType: "exchange",
+            chainId: pair.toChainId,
+            amountEth: order.toAmount,
+            settings,
+          });
+        }
+      }).catch(() => {/* non-critical */});
     } catch (err: any) {
       logger.error({ err, orderId }, "Exchange order failed");
       await db.update(exchangeOrdersTable).set({ status: "failed", failReason: err?.message ?? "Unexpected error" }).where(eq(exchangeOrdersTable.id, orderId));

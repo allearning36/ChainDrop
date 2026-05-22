@@ -17,6 +17,7 @@ tags:
   - name: admin
   - name: support
   - name: settings
+  - name: referral
 
 paths:
   /healthz:
@@ -306,6 +307,261 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PriceItem"
+
+  /referral/dashboard/{wallet}:
+    get:
+      operationId: getReferralDashboard
+      tags: [referral]
+      summary: Get referral dashboard for a wallet address
+      parameters:
+        - name: wallet
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Referral dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralDashboard"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /referral/nonce/{wallet}:
+    get:
+      operationId: getReferralNonce
+      tags: [referral]
+      summary: Get a signing nonce for wallet
+      parameters:
+        - name: wallet
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Nonce
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralNonce"
+
+  /referral/claim-request:
+    post:
+      operationId: submitReferralClaimRequest
+      tags: [referral]
+      summary: Submit a commission claim request with wallet signature
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReferralClaimRequestInput"
+      responses:
+        "200":
+          description: Claim request submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralClaimRequestResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /referral/register:
+    post:
+      operationId: registerReferral
+      tags: [referral]
+      summary: Register a referral relationship (called when referee first visits with ref param)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterReferralInput"
+      responses:
+        "200":
+          description: Referral registered or already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterReferralResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /referral/settings:
+    get:
+      operationId: getReferralSettings
+      tags: [referral]
+      summary: Get public referral settings (for maintenance mode check)
+      responses:
+        "200":
+          description: Referral settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralSettingsPublic"
+
+  /admin/referral/settings:
+    get:
+      operationId: getAdminReferralSettings
+      tags: [admin]
+      summary: Get full referral system settings
+      responses:
+        "200":
+          description: Referral settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralSettings"
+    put:
+      operationId: updateAdminReferralSettings
+      tags: [admin]
+      summary: Update referral system settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReferralSettings"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralSettings"
+
+  /admin/referral/users:
+    get:
+      operationId: getAdminReferralUsers
+      tags: [admin]
+      summary: List all referrers with stats
+      responses:
+        "200":
+          description: Referral user list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReferralUserSummary"
+
+  /admin/referral/users/{wallet}:
+    get:
+      operationId: getAdminReferralUser
+      tags: [admin]
+      summary: Get detailed referral info for a wallet
+      parameters:
+        - name: wallet
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Referral user detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralUserDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/referral/claim-requests:
+    get:
+      operationId: getAdminReferralClaimRequests
+      tags: [admin]
+      summary: List all commission claim requests
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+      responses:
+        "200":
+          description: Claim requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReferralClaimRequestAdmin"
+
+  /admin/referral/claim-requests/{id}/approve:
+    post:
+      operationId: approveReferralClaimRequest
+      tags: [admin]
+      summary: Approve a commission claim request and send ETH
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApproveClaimInput"
+      responses:
+        "200":
+          description: Approved and sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralClaimRequestAdmin"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/referral/claim-requests/{id}/reject:
+    post:
+      operationId: rejectReferralClaimRequest
+      tags: [admin]
+      summary: Reject a commission claim request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectClaimInput"
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralClaimRequestAdmin"
 
   /admin/auth:
     post:
@@ -1600,3 +1856,275 @@ components:
       type: object
       additionalProperties:
         type: string
+
+    ReferralDashboard:
+      type: object
+      required: [wallet, referralCode, referralLink, level1Count, level2Count, pendingCommissionEth, totalEarnedEth, claimableEth, commissions, claimRequests]
+      properties:
+        wallet:
+          type: string
+        referralCode:
+          type: string
+        referralLink:
+          type: string
+        level1Count:
+          type: integer
+        level2Count:
+          type: integer
+        pendingCommissionEth:
+          type: string
+        totalEarnedEth:
+          type: string
+        claimableEth:
+          type: string
+        commissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReferralCommissionRecord"
+        claimRequests:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReferralClaimRequestRecord"
+
+    ReferralCommissionRecord:
+      type: object
+      required: [id, refereeAddress, level, sourceType, chainId, amountEth, commissionPct, status, createdAt]
+      properties:
+        id:
+          type: integer
+        refereeAddress:
+          type: string
+        level:
+          type: integer
+        sourceType:
+          type: string
+        chainId:
+          type: integer
+        amountEth:
+          type: string
+        commissionPct:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    ReferralClaimRequestRecord:
+      type: object
+      required: [id, amountEth, claimChainId, status, createdAt]
+      properties:
+        id:
+          type: integer
+        amountEth:
+          type: string
+        claimChainId:
+          type: integer
+        status:
+          type: string
+        adminNote:
+          type: ["string", "null"]
+        txHash:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    ReferralNonce:
+      type: object
+      required: [nonce, message]
+      properties:
+        nonce:
+          type: string
+        message:
+          type: string
+
+    ReferralClaimRequestInput:
+      type: object
+      required: [wallet, signature, nonce, claimChainId]
+      properties:
+        wallet:
+          type: string
+        signature:
+          type: string
+        nonce:
+          type: string
+        claimChainId:
+          type: integer
+
+    ReferralClaimRequestResult:
+      type: object
+      required: [id, amountEth, status]
+      properties:
+        id:
+          type: integer
+        amountEth:
+          type: string
+        status:
+          type: string
+
+    RegisterReferralInput:
+      type: object
+      required: [referrerAddress, refereeAddress]
+      properties:
+        referrerAddress:
+          type: string
+        refereeAddress:
+          type: string
+
+    RegisterReferralResult:
+      type: object
+      required: [registered]
+      properties:
+        registered:
+          type: boolean
+        message:
+          type: string
+
+    ReferralSettingsPublic:
+      type: object
+      required: [enabled, maintenanceMode, maintenanceMessage]
+      properties:
+        enabled:
+          type: boolean
+        maintenanceMode:
+          type: boolean
+        maintenanceMessage:
+          type: string
+
+    ReferralSettings:
+      type: object
+      required: [enabled, maintenanceMode, maintenanceMessage, level1Pct, level2Pct, commissionOnExchange, commissionOnBuy, commissionOnFaucetClaim, exchangeChainIds, buyChainIds, faucetClaimChainIds, claimChainIds, minClaimEth]
+      properties:
+        enabled:
+          type: boolean
+        maintenanceMode:
+          type: boolean
+        maintenanceMessage:
+          type: string
+        level1Pct:
+          type: number
+        level2Pct:
+          type: number
+        commissionOnExchange:
+          type: boolean
+        commissionOnBuy:
+          type: boolean
+        commissionOnFaucetClaim:
+          type: boolean
+        exchangeChainIds:
+          type: array
+          items:
+            type: integer
+        buyChainIds:
+          type: array
+          items:
+            type: integer
+        faucetClaimChainIds:
+          type: array
+          items:
+            type: integer
+        claimChainIds:
+          type: array
+          items:
+            type: integer
+        minClaimEth:
+          type: number
+
+    ReferralUserSummary:
+      type: object
+      required: [wallet, level1Count, level2Count, totalCommissionEth, pendingCommissionEth, claimRequestCount, joinedAt]
+      properties:
+        wallet:
+          type: string
+        level1Count:
+          type: integer
+        level2Count:
+          type: integer
+        totalCommissionEth:
+          type: string
+        pendingCommissionEth:
+          type: string
+        claimRequestCount:
+          type: integer
+        joinedAt:
+          type: string
+          format: date-time
+
+    ReferralUserDetail:
+      type: object
+      required: [wallet, level1Referrals, level2Referrals, commissions, claimRequests]
+      properties:
+        wallet:
+          type: string
+        level1Referrals:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReferralRecord"
+        level2Referrals:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReferralRecord"
+        commissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReferralCommissionRecord"
+        claimRequests:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReferralClaimRequestAdmin"
+
+    ReferralRecord:
+      type: object
+      required: [id, refereeAddress, level, createdAt]
+      properties:
+        id:
+          type: integer
+        refereeAddress:
+          type: string
+        level:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    ReferralClaimRequestAdmin:
+      type: object
+      required: [id, walletAddress, amountEth, claimChainId, status, createdAt]
+      properties:
+        id:
+          type: integer
+        walletAddress:
+          type: string
+        amountEth:
+          type: string
+        claimChainId:
+          type: integer
+        status:
+          type: string
+        adminNote:
+          type: ["string", "null"]
+        txHash:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        processedAt:
+          type: ["string", "null"]
+          format: date-time
+
+    ApproveClaimInput:
+      type: object
+      required: [chainId]
+      properties:
+        chainId:
+          type: integer
+        note:
+          type: string
+
+    RejectClaimInput:
+      type: object
+      required: [note]
+      properties:
+        note:
+          type: string
