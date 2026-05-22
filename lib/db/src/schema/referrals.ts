@@ -40,6 +40,19 @@ export const referralClaimRequestsTable = pgTable("referral_claim_requests", {
   processedAt: timestamp("processed_at", { withTimezone: true }),
 });
 
+export const referralBalanceAdjustmentsTable = pgTable("referral_balance_adjustments", {
+  id: serial("id").primaryKey(),
+  walletAddress: text("wallet_address").notNull(),
+  type: text("type").notNull(), // "add" | "deduct"
+  amountEth: numeric("amount_eth", { precision: 18, scale: 10 }).notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertReferralBalanceAdjustmentSchema = createInsertSchema(referralBalanceAdjustmentsTable).omit({ id: true, createdAt: true });
+export type InsertReferralBalanceAdjustment = z.infer<typeof insertReferralBalanceAdjustmentSchema>;
+export type ReferralBalanceAdjustment = typeof referralBalanceAdjustmentsTable.$inferSelect;
+
 export const insertReferralSchema = createInsertSchema(referralsTable).omit({ id: true, createdAt: true });
 export type InsertReferral = z.infer<typeof insertReferralSchema>;
 export type Referral = typeof referralsTable.$inferSelect;

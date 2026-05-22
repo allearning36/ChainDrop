@@ -23,6 +23,7 @@ import type {
   AdClaimBody,
   AdTokenBody,
   AdTokenResponse,
+  AdminAdjustBalanceInput,
   AdminAuthInput,
   AdminAuthResult,
   AdminStats,
@@ -51,6 +52,7 @@ import type {
   GetPricesParams,
   HealthStatus,
   PriceItem,
+  ReferralBalanceAdjustment,
   ReferralClaimRequestAdmin,
   ReferralClaimRequestInput,
   ReferralClaimRequestResult,
@@ -1912,6 +1914,78 @@ export const useApproveReferralClaimRequest = <TError = ErrorType<ErrorResponse>
         TContext
       > => {
       return useMutation(getApproveReferralClaimRequestMutationOptions(options));
+    }
+
+export const getAdminAdjustReferralBalanceUrl = (wallet: string,) => {
+
+
+
+
+  return `/api/admin/referral/users/${wallet}/adjust-balance`
+}
+
+/**
+ * @summary Add or deduct referral balance for a wallet
+ */
+export const adminAdjustReferralBalance = async (wallet: string,
+    adminAdjustBalanceInput: AdminAdjustBalanceInput, options?: RequestInit): Promise<ReferralBalanceAdjustment> => {
+
+  return customFetch<ReferralBalanceAdjustment>(getAdminAdjustReferralBalanceUrl(wallet),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminAdjustBalanceInput,)
+  }
+);}
+
+
+
+
+export const getAdminAdjustReferralBalanceMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminAdjustReferralBalance>>, TError,{wallet: string;data: BodyType<AdminAdjustBalanceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminAdjustReferralBalance>>, TError,{wallet: string;data: BodyType<AdminAdjustBalanceInput>}, TContext> => {
+
+const mutationKey = ['adminAdjustReferralBalance'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminAdjustReferralBalance>>, {wallet: string;data: BodyType<AdminAdjustBalanceInput>}> = (props) => {
+          const {wallet,data} = props ?? {};
+
+          return  adminAdjustReferralBalance(wallet,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminAdjustReferralBalanceMutationResult = NonNullable<Awaited<ReturnType<typeof adminAdjustReferralBalance>>>
+    export type AdminAdjustReferralBalanceMutationBody = BodyType<AdminAdjustBalanceInput>
+    export type AdminAdjustReferralBalanceMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Add or deduct referral balance for a wallet
+ */
+export const useAdminAdjustReferralBalance = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminAdjustReferralBalance>>, TError,{wallet: string;data: BodyType<AdminAdjustBalanceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminAdjustReferralBalance>>,
+        TError,
+        {wallet: string;data: BodyType<AdminAdjustBalanceInput>},
+        TContext
+      > => {
+      return useMutation(getAdminAdjustReferralBalanceMutationOptions(options));
     }
 
 export const getRejectReferralClaimRequestUrl = (id: number,) => {

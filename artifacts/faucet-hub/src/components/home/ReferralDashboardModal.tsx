@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Copy, Check, Users, TrendingUp, Wallet, Clock, ExternalLink, AlertCircle, ChevronDown, ChevronUp, X } from "lucide-react";
+import { Loader2, Copy, Check, Users, TrendingUp, Wallet, Clock, ExternalLink, AlertCircle, ChevronDown, ChevronUp, X, History, Plus, Minus } from "lucide-react";
 import {
   useGetReferralDashboard,
   getGetReferralDashboardQueryKey,
@@ -414,7 +414,35 @@ export function ReferralDashboardModal({ open, onClose }: ReferralDashboardModal
                   </div>
                 )}
 
-                {dashboard.commissions.length === 0 && dashboard.claimRequests.length === 0 && (
+                {/* Admin Adjustments */}
+                {dashboard.adjustments.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="font-mono font-semibold text-sm flex items-center gap-1.5">
+                      <History className="w-3.5 h-3.5 text-yellow-400" /> Admin Adjustments
+                    </p>
+                    <div className="space-y-1.5">
+                      {dashboard.adjustments.map(a => (
+                        <div key={a.id} className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className="shrink-0 flex items-center gap-0.5 font-mono text-xs font-bold px-1.5 py-0.5 rounded"
+                              style={{ background: a.type === "add" ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)", color: a.type === "add" ? "#22c55e" : "#f87171" }}
+                            >
+                              {a.type === "add" ? <Plus className="w-2.5 h-2.5" /> : <Minus className="w-2.5 h-2.5" />}
+                              {parseFloat(a.amountEth).toFixed(6)}
+                            </span>
+                            {a.note && <span className="font-mono text-xs text-muted-foreground truncate">{a.note}</span>}
+                          </div>
+                          <span className="font-mono text-[10px] text-muted-foreground shrink-0 ml-2">
+                            {new Date(a.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {dashboard.commissions.length === 0 && dashboard.claimRequests.length === 0 && dashboard.adjustments.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-8 gap-2 text-muted-foreground">
                     <TrendingUp className="w-8 h-8 opacity-30" />
                     <p className="text-xs font-mono">No referral activity yet. Share your link to start earning!</p>

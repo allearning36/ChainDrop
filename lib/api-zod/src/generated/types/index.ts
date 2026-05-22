@@ -7,6 +7,8 @@
  */
 
 export * from './adClaimBody';
+export * from './adminAdjustBalanceInput';
+export * from './adminAdjustBalanceInputType';
 export * from './adminAuthInput';
 export * from './adminAuthResult';
 export * from './adminStats';
@@ -46,6 +48,8 @@ export * from './getPricesParams';
 export * from './healthStatus';
 export * from './paymentNetwork';
 export * from './priceItem';
+export * from './referralBalanceAdjustment';
+export * from './referralBalanceAdjustmentType';
 export * from './referralClaimRequestAdmin';
 export * from './referralClaimRequestInput';
 export * from './referralClaimRequestRecord';

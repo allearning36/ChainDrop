@@ -12,6 +12,7 @@ import {
   useRejectReferralClaimRequest,
   useGetAdminReferralUser,
   getGetAdminReferralUserQueryKey,
+  useAdminAdjustReferralBalance,
   useGetChains,
   getGetChainsQueryKey,
 } from "@workspace/api-client-react";
@@ -22,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, Settings2, Users, CheckCircle, XCircle, AlertCircle, ChevronRight, ChevronLeft } from "lucide-react";
+import { Loader2, Settings2, Users, CheckCircle, XCircle, AlertCircle, ChevronRight, ChevronLeft, Plus, Minus, History } from "lucide-react";
 import { adminFetch } from "@/lib/auth";
 
 function ChainMultiSelect({ label, chainIds, value, onChange }: {
@@ -329,8 +330,115 @@ function ClaimRequestsPanel() {
   );
 }
 
+function AdjustBalanceForm({ wallet, onSuccess }: { wallet: string; onSuccess: () => void }) {
+  const [type, setType] = useState<"add" | "deduct">("add");
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [err, setErr] = useState("");
+  const [ok, setOk] = useState(false);
+  const adjustMutation = useAdminAdjustReferralBalance();
+
+  const handleSubmit = async () => {
+    setErr(""); setOk(false);
+    const eth = parseFloat(amount);
+    if (isNaN(eth) || eth <= 0) { setErr("Enter a valid positive amount"); return; }
+    try {
+      await adjustMutation.mutateAsync({ wallet, data: { type, amountEth: eth.toFixed(10), note: note || undefined } });
+      setAmount(""); setNote(""); setOk(true);
+      setTimeout(() => setOk(false), 3000);
+      onSuccess();
+    } catch (e: any) {
+      setErr(e?.response?.data?.error ?? e?.message ?? "Failed");
+    }
+  };
+
+  return (
+    <div className="rounded-xl p-4 space-y-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)" }}>
+      <p className="font-mono font-semibold text-sm flex items-center gap-2">
+        <History className="w-4 h-4 text-yellow-400" /> Adjust Balance
+      </p>
+
+      {/* Add / Deduct toggle */}
+      <div className="flex gap-2">
+        {(["add", "deduct"] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setType(t)}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg font-mono text-xs font-semibold transition-all"
+            style={{
+              background: type === t ? (t === "add" ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)") : "rgba(255,255,255,0.05)",
+              border: `1px solid ${type === t ? (t === "add" ? "rgba(34,197,94,0.5)" : "rgba(239,68,68,0.5)") : "rgba(255,255,255,0.1)"}`,
+              color: type === t ? (t === "add" ? "#22c55e" : "#f87171") : "rgba(255,255,255,0.5)",
+            }}
+          >
+            {t === "add" ? <Plus className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
+            {t === "add" ? "Add" : "Deduct"}
+          </button>
+        ))}
+      </div>
+
+      {/* Amount */}
+      <div>
+        <label className="text-xs font-mono text-muted-foreground block mb-1">Amount (ETH)</label>
+        <input
+          type="number"
+          min="0"
+          step="0.001"
+          placeholder="0.000000"
+          className="w-full rounded-lg px-3 py-2 font-mono text-sm bg-transparent outline-none"
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.9)" }}
+          value={amount}
+          onChange={e => setAmount(e.target.value)}
+        />
+      </div>
+
+      {/* Notice */}
+      <div>
+        <label className="text-xs font-mono text-muted-foreground block mb-1">Notice / Note <span className="opacity-50">(optional)</span></label>
+        <input
+          type="text"
+          placeholder="e.g. Bonus reward, Fraud deduction..."
+          className="w-full rounded-lg px-3 py-2 font-mono text-xs bg-transparent outline-none"
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.9)" }}
+          value={note}
+          onChange={e => setNote(e.target.value)}
+        />
+      </div>
+
+      {err && (
+        <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
+          <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+          <span className="text-xs font-mono text-red-400">{err}</span>
+        </div>
+      )}
+      {ok && (
+        <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}>
+          <CheckCircle className="w-3.5 h-3.5 text-green-400 shrink-0" />
+          <span className="text-xs font-mono text-green-400">Balance adjusted successfully</span>
+        </div>
+      )}
+
+      <Button
+        onClick={handleSubmit}
+        disabled={adjustMutation.isPending || !amount}
+        className="w-full font-mono text-xs gap-2"
+        style={{
+          background: type === "add" ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)",
+          border: `1px solid ${type === "add" ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+          color: type === "add" ? "#22c55e" : "#f87171",
+        }}
+        variant="outline"
+      >
+        {adjustMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : (type === "add" ? <Plus className="w-3.5 h-3.5" /> : <Minus className="w-3.5 h-3.5" />)}
+        {type === "add" ? "Add Balance" : "Deduct Balance"}
+      </Button>
+    </div>
+  );
+}
+
 function UsersPanel() {
   const [selectedWallet, setSelectedWallet] = useState<string | null>(null);
+  const qc = useQueryClient();
 
   const { data: users = [], isLoading } = useGetAdminReferralUsers({
     query: { queryKey: getGetAdminReferralUsersQueryKey(), refetchInterval: 30000 }
@@ -340,6 +448,12 @@ function UsersPanel() {
     selectedWallet ?? "",
     { query: { enabled: !!selectedWallet, queryKey: getGetAdminReferralUserQueryKey(selectedWallet ?? "") } }
   );
+
+  const refreshDetail = () => {
+    if (selectedWallet) {
+      void qc.invalidateQueries({ queryKey: getGetAdminReferralUserQueryKey(selectedWallet) });
+    }
+  };
 
   if (selectedWallet) {
     return (
@@ -354,15 +468,41 @@ function UsersPanel() {
           <div className="space-y-2">{Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
         ) : userDetail ? (
           <div className="space-y-4">
-            <div className="font-mono text-xs text-muted-foreground truncate">{userDetail.wallet}</div>
+            <div className="font-mono text-xs break-all" style={{ color: "rgba(255,255,255,0.6)" }}>{userDetail.wallet}</div>
+
+            {/* ── Adjust Balance ── */}
+            <AdjustBalanceForm wallet={userDetail.wallet} onSuccess={refreshDetail} />
+
+            {/* ── Adjustment History ── */}
+            {(userDetail as any).adjustments?.length > 0 && (
+              <div>
+                <p className="font-mono font-semibold text-sm mb-2 flex items-center gap-1.5">
+                  <History className="w-3.5 h-3.5 text-yellow-400" /> Adjustment History ({(userDetail as any).adjustments.length})
+                </p>
+                <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                  {(userDetail as any).adjustments.map((a: any) => (
+                    <div key={a.id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="shrink-0 font-mono text-[10px] px-1.5 py-0.5 rounded font-bold" style={{ background: a.type === "add" ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)", color: a.type === "add" ? "#22c55e" : "#f87171" }}>
+                          {a.type === "add" ? "+" : "−"}{parseFloat(a.amountEth).toFixed(6)}
+                        </span>
+                        {a.note && <span className="font-mono text-[10px] text-muted-foreground truncate">{a.note}</span>}
+                      </div>
+                      <span className="font-mono text-[10px] text-muted-foreground shrink-0 ml-2">{new Date(a.createdAt).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* L1 referrals */}
             <div>
               <p className="font-mono font-semibold text-sm mb-2">Level 1 Referrals ({userDetail.level1Referrals.length})</p>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 max-h-32 overflow-y-auto">
                 {userDetail.level1Referrals.map(r => (
                   <div key={r.id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
                     <span className="font-mono text-xs truncate">{r.refereeAddress}</span>
-                    <span className="font-mono text-[10px] text-muted-foreground">{new Date(r.createdAt).toLocaleDateString()}</span>
+                    <span className="font-mono text-[10px] text-muted-foreground shrink-0 ml-2">{new Date(r.createdAt).toLocaleString()}</span>
                   </div>
                 ))}
                 {userDetail.level1Referrals.length === 0 && <p className="text-xs font-mono text-muted-foreground">None</p>}
@@ -371,11 +511,11 @@ function UsersPanel() {
             {/* L2 referrals */}
             <div>
               <p className="font-mono font-semibold text-sm mb-2">Level 2 Referrals ({userDetail.level2Referrals.length})</p>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 max-h-32 overflow-y-auto">
                 {userDetail.level2Referrals.map(r => (
                   <div key={r.id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
                     <span className="font-mono text-xs truncate">{r.refereeAddress}</span>
-                    <span className="font-mono text-[10px] text-muted-foreground">{new Date(r.createdAt).toLocaleDateString()}</span>
+                    <span className="font-mono text-[10px] text-muted-foreground shrink-0 ml-2">{new Date(r.createdAt).toLocaleString()}</span>
                   </div>
                 ))}
                 {userDetail.level2Referrals.length === 0 && <p className="text-xs font-mono text-muted-foreground">None</p>}
@@ -387,16 +527,40 @@ function UsersPanel() {
               <div className="space-y-1.5 max-h-48 overflow-y-auto">
                 {userDetail.commissions.map(c => (
                   <div key={c.id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] px-1 rounded" style={{ background: c.level === 1 ? "rgba(34,197,94,0.1)" : "rgba(167,139,250,0.1)", color: c.level === 1 ? "#22c55e" : "#a78bfa" }}>L{c.level}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-mono text-[10px] px-1 rounded shrink-0" style={{ background: c.level === 1 ? "rgba(34,197,94,0.1)" : "rgba(167,139,250,0.1)", color: c.level === 1 ? "#22c55e" : "#a78bfa" }}>L{c.level}</span>
                       <span className="font-mono text-xs text-muted-foreground">{c.sourceType}</span>
                       <span className="font-mono text-xs text-green-400">+{parseFloat(c.amountEth).toFixed(6)}</span>
                     </div>
-                    <Badge className="font-mono text-[9px]" style={{ background: c.status === "paid" ? "rgba(34,197,94,0.1)" : "rgba(234,179,8,0.1)", color: c.status === "paid" ? "#22c55e" : "#eab308", border: "none" }}>{c.status}</Badge>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-mono text-[10px] text-muted-foreground">{new Date(c.createdAt).toLocaleString()}</span>
+                      <Badge className="font-mono text-[9px]" style={{ background: c.status === "paid" ? "rgba(34,197,94,0.1)" : "rgba(234,179,8,0.1)", color: c.status === "paid" ? "#22c55e" : "#eab308", border: "none" }}>{c.status}</Badge>
+                    </div>
                   </div>
                 ))}
+                {userDetail.commissions.length === 0 && <p className="text-xs font-mono text-muted-foreground">None</p>}
               </div>
             </div>
+            {/* Claim Requests */}
+            {userDetail.claimRequests.length > 0 && (
+              <div>
+                <p className="font-mono font-semibold text-sm mb-2">Claim Requests ({userDetail.claimRequests.length})</p>
+                <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                  {userDetail.claimRequests.map(r => (
+                    <div key={r.id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono text-xs text-green-400">{parseFloat(r.amountEth).toFixed(6)} ETH</span>
+                        {r.adminNote && <span className="font-mono text-[10px] text-muted-foreground truncate">{r.adminNote}</span>}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-mono text-[10px] text-muted-foreground">{new Date(r.createdAt).toLocaleString()}</span>
+                        <Badge className="font-mono text-[9px]" style={{ background: r.status === "approved" ? "rgba(34,197,94,0.1)" : r.status === "rejected" ? "rgba(239,68,68,0.1)" : "rgba(234,179,8,0.1)", color: r.status === "approved" ? "#22c55e" : r.status === "rejected" ? "#f87171" : "#eab308", border: "none" }}>{r.status}</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <p className="text-sm font-mono text-muted-foreground">No data found</p>

@@ -6,6 +6,7 @@ import {
   referralsTable,
   referralCommissionsTable,
   referralClaimRequestsTable,
+  referralBalanceAdjustmentsTable,
   chainsTable,
 } from "@workspace/db/schema";
 import { requireAdmin } from "../lib/adminAuth";
@@ -61,17 +62,21 @@ router.get("/referral/dashboard/:wallet", async (req, res): Promise<void> => {
   const baseUrl = domains.length > 0 ? `https://${domains[0]}` : "https://chain-drop.replit.app";
   const referralLink = `${baseUrl}/?ref=${wallet}`;
 
-  const [level1, level2, commissions, claimRequests] = await Promise.all([
+  const [level1, level2, commissions, claimRequests, adjustments] = await Promise.all([
     db.select().from(referralsTable).where(and(eq(referralsTable.referrerAddress, wallet), eq(referralsTable.level, 1))),
     db.select().from(referralsTable).where(and(eq(referralsTable.referrerAddress, wallet), eq(referralsTable.level, 2))),
     db.select().from(referralCommissionsTable)
       .where(eq(referralCommissionsTable.referrerAddress, wallet))
       .orderBy(desc(referralCommissionsTable.createdAt))
-      .limit(50),
+      .limit(100),
     db.select().from(referralClaimRequestsTable)
       .where(eq(referralClaimRequestsTable.walletAddress, wallet))
       .orderBy(desc(referralClaimRequestsTable.createdAt))
-      .limit(20),
+      .limit(50),
+    db.select().from(referralBalanceAdjustmentsTable)
+      .where(eq(referralBalanceAdjustmentsTable.walletAddress, wallet))
+      .orderBy(desc(referralBalanceAdjustmentsTable.createdAt))
+      .limit(50),
   ]);
 
   const totalEarned = commissions.reduce((s, c) => s + parseFloat(c.amountEth), 0);
@@ -81,7 +86,11 @@ router.get("/referral/dashboard/:wallet", async (req, res): Promise<void> => {
   const pendingCommission = commissions
     .filter(c => c.status === "pending")
     .reduce((s, c) => s + parseFloat(c.amountEth), 0);
-  const claimable = Math.max(0, pendingCommission - alreadyRequested);
+  // Admin adjustments affect claimable balance
+  const adjustmentDelta = adjustments.reduce((s, a) => {
+    return a.type === "add" ? s + parseFloat(a.amountEth) : s - parseFloat(a.amountEth);
+  }, 0);
+  const claimable = Math.max(0, pendingCommission + adjustmentDelta - alreadyRequested);
 
   res.json({
     wallet,
@@ -111,6 +120,14 @@ router.get("/referral/dashboard/:wallet", async (req, res): Promise<void> => {
       adminNote: r.adminNote ?? null,
       txHash: r.txHash ?? null,
       createdAt: r.createdAt.toISOString(),
+    })),
+    adjustments: adjustments.map(a => ({
+      id: a.id,
+      walletAddress: a.walletAddress,
+      type: a.type,
+      amountEth: a.amountEth,
+      note: a.note ?? null,
+      createdAt: a.createdAt.toISOString(),
     })),
   });
 });
@@ -316,6 +333,40 @@ router.get("/admin/referral/users/:wallet", requireAdmin, async (req, res): Prom
       createdAt: r.createdAt.toISOString(),
       processedAt: r.processedAt?.toISOString() ?? null,
     })),
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN: POST /admin/referral/users/:wallet/adjust-balance
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/admin/referral/users/:wallet/adjust-balance", requireAdmin, async (req, res): Promise<void> => {
+  const wallet = String(req.params.wallet).toLowerCase();
+  const { type, amountEth, note } = req.body ?? {};
+
+  if (!type || (type !== "add" && type !== "deduct")) {
+    res.status(400).json({ error: "type must be 'add' or 'deduct'" });
+    return;
+  }
+  const amount = parseFloat(String(amountEth));
+  if (isNaN(amount) || amount <= 0) {
+    res.status(400).json({ error: "amountEth must be a positive number" });
+    return;
+  }
+
+  const [row] = await db.insert(referralBalanceAdjustmentsTable).values({
+    walletAddress: wallet,
+    type,
+    amountEth: amount.toFixed(10),
+    note: note ? String(note) : null,
+  }).returning();
+
+  res.json({
+    id: row!.id,
+    walletAddress: row!.walletAddress,
+    type: row!.type,
+    amountEth: row!.amountEth,
+    note: row!.note ?? null,
+    createdAt: row!.createdAt.toISOString(),
   });
 });
 

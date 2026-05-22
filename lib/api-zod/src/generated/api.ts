@@ -297,6 +297,14 @@ export const GetReferralDashboardResponse = zod.object({
   "adminNote": zod.string().nullish(),
   "txHash": zod.string().nullish(),
   "createdAt": zod.coerce.date()
+})),
+  "adjustments": zod.array(zod.object({
+  "id": zod.number(),
+  "walletAddress": zod.string(),
+  "type": zod.enum(['add', 'deduct']),
+  "amountEth": zod.string(),
+  "note": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
 }))
 })
 
@@ -515,6 +523,29 @@ export const ApproveReferralClaimRequestResponse = zod.object({
   "txHash": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "processedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Add or deduct referral balance for a wallet
+ */
+export const AdminAdjustReferralBalanceParams = zod.object({
+  "wallet": zod.coerce.string()
+})
+
+export const AdminAdjustReferralBalanceBody = zod.object({
+  "type": zod.enum(['add', 'deduct']),
+  "amountEth": zod.string(),
+  "note": zod.string().optional()
+})
+
+export const AdminAdjustReferralBalanceResponse = zod.object({
+  "id": zod.number(),
+  "walletAddress": zod.string(),
+  "type": zod.enum(['add', 'deduct']),
+  "amountEth": zod.string(),
+  "note": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
 })
 
 

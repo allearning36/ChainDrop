@@ -550,6 +550,38 @@ export interface AdminStats {
 
 export interface SiteSettings {[key: string]: string}
 
+export type ReferralBalanceAdjustmentType = typeof ReferralBalanceAdjustmentType[keyof typeof ReferralBalanceAdjustmentType];
+
+
+export const ReferralBalanceAdjustmentType = {
+  add: 'add',
+  deduct: 'deduct',
+} as const;
+
+export interface ReferralBalanceAdjustment {
+  id: number;
+  walletAddress: string;
+  type: ReferralBalanceAdjustmentType;
+  amountEth: string;
+  /** @nullable */
+  note?: string | null;
+  createdAt: string;
+}
+
+export type AdminAdjustBalanceInputType = typeof AdminAdjustBalanceInputType[keyof typeof AdminAdjustBalanceInputType];
+
+
+export const AdminAdjustBalanceInputType = {
+  add: 'add',
+  deduct: 'deduct',
+} as const;
+
+export interface AdminAdjustBalanceInput {
+  type: AdminAdjustBalanceInputType;
+  amountEth: string;
+  note?: string;
+}
+
 export interface ReferralCommissionRecord {
   id: number;
   refereeAddress: string;
@@ -585,6 +617,7 @@ export interface ReferralDashboard {
   claimableEth: string;
   commissions: ReferralCommissionRecord[];
   claimRequests: ReferralClaimRequestRecord[];
+  adjustments: ReferralBalanceAdjustment[];
 }
 
 export interface ReferralNonce {

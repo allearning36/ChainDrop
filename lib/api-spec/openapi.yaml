@@ -538,6 +538,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /admin/referral/users/{wallet}/adjust-balance:
+    post:
+      operationId: adminAdjustReferralBalance
+      tags: [admin]
+      summary: Add or deduct referral balance for a wallet
+      parameters:
+        - name: wallet
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAdjustBalanceInput"
+      responses:
+        "200":
+          description: Adjustment recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralBalanceAdjustment"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /admin/referral/claim-requests/{id}/reject:
     post:
       operationId: rejectReferralClaimRequest
@@ -1857,9 +1888,40 @@ components:
       additionalProperties:
         type: string
 
+    ReferralBalanceAdjustment:
+      type: object
+      required: [id, walletAddress, type, amountEth, createdAt]
+      properties:
+        id:
+          type: integer
+        walletAddress:
+          type: string
+        type:
+          type: string
+          enum: [add, deduct]
+        amountEth:
+          type: string
+        note:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    AdminAdjustBalanceInput:
+      type: object
+      required: [type, amountEth]
+      properties:
+        type:
+          type: string
+          enum: [add, deduct]
+        amountEth:
+          type: string
+        note:
+          type: string
+
     ReferralDashboard:
       type: object
-      required: [wallet, referralCode, referralLink, level1Count, level2Count, pendingCommissionEth, totalEarnedEth, claimableEth, commissions, claimRequests]
+      required: [wallet, referralCode, referralLink, level1Count, level2Count, pendingCommissionEth, totalEarnedEth, claimableEth, commissions, claimRequests, adjustments]
       properties:
         wallet:
           type: string
@@ -1885,6 +1947,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ReferralClaimRequestRecord"
+        adjustments:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReferralBalanceAdjustment"
 
     ReferralCommissionRecord:
       type: object
