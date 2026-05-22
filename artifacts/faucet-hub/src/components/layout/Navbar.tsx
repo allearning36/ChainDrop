@@ -68,14 +68,14 @@ export function Navbar() {
             onClick={() => setMenuOpen(v => !v)}
             className="flex flex-col justify-center items-center gap-[5px] w-10 h-10 rounded-lg transition-colors"
             style={{
-              background: menuOpen ? "rgba(34,197,94,0.08)" : "transparent",
-              border: menuOpen ? "1px solid rgba(34,197,94,0.2)" : "1px solid transparent",
+              background: menuOpen ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.06)",
+              border: menuOpen ? "1px solid rgba(34,197,94,0.35)" : "1px solid rgba(255,255,255,0.15)",
             }}
             aria-label="Menu"
           >
-            <span className="block w-5 h-[2px] rounded-full transition-all" style={{ background: menuOpen ? "#22c55e" : "rgba(255,255,255,0.6)" }} />
-            <span className="block w-5 h-[2px] rounded-full transition-all" style={{ background: menuOpen ? "#22c55e" : "rgba(255,255,255,0.6)" }} />
-            <span className="block w-5 h-[2px] rounded-full transition-all" style={{ background: menuOpen ? "#22c55e" : "rgba(255,255,255,0.6)" }} />
+            <span className="block w-[22px] h-[2.5px] rounded-full transition-all" style={{ background: menuOpen ? "#22c55e" : "#ffffff" }} />
+            <span className="block w-[22px] h-[2.5px] rounded-full transition-all" style={{ background: menuOpen ? "#22c55e" : "#ffffff" }} />
+            <span className="block w-[22px] h-[2.5px] rounded-full transition-all" style={{ background: menuOpen ? "#22c55e" : "#ffffff" }} />
           </button>
 
           {/* Dropdown */}
