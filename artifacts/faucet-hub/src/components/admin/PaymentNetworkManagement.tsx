@@ -345,9 +345,16 @@ export function PaymentNetworkManagement() {
               </div>
 
               {/* Enabled */}
-              <div className="flex items-center gap-2 sm:col-span-2">
-                <Switch checked={form.isEnabled} onCheckedChange={v => setForm(f => ({ ...f, isEnabled: v }))} />
-                <Label className="text-xs">{form.isEnabled ? "Enabled" : "Disabled"}</Label>
+              <div className="space-y-1 sm:col-span-2">
+                <div className="flex items-center gap-2">
+                  <Switch checked={form.isEnabled} onCheckedChange={v => setForm(f => ({ ...f, isEnabled: v }))} />
+                  <Label className="text-xs">{form.isEnabled ? "Enabled" : "Disabled"}</Label>
+                </div>
+                <p className="text-[10px] font-mono text-muted-foreground pl-0.5">
+                  {form.isEnabled
+                    ? "Network is active — users will see it as a payment option."
+                    : "Network is hidden — save it now and enable it later when ready."}
+                </p>
               </div>
             </div>
 
