@@ -368,6 +368,9 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                           <span className="text-[10px] font-bold font-mono" style={{ color: "rgba(255,255,255,0.25)" }}>OR</span>
                           <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
                         </div>
+                        {adWatchError && (
+                          <p className="text-xs font-mono text-center px-3 py-2 rounded-xl" style={{ color: "#f87171", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>{adWatchError}</p>
+                        )}
                         <button
                           onClick={handleWatchAd}
                           disabled={requestAdTokenMutation.isPending}
@@ -384,9 +387,6 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                             : <><Play className="w-4 h-4" /> Claim More · Watch Ad</>
                           }
                         </button>
-                        {adWatchError && (
-                          <p className="text-xs font-mono text-red-400 text-center">{adWatchError}</p>
-                        )}
                       </>
                     )}
                   </>
@@ -657,6 +657,9 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                       <span className="text-xs font-bold font-mono" style={{ color: "rgba(255,255,255,0.25)" }}>OR</span>
                       <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
                     </div>
+                        {adWatchError && (
+                          <p className="text-xs font-mono text-center px-3 py-2 rounded-xl" style={{ color: "#f87171", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>{adWatchError}</p>
+                        )}
                     <button
                       onClick={handleWatchAd}
                       disabled={requestAdTokenMutation.isPending}

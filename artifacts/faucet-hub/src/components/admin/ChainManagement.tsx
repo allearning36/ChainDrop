@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X, ShoppingCart, Pin, PinOff, Server, Shield, Droplets, Globe, Settings2, Clock, ArrowUp, ArrowDown, Activity, CheckCircle2, XCircle, RefreshCw, Tv2 } from "lucide-react";
+import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X, ShoppingCart, Pin, PinOff, Server, Shield, Droplets, Globe, Settings2, Clock, ArrowUp, ArrowDown, Activity, CheckCircle2, XCircle, RefreshCw, Tv2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { adminFetch } from "@/lib/auth";
 import { formatCooldown, secondsToHms, hmsToSeconds } from "@/lib/utils";
@@ -101,6 +101,7 @@ const DEFAULT_CHAIN = {
 };
 
 export function ChainManagement() {
+  const [chainSearch, setChainSearch] = useState("");
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: chains = [], isLoading } = useGetAdminChains({
@@ -343,6 +344,16 @@ export function ChainManagement() {
         </Button>
       </div>
 
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <input
+          value={chainSearch}
+          onChange={e => setChainSearch(e.target.value)}
+          placeholder="Search by name or symbol…"
+          className="w-full pl-9 pr-4 py-2 rounded-xl text-sm font-mono bg-muted/30 border border-border focus:outline-none focus:ring-1 focus:ring-primary/40 placeholder:text-muted-foreground"
+        />
+      </div>
+
       <div className="border border-border rounded-md overflow-hidden bg-card/50">
         <Table>
           <TableHeader className="bg-muted/50">
@@ -370,7 +381,12 @@ export function ChainManagement() {
                 </TableCell>
               </TableRow>
             ) : (
-              chains.map((chain) => {
+              chains
+              .filter(c => {
+                const q = chainSearch.trim().toLowerCase();
+                return !q || c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q);
+              })
+              .map((chain) => {
                 let nets: string[] = [];
                 try { nets = JSON.parse(chain.buyCurrencies || '[]'); } catch { /* */ }
                 return (

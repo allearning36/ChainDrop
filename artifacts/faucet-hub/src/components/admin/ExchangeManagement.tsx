@@ -4,7 +4,7 @@ import {
   ArrowLeftRight, Plus, Trash2, Edit2, Save, X,
   AlertCircle, CheckCircle2, Loader2,
   ClipboardList, Activity, ArrowUp, ArrowDown, Upload, XCircle, RefreshCw,
-  Key, Eye, EyeOff, Wallet, Settings,
+  Key, Eye, EyeOff, Wallet, Settings, Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -292,6 +292,8 @@ export function ExchangeManagement() {
   // Per-pair key visibility in form
   const [showPairKey, setShowPairKey] = useState(false);
 
+  const [pairSearch, setPairSearch] = useState("");
+
   const fetchPairs = async () => {
     const res = await adminFetch("/api/admin/exchange/pairs");
     if (res.ok) setPairs(await res.json());
@@ -507,12 +509,29 @@ export function ExchangeManagement() {
       {/* ── Pairs tab ── */}
       {tab === "pairs" && (
         <div className="space-y-3">
+          {pairs.length > 0 && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input
+                value={pairSearch}
+                onChange={e => setPairSearch(e.target.value)}
+                placeholder="Search by name, from or to symbol…"
+                className="w-full pl-9 pr-4 py-2 rounded-xl text-sm font-mono border focus:outline-none focus:ring-1 focus:ring-primary/40 placeholder:text-muted-foreground"
+                style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}
+              />
+            </div>
+          )}
           {pairs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
               <ArrowLeftRight className="w-10 h-10 opacity-20" />
               <p className="text-sm font-mono">No exchange pairs yet. Add one to get started.</p>
             </div>
-          ) : pairs.map(p => (
+          ) : pairs
+            .filter(p => {
+              const q = pairSearch.trim().toLowerCase();
+              return !q || p.name.toLowerCase().includes(q) || p.fromSymbol.toLowerCase().includes(q) || p.toSymbol.toLowerCase().includes(q);
+            })
+            .map(p => (
             <div key={p.id} className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
               <div className="px-4 py-3 space-y-2" style={{ background: "rgba(255,255,255,0.03)" }}>
                 {/* Row 1: symbol + actions */}
