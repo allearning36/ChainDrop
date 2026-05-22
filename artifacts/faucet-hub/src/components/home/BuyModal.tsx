@@ -349,8 +349,9 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
     <>
       <Dialog open={!!chain} onOpenChange={(open) => { if (!open) { abortRef.current?.abort(); onClose(); } }}>
         <DialogContent
-          className="sm:max-w-lg w-full flex flex-col p-0 gap-0 [&>button]:hidden"
+          className="sm:max-w-lg w-full flex flex-col p-0 gap-0"
           onInteractOutside={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => e.preventDefault()}
           style={{ background: "#0d0d14", border: "1px solid rgba(255,255,255,0.08)", maxHeight: "92vh", overflowY: "auto" }}
         >
           {/* Header */}
