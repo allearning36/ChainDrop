@@ -405,7 +405,10 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                     }}
                   >
                     {claimMutation.isPending ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
+                      <span className="flex flex-col items-center gap-0.5">
+                        <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Sending to blockchain...</span>
+                        <span className="text-[10px] font-mono opacity-60 normal-case tracking-normal">This may take 15–30 seconds</span>
+                      </span>
                     ) : (
                       <><Zap className="w-4 h-4" /> Request {chain.claimAmount} {chain.symbol}</>
                     )}
@@ -542,7 +545,10 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                   }}
                 >
                   {adClaimMutation.isPending
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
+                    ? <span className="flex flex-col items-center gap-0.5">
+                        <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Sending to blockchain...</span>
+                        <span className="text-[10px] font-mono opacity-60 normal-case tracking-normal">This may take 15–30 seconds</span>
+                      </span>
                     : <><Zap className="w-4 h-4" /> Claim Now</>
                   }
                 </button>
