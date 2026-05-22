@@ -44,9 +44,18 @@ function timeAgo(ts: string) {
   return `${Math.floor(diff / 3600)}h ago`;
 }
 
+const LIVE_EVENTS_KEY = "chainDrop_liveEvents";
+
+function loadStoredEvents(): LiveEvent[] {
+  try {
+    const raw = sessionStorage.getItem(LIVE_EVENTS_KEY);
+    return raw ? (JSON.parse(raw) as LiveEvent[]) : [];
+  } catch { return []; }
+}
+
 export function LiveMonitor() {
   const [connected, setConnected] = useState(false);
-  const [events, setEvents] = useState<LiveEvent[]>([]);
+  const [events, setEvents] = useState<LiveEvent[]>(() => loadStoredEvents());
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(false);
   const esRef = useRef<EventSource | null>(null);
@@ -85,7 +94,11 @@ export function LiveMonitor() {
         try {
           const event = JSON.parse(e.data as string) as LiveEvent;
           if (event.type === "ping") return;
-          setEvents((prev) => [event, ...prev].slice(0, 200));
+          setEvents((prev) => {
+            const next = [event, ...prev].slice(0, 200);
+            try { sessionStorage.setItem(LIVE_EVENTS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+            return next;
+          });
         } catch { /* ignore */ }
       };
     }
@@ -129,7 +142,7 @@ export function LiveMonitor() {
           <Button size="sm" variant="outline" onClick={togglePause} className="font-mono text-xs h-7 px-2">
             {paused ? <><Activity className="w-3 h-3 mr-1" />Resume</> : <><Zap className="w-3 h-3 mr-1" />Pause</>}
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setEvents([])} className="font-mono text-xs h-7 px-2 text-muted-foreground">
+          <Button size="sm" variant="outline" onClick={() => { setEvents([]); try { sessionStorage.removeItem(LIVE_EVENTS_KEY); } catch { /* ignore */ } }} className="font-mono text-xs h-7 px-2 text-muted-foreground">
             <Trash2 className="w-3 h-3 mr-1" />Clear
           </Button>
         </div>
