@@ -45,9 +45,9 @@ export function Footer() {
     fetch("/api/site-config/public")
       .then(r => r.json())
       .then((d: SiteConfig) => {
-        setSocial(d.socialLinks);
-        setMaintenance(d.maintenanceEnabled);
-        setMaintenanceMsg(d.maintenanceMessage);
+        if (d.socialLinks) setSocial(d.socialLinks);
+        if (typeof d.maintenanceEnabled === "boolean") setMaintenance(d.maintenanceEnabled);
+        if (d.maintenanceMessage) setMaintenanceMsg(d.maintenanceMessage);
       })
       .catch(() => {});
   }, []);
