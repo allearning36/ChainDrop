@@ -164,9 +164,11 @@ router.get("/exchange/pairs/:id/wallet-balance", async (req, res): Promise<void>
     if (!address) { res.json({ balance: null, address: null, warning: true }); return; }
     const toRpcs = getPairRpcs(pair, "to");
     const balance = await getWalletBalance(toRpcs, address);
-    // warning = true when balance is null (can't check) OR balance is zero/insufficient
-    const warning = balance === null || parseFloat(balance) < parseFloat(pair.minAmount);
-    res.json({ balance, address, warning });
+    // GAS_RESERVE: same buffer used in order creation pre-check
+    const GAS_RESERVE = 0.002;
+    // warning = true when balance is null OR balance cannot cover minAmount + gas
+    const warning = balance === null || parseFloat(balance) < parseFloat(pair.minAmount) + GAS_RESERVE;
+    res.json({ balance, address, warning, gasReserve: GAS_RESERVE });
   } catch {
     res.json({ balance: null, address: null, warning: true });
   }
@@ -218,9 +220,13 @@ router.post("/exchange/orders", async (req, res): Promise<void> => {
     res.status(503).json({ error: `Cannot verify exchange wallet balance on ${pair.toChainName}. The destination chain RPC may be unavailable. Please try again later.` });
     return;
   }
-  if (parseFloat(balance) < toAmt) {
+  // GAS_RESERVE: conservative estimate for gas fees on the destination chain
+  // (21000 gas × ~50 gwei ≈ 0.00105 ETH; 0.002 gives extra headroom)
+  const GAS_RESERVE = 0.002;
+  if (parseFloat(balance) < toAmt + GAS_RESERVE) {
     res.status(503).json({
-      error: `Exchange wallet has insufficient ${pair.toSymbol} balance on ${pair.toChainName}. Available: ${parseFloat(balance).toFixed(6)} ${pair.toSymbol}. Swaps are temporarily unavailable — please contact support.`,
+      error: `Low liquidity — exchange wallet balance insufficient on ${pair.toChainName}. Available: ${parseFloat(balance).toFixed(6)} ${pair.toSymbol} (need ${(toAmt + GAS_RESERVE).toFixed(6)} including gas). Please try a smaller amount or contact support.`,
+      code: "LOW_LIQUIDITY",
     });
     return;
   }
@@ -433,6 +439,19 @@ router.delete("/admin/exchange/pairs/:id", requireAdmin, async (req, res): Promi
 
 router.get("/admin/exchange/orders", requireAdmin, async (_req, res): Promise<void> => {
   const orders = await db.select().from(exchangeOrdersTable).orderBy(exchangeOrdersTable.createdAt).limit(100);
+  // Auto-expire stale pending orders past their expiry time
+  const now = new Date();
+  const staleIds = orders
+    .filter(o => o.status === "pending" && new Date(o.expiresAt) < now)
+    .map(o => o.id);
+  if (staleIds.length > 0) {
+    await Promise.all(
+      staleIds.map(id =>
+        db.update(exchangeOrdersTable).set({ status: "expired" }).where(eq(exchangeOrdersTable.id, id))
+      )
+    );
+    orders.forEach(o => { if (staleIds.includes(o.id)) o.status = "expired"; });
+  }
   res.json(orders.reverse());
 });
 

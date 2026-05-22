@@ -734,27 +734,42 @@ export default function ExchangePage() {
                 )}
 
                 {/* ── Exchange wallet balance warning ─────────────────────── */}
-                {pair && exchangeBalance?.warning && (
-                  <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(239,68,68,0.3)" }}>
-                    <div className="flex items-center gap-2 px-3 py-2"
-                      style={{ background: "rgba(239,68,68,0.12)", borderBottom: "1px solid rgba(239,68,68,0.15)" }}>
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" style={{ color: "#f87171" }} />
-                      <span className="text-xs font-mono font-bold" style={{ color: "#f87171" }}>Swaps Unavailable</span>
+                {pair && (() => {
+                  const GAS_RESERVE = 0.002;
+                  const bal = exchangeBalance?.balance !== null && exchangeBalance?.balance !== undefined
+                    ? parseFloat(exchangeBalance.balance) : null;
+                  const insufficientForAmount = amountValid && toAmt > 0 && bal !== null && bal < toAmt + GAS_RESERVE;
+                  const generalWarning = exchangeBalance?.warning;
+                  if (!generalWarning && !insufficientForAmount) return null;
+                  const title = insufficientForAmount && !generalWarning ? "Low Liquidity" : "Swaps Unavailable";
+                  const msg = exchangeBalance?.balance === null || bal === null
+                    ? `Cannot reach the ${pair.toChainName} network. Please try again later.`
+                    : bal === 0
+                    ? `The exchange wallet has 0 ${pair.toSymbol} on ${pair.toChainName}. Cannot process swaps.`
+                    : insufficientForAmount
+                    ? `Not enough liquidity for this amount. Available: ${bal.toFixed(6)} ${pair.toSymbol} (you need ${(toAmt + GAS_RESERVE).toFixed(6)} including gas). Try a smaller amount.`
+                    : `Exchange wallet balance too low: ${bal.toFixed(6)} ${pair.toSymbol} on ${pair.toChainName}.`;
+                  return (
+                    <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(239,68,68,0.3)" }}>
+                      <div className="flex items-center gap-2 px-3 py-2"
+                        style={{ background: "rgba(239,68,68,0.12)", borderBottom: "1px solid rgba(239,68,68,0.15)" }}>
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" style={{ color: "#f87171" }} />
+                        <span className="text-xs font-mono font-bold" style={{ color: "#f87171" }}>{title}</span>
+                      </div>
+                      <div className="px-3 py-2.5 text-xs font-mono" style={{ background: "rgba(239,68,68,0.05)", color: "rgba(255,255,255,0.6)" }}>
+                        {msg}
+                      </div>
                     </div>
-                    <div className="px-3 py-2.5 text-xs font-mono" style={{ background: "rgba(239,68,68,0.05)", color: "rgba(255,255,255,0.6)" }}>
-                      {exchangeBalance.balance !== null && parseFloat(exchangeBalance.balance) === 0
-                        ? `The exchange wallet has 0 ${pair.toSymbol} on ${pair.toChainName}. Cannot process swaps.`
-                        : exchangeBalance.balance !== null
-                        ? `Exchange wallet balance too low: ${parseFloat(exchangeBalance.balance).toFixed(6)} ${pair.toSymbol} on ${pair.toChainName}.`
-                        : `Cannot reach the ${pair.toChainName} network. Please try again later.`
-                      }
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* ── Swap / Connect button ──────────────────────────────── */}
                 {(() => {
-                  const swapBlocked = !!(pair && exchangeBalance?.warning);
+                  const GAS_RESERVE = 0.002;
+                  const bal = exchangeBalance?.balance !== null && exchangeBalance?.balance !== undefined
+                    ? parseFloat(exchangeBalance.balance) : null;
+                  const insufficientForAmount = amountValid && toAmt > 0 && bal !== null && bal < toAmt + GAS_RESERVE;
+                  const swapBlocked = !!(pair && (exchangeBalance?.warning || insufficientForAmount));
                   const swapDisabled = !amountValid || swapBlocked;
                   const swapStyle = {
                     background: swapDisabled ? "rgba(124,58,237,0.06)" : "linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)",
