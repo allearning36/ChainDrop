@@ -141,6 +141,7 @@ router.get("/admin/chains", async (_req, res): Promise<void> => {
       adClaimAmount: c.adClaimAmount ?? null,
       adDurationSeconds: c.adDurationSeconds,
       adNetworkCode: c.adNetworkCode ?? null,
+      adCooldownSeconds: c.adCooldownSeconds,
       sortOrder: c.sortOrder,
       createdAt: c.createdAt.toISOString(),
     }))
@@ -207,6 +208,7 @@ router.post("/admin/chains", async (req, res): Promise<void> => {
     adClaimAmount: chain.adClaimAmount ?? null,
     adDurationSeconds: chain.adDurationSeconds,
     adNetworkCode: chain.adNetworkCode ?? null,
+    adCooldownSeconds: chain.adCooldownSeconds,
     sortOrder: chain.sortOrder,
     createdAt: chain.createdAt.toISOString(),
   });
@@ -287,6 +289,7 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     adClaimAmount: chain.adClaimAmount ?? null,
     adDurationSeconds: chain.adDurationSeconds,
     adNetworkCode: chain.adNetworkCode ?? null,
+    adCooldownSeconds: chain.adCooldownSeconds,
     sortOrder: chain.sortOrder,
     createdAt: chain.createdAt.toISOString(),
   });
@@ -494,7 +497,7 @@ router.get("/admin/payment-networks", async (_req, res): Promise<void> => {
 });
 
 router.post("/admin/payment-networks", async (req, res): Promise<void> => {
-  const { networkId, name, symbol, chainId, rpcUrl, contractAddress, tokenDecimals, logoUrl, isEnabled } = req.body as any;
+  const { networkId, name, symbol, chainId, rpcUrl, rpcUrls, blockExplorerUrl, isToken, contractAddress, tokenDecimals, logoUrl, isEnabled } = req.body as any;
   if (!networkId || !name || !chainId || !rpcUrl) {
     res.status(400).json({ error: "networkId, name, chainId, and rpcUrl are required" });
     return;
@@ -503,6 +506,7 @@ router.post("/admin/payment-networks", async (req, res): Promise<void> => {
     res.status(400).json({ error: "networkId must be lowercase alphanumeric with underscores" });
     return;
   }
+  const rpcUrlsJson = Array.isArray(rpcUrls) ? JSON.stringify(rpcUrls) : "[]";
   try {
     const [network] = await db.insert(paymentNetworksTable).values({
       networkId,
@@ -510,7 +514,10 @@ router.post("/admin/payment-networks", async (req, res): Promise<void> => {
       symbol: symbol || "ETH",
       chainId: Number(chainId),
       rpcUrl,
-      contractAddress: contractAddress || null,
+      rpcUrls: rpcUrlsJson,
+      blockExplorerUrl: blockExplorerUrl || null,
+      isToken: Boolean(isToken),
+      contractAddress: isToken ? (contractAddress || null) : null,
       tokenDecimals: tokenDecimals ? Number(tokenDecimals) : 18,
       logoUrl: logoUrl || null,
       isEnabled: isEnabled ?? true,
@@ -528,12 +535,15 @@ router.post("/admin/payment-networks", async (req, res): Promise<void> => {
 router.patch("/admin/payment-networks/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
-  const { name, symbol, chainId, rpcUrl, contractAddress, tokenDecimals, logoUrl, isEnabled } = req.body as any;
+  const { name, symbol, chainId, rpcUrl, rpcUrls, blockExplorerUrl, isToken, contractAddress, tokenDecimals, logoUrl, isEnabled } = req.body as any;
   const updates: Record<string, any> = {};
   if (name !== undefined) updates.name = name;
   if (symbol !== undefined) updates.symbol = symbol;
   if (chainId !== undefined) updates.chainId = Number(chainId);
   if (rpcUrl !== undefined) updates.rpcUrl = rpcUrl;
+  if (rpcUrls !== undefined) updates.rpcUrls = Array.isArray(rpcUrls) ? JSON.stringify(rpcUrls) : "[]";
+  if (blockExplorerUrl !== undefined) updates.blockExplorerUrl = blockExplorerUrl || null;
+  if (isToken !== undefined) updates.isToken = Boolean(isToken);
   if (contractAddress !== undefined) updates.contractAddress = contractAddress || null;
   if (tokenDecimals !== undefined) updates.tokenDecimals = Number(tokenDecimals);
   if (logoUrl !== undefined) updates.logoUrl = logoUrl || null;
@@ -549,6 +559,18 @@ router.delete("/admin/payment-networks/:id", async (req, res): Promise<void> => 
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   await db.delete(paymentNetworksTable).where(eq(paymentNetworksTable.id, id));
   res.sendStatus(204);
+});
+
+router.get("/admin/payment-networks/:id/rpc-health", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id as string, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const [network] = await db.select().from(paymentNetworksTable).where(eq(paymentNetworksTable.id, id));
+  if (!network) { res.status(404).json({ error: "Not found" }); return; }
+  let extras: string[] = [];
+  try { extras = JSON.parse(network.rpcUrls || "[]"); } catch { extras = []; }
+  const urls = [network.rpcUrl, ...extras.filter((u: string) => u && u !== network.rpcUrl)];
+  const results = await Promise.all(urls.map((url) => checkRpcHealth(url)));
+  res.json(results);
 });
 
 export default router;

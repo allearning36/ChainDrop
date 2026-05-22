@@ -321,6 +321,7 @@ export const GetAdminChainsResponseItem = zod.object({
   "adClaimAmount": zod.string().nullish(),
   "adDurationSeconds": zod.number().optional(),
   "adNetworkCode": zod.string().nullish().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
+  "adCooldownSeconds": zod.number().optional().describe('Seconds between ad watches per address (0 = no cooldown)'),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date()
 })
@@ -362,6 +363,7 @@ export const CreateChainBody = zod.object({
   "adClaimAmount": zod.string().optional(),
   "adDurationSeconds": zod.number().optional(),
   "adNetworkCode": zod.string().optional().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
+  "adCooldownSeconds": zod.number().optional().describe('Seconds between ad watches per address (0 = no cooldown)'),
   "sortOrder": zod.number().optional()
 })
 
@@ -421,6 +423,7 @@ export const UpdateChainBody = zod.object({
   "adClaimAmount": zod.string().optional(),
   "adDurationSeconds": zod.number().optional(),
   "adNetworkCode": zod.string().optional().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
+  "adCooldownSeconds": zod.number().optional().describe('Seconds between ad watches per address (0 = no cooldown)'),
   "sortOrder": zod.number().optional()
 })
 
@@ -457,6 +460,7 @@ export const UpdateChainResponse = zod.object({
   "adClaimAmount": zod.string().nullish(),
   "adDurationSeconds": zod.number().optional(),
   "adNetworkCode": zod.string().nullish().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
+  "adCooldownSeconds": zod.number().optional().describe('Seconds between ad watches per address (0 = no cooldown)'),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date()
 })

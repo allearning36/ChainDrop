@@ -1117,6 +1117,9 @@ components:
         adNetworkCode:
           type: ["string", "null"]
           description: "URL or HTML embed code for the ad to display (shown in iframe)"
+        adCooldownSeconds:
+          type: integer
+          description: "Seconds between ad watches per address (0 = no cooldown)"
         sortOrder:
           type: integer
         createdAt:
@@ -1194,6 +1197,9 @@ components:
         adNetworkCode:
           type: string
           description: "URL or HTML embed code for the ad to display (shown in iframe)"
+        adCooldownSeconds:
+          type: integer
+          description: "Seconds between ad watches per address (0 = no cooldown)"
         sortOrder:
           type: integer
 
@@ -1267,6 +1273,9 @@ components:
         adNetworkCode:
           type: string
           description: "URL or HTML embed code for the ad to display (shown in iframe)"
+        adCooldownSeconds:
+          type: integer
+          description: "Seconds between ad watches per address (0 = no cooldown)"
         sortOrder:
           type: integer
 

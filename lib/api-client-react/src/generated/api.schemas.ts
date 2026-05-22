@@ -246,6 +246,8 @@ export interface ChainAdmin {
      * @nullable
      */
   adNetworkCode?: string | null;
+  /** Seconds between ad watches per address (0 = no cooldown) */
+  adCooldownSeconds?: number;
   sortOrder: number;
   createdAt: string;
 }
@@ -301,6 +303,8 @@ export interface ChainInput {
   adDurationSeconds?: number;
   /** URL or HTML embed code for the ad to display (shown in iframe) */
   adNetworkCode?: string;
+  /** Seconds between ad watches per address (0 = no cooldown) */
+  adCooldownSeconds?: number;
   sortOrder?: number;
 }
 
@@ -355,6 +359,8 @@ export interface ChainUpdate {
   adDurationSeconds?: number;
   /** URL or HTML embed code for the ad to display (shown in iframe) */
   adNetworkCode?: string;
+  /** Seconds between ad watches per address (0 = no cooldown) */
+  adCooldownSeconds?: number;
   sortOrder?: number;
 }
 

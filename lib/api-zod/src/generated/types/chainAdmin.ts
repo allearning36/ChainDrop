@@ -67,6 +67,8 @@ export interface ChainAdmin {
      * @nullable
      */
   adNetworkCode?: string | null;
+  /** Seconds between ad watches per address (0 = no cooldown) */
+  adCooldownSeconds?: number;
   sortOrder: number;
   createdAt: Date;
 }
