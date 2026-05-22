@@ -476,6 +476,11 @@ router.post("/faucet/ad-claim", claimLimiter, async (req, res): Promise<void> =>
     return;
   }
 
+  const [claim] = await db
+    .insert(claimsTable)
+    .values({ chainId, address: address.toLowerCase(), txHash, amount: claimAmount })
+    .returning();
+
   broadcast({
     type: "claim_success",
     chainId,
@@ -487,13 +492,27 @@ router.post("/faucet/ad-claim", claimLimiter, async (req, res): Promise<void> =>
     ip: clientIp,
   });
 
+  // Referral commission (fire-and-forget)
+  void getReferralSettings().then(async settings => {
+    if (settings.commissionOnFaucetClaim && (settings.faucetClaimChainIds.length === 0 || settings.faucetClaimChainIds.includes(chainId))) {
+      await creditCommissions({
+        refereeAddress: address,
+        sourceType: "faucet_claim",
+        sourceId: claim.id,
+        chainId,
+        amountEth: claimAmount,
+        settings,
+      });
+    }
+  }).catch(() => {/* non-critical */});
+
   res.json({
     txHash,
     address: address.toLowerCase(),
     amount: claimAmount,
     symbol: chain.symbol,
     chainName: chain.name,
-    claimedAt: new Date().toISOString(),
+    claimedAt: claim.claimedAt.toISOString(),
   });
 });
 
