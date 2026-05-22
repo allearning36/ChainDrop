@@ -224,6 +224,8 @@ export function WalletSelector({ open, onClose, onConnected, targetChainId }: Wa
       <DialogContent
         className="p-0 gap-0 overflow-hidden"
         onOpenAutoFocus={e => e.preventDefault()}
+        onInteractOutside={e => e.preventDefault()}
+        onPointerDownOutside={e => e.preventDefault()}
         style={{
           background: "#111118",
           border: "1px solid rgba(255,255,255,0.09)",
