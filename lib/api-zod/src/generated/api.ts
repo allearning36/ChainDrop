@@ -140,7 +140,8 @@ export const GetBuyInfoResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "symbol": zod.string(),
-  "chainId": zod.number()
+  "chainId": zod.number(),
+  "rpcUrl": zod.string()
 }))
 })
 

@@ -41,6 +41,22 @@ const NETWORK_RPC: Record<string, string> = {
   polygon:  "https://polygon-rpc.com",
 };
 
+async function fetchWalletBalance(rpcUrl: string, address: string): Promise<string | null> {
+  try {
+    const res = await fetch(rpcUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getBalance", params: [address, "latest"] }),
+    });
+    const json = await res.json() as { result?: string };
+    if (!json.result) return null;
+    const eth = Number(BigInt(json.result)) / 1e18;
+    return eth.toFixed(6);
+  } catch {
+    return null;
+  }
+}
+
 /** Poll for tx receipt via JSON-RPC. Returns true=success, false=reverted, null=timeout */
 async function waitForReceipt(
   rpcUrl: string,
@@ -85,6 +101,8 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
   const [confirmDots, setConfirmDots] = useState(0);
   const [sendingSeconds, setSendingSeconds] = useState(0);
   const [recoveryHash, setRecoveryHash] = useState("");
+  const [walletBalance, setWalletBalance] = useState<string | null>(null);
+  const [isFetchingBalance, setIsFetchingBalance] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const submitBuy = useSubmitBuy();
@@ -111,12 +129,26 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
     return () => clearInterval(id);
   }, [step]);
 
+  // Fetch wallet balance when wallet or network changes
+  useEffect(() => {
+    if (!walletAddress || !selectedNetwork) { setWalletBalance(null); return; }
+    const rpcUrl = NETWORK_RPC[selectedNetwork.id] ?? (selectedNetwork as any).rpcUrl as string | undefined;
+    if (!rpcUrl) { setWalletBalance(null); return; }
+    setIsFetchingBalance(true);
+    setWalletBalance(null);
+    fetchWalletBalance(rpcUrl, walletAddress).then((bal) => {
+      setWalletBalance(bal);
+      setIsFetchingBalance(false);
+    });
+  }, [walletAddress, selectedNetwork?.id]);
+
   useEffect(() => {
     if (!chain) {
       abortRef.current?.abort();
       setStep("info"); setWalletAddress(""); setEthAmount("0.01");
       setMainnetTxHash(""); setErrorMsg(""); setSelectedNetwork(null);
       setWalletProvider(null); setConfirmDots(0); setSendingSeconds(0); setRecoveryHash("");
+      setWalletBalance(null); setIsFetchingBalance(false);
     }
   }, [chain]);
 
@@ -318,6 +350,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
       <Dialog open={!!chain} onOpenChange={(open) => { if (!open) { abortRef.current?.abort(); onClose(); } }}>
         <DialogContent
           className="sm:max-w-lg w-full flex flex-col p-0 gap-0 [&>button]:hidden"
+          onInteractOutside={(e) => e.preventDefault()}
           style={{ background: "#0d0d14", border: "1px solid rgba(255,255,255,0.08)", maxHeight: "92vh", overflowY: "auto" }}
         >
           {/* Header */}
@@ -465,25 +498,49 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
                         <span className="text-xs font-mono text-white">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
                         <span className="text-xs font-mono" style={{ color: "#22c55e" }}>Connected</span>
                       </div>
-                      <button
-                        onClick={() => { setWalletAddress(""); setWalletProvider(null); }}
-                        className="text-[10px] font-mono px-2 py-0.5 rounded"
-                        style={{ color: "rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.05)" }}
-                      >
-                        Change
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {isFetchingBalance && <Loader2 className="w-3 h-3 animate-spin" style={{ color: "rgba(255,255,255,0.3)" }} />}
+                        {walletBalance !== null && !isFetchingBalance && (
+                          <span className="text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.45)" }}>
+                            {walletBalance} {selectedNetwork?.symbol || "ETH"}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => { setWalletAddress(""); setWalletProvider(null); setWalletBalance(null); }}
+                          className="text-[10px] font-mono px-2 py-0.5 rounded"
+                          style={{ color: "rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.05)" }}
+                        >
+                          Change
+                        </button>
+                      </div>
                     </div>
-                    <button onClick={sendEth} disabled={!amountValid || !selectedNetwork}
-                      className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all"
-                      style={{
-                        background: amountValid && selectedNetwork ? `linear-gradient(135deg, #4f46e5 0%, ${netColor} 100%)` : "rgba(255,255,255,0.05)",
-                        color: amountValid && selectedNetwork ? "white" : "rgba(255,255,255,0.3)",
-                        boxShadow: amountValid && selectedNetwork ? `0 0 20px ${netColor}44` : "none",
-                        cursor: amountValid && selectedNetwork ? "pointer" : "not-allowed",
-                      }}
-                    >
-                      <Zap className="w-4 h-4" /> Send {ethAmount} ETH via {selectedNetwork?.name || "Wallet"}
-                    </button>
+                    {(() => {
+                      const GAS_RESERVE = 0.001;
+                      const bal = walletBalance !== null ? parseFloat(walletBalance) : null;
+                      const lowBal = bal !== null && ethAmountNum > 0 && bal < ethAmountNum + GAS_RESERVE;
+                      const canSend = amountValid && !!selectedNetwork && !lowBal;
+                      return (
+                        <>
+                          {lowBal && (
+                            <div className="flex items-start gap-2 text-xs font-mono px-3 py-2.5 rounded-xl" style={{ background: "rgba(239,68,68,0.08)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                              Insufficient balance. Need {(ethAmountNum + GAS_RESERVE).toFixed(4)} {selectedNetwork?.symbol || "ETH"} (incl. gas), you have {bal!.toFixed(4)}.
+                            </div>
+                          )}
+                          <button onClick={sendEth} disabled={!canSend}
+                            className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all"
+                            style={{
+                              background: canSend ? `linear-gradient(135deg, #4f46e5 0%, ${netColor} 100%)` : "rgba(255,255,255,0.05)",
+                              color: canSend ? "white" : "rgba(255,255,255,0.3)",
+                              boxShadow: canSend ? `0 0 20px ${netColor}44` : "none",
+                              cursor: canSend ? "pointer" : "not-allowed",
+                            }}
+                          >
+                            <Zap className="w-4 h-4" /> Send {ethAmount} ETH via {selectedNetwork?.name || "Wallet"}
+                          </button>
+                        </>
+                      );
+                    })()}
                   </>
                 )}
 

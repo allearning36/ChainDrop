@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import crypto from "crypto";
 import { eq, desc, count } from "drizzle-orm";
 import { encryptPrivateKey } from "../lib/encryption";
-import { db, chainsTable, claimsTable, bannersTable, announcementsTable, settingsTable } from "@workspace/db";
+import { db, chainsTable, claimsTable, bannersTable, announcementsTable, settingsTable, paymentNetworksTable } from "@workspace/db";
 import { getStoredPasswordHash, verifyPassword } from "./adminTools";
 import { upload } from "./upload";
 import {
@@ -483,6 +483,71 @@ router.delete("/admin/announcements/:id", async (req, res): Promise<void> => {
   }
 
   await db.delete(announcementsTable).where(eq(announcementsTable.id, params.data.id));
+  res.sendStatus(204);
+});
+
+// ─── Payment Networks ────────────────────────────────────────────────────────
+
+router.get("/admin/payment-networks", async (_req, res): Promise<void> => {
+  const networks = await db.select().from(paymentNetworksTable).orderBy(paymentNetworksTable.id);
+  res.json(networks);
+});
+
+router.post("/admin/payment-networks", async (req, res): Promise<void> => {
+  const { networkId, name, symbol, chainId, rpcUrl, contractAddress, tokenDecimals, logoUrl, isEnabled } = req.body as any;
+  if (!networkId || !name || !chainId || !rpcUrl) {
+    res.status(400).json({ error: "networkId, name, chainId, and rpcUrl are required" });
+    return;
+  }
+  if (!/^[a-z0-9_]+$/.test(networkId)) {
+    res.status(400).json({ error: "networkId must be lowercase alphanumeric with underscores" });
+    return;
+  }
+  try {
+    const [network] = await db.insert(paymentNetworksTable).values({
+      networkId,
+      name,
+      symbol: symbol || "ETH",
+      chainId: Number(chainId),
+      rpcUrl,
+      contractAddress: contractAddress || null,
+      tokenDecimals: tokenDecimals ? Number(tokenDecimals) : 18,
+      logoUrl: logoUrl || null,
+      isEnabled: isEnabled ?? true,
+    }).returning();
+    res.status(201).json(network);
+  } catch (err: any) {
+    if (err?.code === "23505") {
+      res.status(409).json({ error: `Network ID "${networkId}" already exists` });
+    } else {
+      res.status(500).json({ error: "Failed to create payment network" });
+    }
+  }
+});
+
+router.patch("/admin/payment-networks/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id as string, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const { name, symbol, chainId, rpcUrl, contractAddress, tokenDecimals, logoUrl, isEnabled } = req.body as any;
+  const updates: Record<string, any> = {};
+  if (name !== undefined) updates.name = name;
+  if (symbol !== undefined) updates.symbol = symbol;
+  if (chainId !== undefined) updates.chainId = Number(chainId);
+  if (rpcUrl !== undefined) updates.rpcUrl = rpcUrl;
+  if (contractAddress !== undefined) updates.contractAddress = contractAddress || null;
+  if (tokenDecimals !== undefined) updates.tokenDecimals = Number(tokenDecimals);
+  if (logoUrl !== undefined) updates.logoUrl = logoUrl || null;
+  if (isEnabled !== undefined) updates.isEnabled = Boolean(isEnabled);
+  if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No fields to update" }); return; }
+  const [network] = await db.update(paymentNetworksTable).set(updates).where(eq(paymentNetworksTable.id, id)).returning();
+  if (!network) { res.status(404).json({ error: "Not found" }); return; }
+  res.json(network);
+});
+
+router.delete("/admin/payment-networks/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id as string, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  await db.delete(paymentNetworksTable).where(eq(paymentNetworksTable.id, id));
   res.sendStatus(204);
 });
 

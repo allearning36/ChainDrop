@@ -852,7 +852,7 @@ components:
 
     PaymentNetwork:
       type: object
-      required: [id, name, symbol, chainId]
+      required: [id, name, symbol, chainId, rpcUrl]
       properties:
         id:
           type: string
@@ -862,6 +862,8 @@ components:
           type: string
         chainId:
           type: integer
+        rpcUrl:
+          type: string
 
     BuyInfo:
       type: object

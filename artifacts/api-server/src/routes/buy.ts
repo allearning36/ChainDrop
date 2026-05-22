@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { ethers } from "ethers";
-import { db, chainsTable, purchasesTable } from "@workspace/db";
+import { db, chainsTable, purchasesTable, paymentNetworksTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { GetBuyInfoParams, SubmitBuyBody } from "@workspace/api-zod";
 import { sendTokens as sendChainTokens, isValidAddress, type ChainType } from "../lib/chains/index";
@@ -17,6 +17,17 @@ export const PAYMENT_NETWORKS: Record<string, { name: string; symbol: string; ch
   optimism:  { name: "OP Mainnet",      symbol: "ETH",   chainId: 10,    rpcUrl: "https://mainnet.optimism.io" },
   polygon:   { name: "Polygon",         symbol: "POL",   chainId: 137,   rpcUrl: "https://polygon-rpc.com" },
 };
+
+async function getAllPaymentNetworks(): Promise<Record<string, { name: string; symbol: string; chainId: number; rpcUrl: string }>> {
+  const customNetworks = await db.select().from(paymentNetworksTable).where(eq(paymentNetworksTable.isEnabled, true));
+  const merged = { ...PAYMENT_NETWORKS };
+  for (const n of customNetworks) {
+    if (!merged[n.networkId]) {
+      merged[n.networkId] = { name: n.name, symbol: n.symbol, chainId: n.chainId, rpcUrl: n.rpcUrl };
+    }
+  }
+  return merged;
+}
 
 router.get("/faucet/buy/info/:chainId", async (req, res): Promise<void> => {
   const params = GetBuyInfoParams.safeParse({ chainId: req.params.chainId });
@@ -43,9 +54,10 @@ router.get("/faucet/buy/info/:chainId", async (req, res): Promise<void> => {
     enabledNetworkIds = ["eth"];
   }
 
+  const allNetworks = await getAllPaymentNetworks();
   const networks = enabledNetworkIds
-    .filter((id) => PAYMENT_NETWORKS[id])
-    .map((id) => ({ id, ...PAYMENT_NETWORKS[id] }));
+    .filter((id) => allNetworks[id])
+    .map((id) => ({ id, ...allNetworks[id] }));
 
   res.json({
     chainId: chain.id,
@@ -73,7 +85,8 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
     return;
   }
 
-  const network = PAYMENT_NETWORKS[networkId];
+  const allNetworks = await getAllPaymentNetworks();
+  const network = allNetworks[networkId];
   if (!network) {
     res.status(400).json({ error: `Unsupported payment network: ${networkId}` });
     return;

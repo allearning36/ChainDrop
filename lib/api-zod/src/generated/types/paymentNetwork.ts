@@ -11,4 +11,5 @@ export interface PaymentNetwork {
   name: string;
   symbol: string;
   chainId: number;
+  rpcUrl: string;
 }

@@ -35,6 +35,7 @@ export const chainsTable = pgTable("chains", {
   adClaimEnabled: boolean("ad_claim_enabled").notNull().default(false),
   adClaimAmount: numeric("ad_claim_amount", { precision: 18, scale: 8 }),
   adDurationSeconds: integer("ad_duration_seconds").notNull().default(30),
+  adCooldownSeconds: integer("ad_cooldown_seconds").notNull().default(0),
   adNetworkCode: text("ad_network_code"),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

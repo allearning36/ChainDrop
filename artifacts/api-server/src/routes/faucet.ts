@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
-import { desc, eq, and } from "drizzle-orm";
+import { desc, eq, and, gt } from "drizzle-orm";
 import { db, claimsTable, chainsTable, blockedAddressesTable, ipBlocksTable, settingsTable, purchasesTable, adTokensTable } from "@workspace/db";
 import { ClaimFaucetBody, GetFaucetStatusParams, RequestAdTokenBody, ClaimFaucetWithAdBody } from "@workspace/api-zod";
 import { sendTokens, isValidAddress, type ChainType } from "../lib/chains/index";
@@ -326,6 +326,30 @@ router.post("/faucet/ad-token", async (req, res): Promise<void> => {
   if (!addressValid) {
     res.status(400).json({ error: `Invalid ${chain.name} address format` });
     return;
+  }
+
+  // Enforce ad cooldown if configured
+  if (chain.adCooldownSeconds > 0) {
+    const since = new Date(Date.now() - chain.adCooldownSeconds * 1000);
+    const [recentToken] = await db
+      .select()
+      .from(adTokensTable)
+      .where(and(
+        eq(adTokensTable.chainId, chainId),
+        eq(adTokensTable.address, address.toLowerCase()),
+        gt(adTokensTable.issuedAt, since),
+      ))
+      .limit(1);
+    if (recentToken) {
+      const waitMs = recentToken.issuedAt.getTime() + chain.adCooldownSeconds * 1000 - Date.now();
+      const waitSecs = Math.max(1, Math.ceil(waitMs / 1000));
+      const h = Math.floor(waitSecs / 3600);
+      const m = Math.floor((waitSecs % 3600) / 60);
+      const s = waitSecs % 60;
+      const timeStr = h > 0 ? `${h}h ${m}m ${s}s` : m > 0 ? `${m}m ${s}s` : `${s}s`;
+      res.status(429).json({ error: `Ad cooldown active. Wait ${timeStr} before watching another ad.` });
+      return;
+    }
   }
 
   const token = crypto.randomUUID();

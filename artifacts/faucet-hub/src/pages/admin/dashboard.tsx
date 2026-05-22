@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   LogOut, LayoutDashboard, Link as LinkIcon,
   HeadphonesIcon, ClipboardList, ShieldOff, Wallet,
-  FileText, BarChart2, Settings2, Globe, Send, Users, Radio, ArrowLeftRight
+  FileText, BarChart2, Settings2, Globe, Send, Users, Radio, ArrowLeftRight, Network
 } from "lucide-react";
 import { StatsOverview } from "@/components/admin/Stats";
 import { ChainManagement } from "@/components/admin/ChainManagement";
@@ -22,6 +22,7 @@ import { IPBlocking } from "@/components/admin/IPBlocking";
 import { Audience } from "@/components/admin/Audience";
 import { LiveMonitor } from "@/components/admin/LiveMonitor";
 import { ExchangeManagement } from "@/components/admin/ExchangeManagement";
+import { PaymentNetworkManagement } from "@/components/admin/PaymentNetworkManagement";
 
 async function fetchUnreadCount(): Promise<number> {
   try {
@@ -120,6 +121,9 @@ export default function AdminDashboard() {
             <TabsTrigger value="exchange" className={TAB} title="Exchange">
               <ArrowLeftRight className="w-3.5 h-3.5" /> Exchange
             </TabsTrigger>
+            <TabsTrigger value="paynetworks" className={TAB} title="Pay Networks">
+              <Network className="w-3.5 h-3.5" /> Pay Networks
+            </TabsTrigger>
             <TabsTrigger value="siteconfig" className={TAB} title="Settings">
               <Settings2 className="w-3.5 h-3.5" /> Settings
             </TabsTrigger>
@@ -140,6 +144,7 @@ export default function AdminDashboard() {
           </TabsContent>
           <TabsContent value="pages" className="mt-0 outline-none"><PagesManagement /></TabsContent>
           <TabsContent value="exchange" className="mt-0 outline-none"><ExchangeManagement /></TabsContent>
+          <TabsContent value="paynetworks" className="mt-0 outline-none"><PaymentNetworkManagement /></TabsContent>
           <TabsContent value="siteconfig" className="mt-0 outline-none"><SiteConfig /></TabsContent>
         </Tabs>
       </main>

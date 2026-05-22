@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { 
   useGetAdminChains, 
   useCreateChain, 
@@ -95,6 +95,7 @@ const DEFAULT_CHAIN = {
   adClaimEnabled: false,
   adClaimAmount: "",
   adDurationSeconds: 30,
+  adCooldownSeconds: 0,
   adNetworkCode: "",
   sortOrder: 0
 };
@@ -113,6 +114,16 @@ export function ChainManagement() {
   const [formData, setFormData] = useState<any>(DEFAULT_CHAIN);
   const [formError, setFormError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [customPaymentNetworks, setCustomPaymentNetworks] = useState<{ id: string; name: string; chainId: number }[]>([]);
+
+  useEffect(() => {
+    adminFetch("/api/admin/payment-networks")
+      .then(r => r.ok ? r.json() : [])
+      .then((nets: any[]) => {
+        setCustomPaymentNetworks(nets.filter((n: any) => n.isEnabled).map((n: any) => ({ id: n.networkId, name: n.name, chainId: n.chainId })));
+      })
+      .catch(() => {});
+  }, []);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Multiple RPC URLs state
@@ -244,6 +255,7 @@ export function ChainManagement() {
       adClaimEnabled: (chain as any).adClaimEnabled ?? false,
       adClaimAmount: (chain as any).adClaimAmount ?? "",
       adDurationSeconds: (chain as any).adDurationSeconds ?? 30,
+      adCooldownSeconds: (chain as any).adCooldownSeconds ?? 0,
       adNetworkCode: (chain as any).adNetworkCode ?? "",
     });
     setFormError("");
@@ -710,7 +722,7 @@ export function ChainManagement() {
                   <div className="space-y-2 sm:col-span-2">
                     <Label className="text-xs">Accepted Payment Networks</Label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {ALL_PAYMENT_NETWORKS.map((net) => {
+                      {[...ALL_PAYMENT_NETWORKS, ...customPaymentNetworks.filter(c => !ALL_PAYMENT_NETWORKS.find(b => b.id === c.id))].map((net) => {
                         const isOn = enabledCurrencies.includes(net.id);
                         return (
                           <button key={net.id} type="button" onClick={() => toggleCurrency(net.id)}
@@ -761,6 +773,33 @@ export function ChainManagement() {
                       placeholder="30"
                     />
                     <p className="text-[10px] text-muted-foreground font-mono">User must watch for {formData.adDurationSeconds}s before claiming</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Ad Watch Cooldown <span className="text-muted-foreground font-normal">(0 = unlimited)</span></Label>
+                    <div className="flex items-center gap-1.5">
+                      {(["h","m","s"] as const).map((unit) => {
+                        const hms = secondsToHms(formData.adCooldownSeconds ?? 0);
+                        return (
+                          <div key={unit} className="relative flex-1">
+                            <Input
+                              type="number" min="0" max={unit === "h" ? 99 : 59}
+                              value={hms[unit]}
+                              onChange={e => {
+                                const updated = { ...secondsToHms(formData.adCooldownSeconds ?? 0), [unit]: Number(e.target.value) };
+                                setFormData({...formData, adCooldownSeconds: hmsToSeconds(updated.h, updated.m, updated.s)});
+                              }}
+                              className="font-mono text-sm h-9 pr-6"
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground">{unit}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground font-mono">
+                      {(formData.adCooldownSeconds ?? 0) > 0
+                        ? `Users can watch an ad every ${formatCooldown(formData.adCooldownSeconds ?? 0)}`
+                        : "Users can watch ads without cooldown"}
+                    </p>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Ad Claim Amount <span className="text-muted-foreground font-normal">(blank = same as free claim)</span></Label>
