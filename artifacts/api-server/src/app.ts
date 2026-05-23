@@ -61,7 +61,9 @@ app.use(cors({
       origin.endsWith(".vercel.app") ||
       origin.endsWith(".railway.app") ||
       origin.endsWith(".replit.app") ||
-      origin.endsWith(".replit.dev")
+      origin.endsWith(".replit.dev") ||
+      origin === "https://chaindrop.app" ||
+      origin === "https://www.chaindrop.app"
     ) {
       return callback(null, true);
     }
