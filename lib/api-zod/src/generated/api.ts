@@ -359,7 +359,19 @@ export const RegisterReferralResponse = zod.object({
 export const GetReferralSettingsResponse = zod.object({
   "enabled": zod.boolean(),
   "maintenanceMode": zod.boolean(),
-  "maintenanceMessage": zod.string()
+  "maintenanceMessage": zod.string(),
+  "commissionOnExchange": zod.boolean(),
+  "commissionOnBuy": zod.boolean(),
+  "exchangeLevel1Pct": zod.number(),
+  "exchangeLevel2Pct": zod.number(),
+  "buyLevel1Pct": zod.number(),
+  "buyLevel2Pct": zod.number(),
+  "faucetClaimChainCommissions": zod.array(zod.object({
+  "chainId": zod.number(),
+  "level1Pct": zod.number(),
+  "level2Pct": zod.number(),
+  "enabled": zod.boolean()
+}))
 })
 
 
@@ -370,18 +382,20 @@ export const GetAdminReferralSettingsResponse = zod.object({
   "enabled": zod.boolean(),
   "maintenanceMode": zod.boolean(),
   "maintenanceMessage": zod.string(),
+  "commissionOnExchange": zod.boolean(),
   "exchangeLevel1Pct": zod.number(),
   "exchangeLevel2Pct": zod.number(),
+  "exchangeChainIds": zod.array(zod.number()),
+  "commissionOnBuy": zod.boolean(),
   "buyLevel1Pct": zod.number(),
   "buyLevel2Pct": zod.number(),
-  "faucetClaimLevel1Pct": zod.number(),
-  "faucetClaimLevel2Pct": zod.number(),
-  "commissionOnExchange": zod.boolean(),
-  "commissionOnBuy": zod.boolean(),
-  "commissionOnFaucetClaim": zod.boolean(),
-  "exchangeChainIds": zod.array(zod.number()),
   "buyChainIds": zod.array(zod.number()),
-  "faucetClaimChainIds": zod.array(zod.number()),
+  "faucetClaimChainCommissions": zod.array(zod.object({
+  "chainId": zod.number(),
+  "level1Pct": zod.number(),
+  "level2Pct": zod.number(),
+  "enabled": zod.boolean()
+})),
   "claimChainIds": zod.array(zod.number()),
   "minClaimEth": zod.number()
 })
@@ -394,18 +408,20 @@ export const UpdateAdminReferralSettingsBody = zod.object({
   "enabled": zod.boolean(),
   "maintenanceMode": zod.boolean(),
   "maintenanceMessage": zod.string(),
+  "commissionOnExchange": zod.boolean(),
   "exchangeLevel1Pct": zod.number(),
   "exchangeLevel2Pct": zod.number(),
+  "exchangeChainIds": zod.array(zod.number()),
+  "commissionOnBuy": zod.boolean(),
   "buyLevel1Pct": zod.number(),
   "buyLevel2Pct": zod.number(),
-  "faucetClaimLevel1Pct": zod.number(),
-  "faucetClaimLevel2Pct": zod.number(),
-  "commissionOnExchange": zod.boolean(),
-  "commissionOnBuy": zod.boolean(),
-  "commissionOnFaucetClaim": zod.boolean(),
-  "exchangeChainIds": zod.array(zod.number()),
   "buyChainIds": zod.array(zod.number()),
-  "faucetClaimChainIds": zod.array(zod.number()),
+  "faucetClaimChainCommissions": zod.array(zod.object({
+  "chainId": zod.number(),
+  "level1Pct": zod.number(),
+  "level2Pct": zod.number(),
+  "enabled": zod.boolean()
+})),
   "claimChainIds": zod.array(zod.number()),
   "minClaimEth": zod.number()
 })
@@ -414,18 +430,20 @@ export const UpdateAdminReferralSettingsResponse = zod.object({
   "enabled": zod.boolean(),
   "maintenanceMode": zod.boolean(),
   "maintenanceMessage": zod.string(),
+  "commissionOnExchange": zod.boolean(),
   "exchangeLevel1Pct": zod.number(),
   "exchangeLevel2Pct": zod.number(),
+  "exchangeChainIds": zod.array(zod.number()),
+  "commissionOnBuy": zod.boolean(),
   "buyLevel1Pct": zod.number(),
   "buyLevel2Pct": zod.number(),
-  "faucetClaimLevel1Pct": zod.number(),
-  "faucetClaimLevel2Pct": zod.number(),
-  "commissionOnExchange": zod.boolean(),
-  "commissionOnBuy": zod.boolean(),
-  "commissionOnFaucetClaim": zod.boolean(),
-  "exchangeChainIds": zod.array(zod.number()),
   "buyChainIds": zod.array(zod.number()),
-  "faucetClaimChainIds": zod.array(zod.number()),
+  "faucetClaimChainCommissions": zod.array(zod.object({
+  "chainId": zod.number(),
+  "level1Pct": zod.number(),
+  "level2Pct": zod.number(),
+  "enabled": zod.boolean()
+})),
   "claimChainIds": zod.array(zod.number()),
   "minClaimEth": zod.number()
 })

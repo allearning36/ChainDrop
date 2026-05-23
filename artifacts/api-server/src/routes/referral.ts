@@ -37,6 +37,13 @@ router.get("/referral/settings", async (_req, res): Promise<void> => {
     enabled: s.enabled,
     maintenanceMode: s.maintenanceMode,
     maintenanceMessage: s.maintenanceMessage,
+    commissionOnExchange: s.commissionOnExchange,
+    commissionOnBuy: s.commissionOnBuy,
+    exchangeLevel1Pct: s.exchangeLevel1Pct,
+    exchangeLevel2Pct: s.exchangeLevel2Pct,
+    buyLevel1Pct: s.buyLevel1Pct,
+    buyLevel2Pct: s.buyLevel2Pct,
+    faucetClaimChainCommissions: s.faucetClaimChainCommissions,
   });
 });
 
@@ -58,9 +65,12 @@ router.get("/referral/nonce/:wallet", (req, res): void => {
 router.get("/referral/dashboard/:wallet", async (req, res): Promise<void> => {
   const wallet = req.params.wallet!.toLowerCase();
 
-  const domains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
-  const baseUrl = domains.length > 0 ? `https://${domains[0]}` : "https://chain-drop.replit.app";
-  const referralLink = `${baseUrl}/?ref=${wallet}`;
+  const frontendUrl = process.env.FRONTEND_URL?.trim() ||
+    (() => {
+      const domains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
+      return domains.length > 0 ? `https://${domains[0]}` : "https://chaindrop.app";
+    })();
+  const referralLink = `${frontendUrl}/?ref=${wallet}`;
 
   const [level1, level2, commissions, claimRequests, adjustments] = await Promise.all([
     db.select().from(referralsTable).where(and(eq(referralsTable.referrerAddress, wallet), eq(referralsTable.level, 1))),

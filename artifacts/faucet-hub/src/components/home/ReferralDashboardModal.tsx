@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Copy, Check, Users, TrendingUp, Wallet, Clock, ExternalLink, AlertCircle, ChevronDown, ChevronUp, X, History, Plus, Minus } from "lucide-react";
+import { Loader2, Copy, Check, Users, TrendingUp, Wallet, Clock, ExternalLink, AlertCircle, ChevronDown, ChevronUp, X, History, Plus, Minus, Info } from "lucide-react";
 import {
   useGetReferralDashboard,
   getGetReferralDashboardQueryKey,
@@ -266,7 +266,51 @@ export function ReferralDashboardModal({ open, onClose }: ReferralDashboardModal
                   </div>
                 </div>
 
-                {/* Stats grid */}
+                {/* Commission Rates info */}
+              {settings && (settings.commissionOnExchange || settings.commissionOnBuy || (settings.faucetClaimChainCommissions ?? []).some(c => c.enabled)) && (
+                <div className="rounded-xl p-4 space-y-2" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Info className="w-3.5 h-3.5 text-green-400" />
+                    <p className="font-mono text-xs font-semibold text-green-400">Your Referral Earnings</p>
+                  </div>
+                  <div className="space-y-1.5 text-xs font-mono">
+                    {settings.commissionOnExchange && (
+                      <div className="flex items-center justify-between py-1.5 px-2 rounded-lg" style={{ background: "rgba(255,255,255,0.03)" }}>
+                        <span className="text-muted-foreground">Exchange</span>
+                        <div className="flex items-center gap-2">
+                          <span className="px-1.5 py-0.5 rounded text-[10px]" style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>L1 {settings.exchangeLevel1Pct}%</span>
+                          <span className="px-1.5 py-0.5 rounded text-[10px]" style={{ background: "rgba(167,139,250,0.1)", color: "#a78bfa" }}>L2 {settings.exchangeLevel2Pct}%</span>
+                        </div>
+                      </div>
+                    )}
+                    {settings.commissionOnBuy && (
+                      <div className="flex items-center justify-between py-1.5 px-2 rounded-lg" style={{ background: "rgba(255,255,255,0.03)" }}>
+                        <span className="text-muted-foreground">Faucet Buy</span>
+                        <div className="flex items-center gap-2">
+                          <span className="px-1.5 py-0.5 rounded text-[10px]" style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>L1 {settings.buyLevel1Pct}%</span>
+                          <span className="px-1.5 py-0.5 rounded text-[10px]" style={{ background: "rgba(167,139,250,0.1)", color: "#a78bfa" }}>L2 {settings.buyLevel2Pct}%</span>
+                        </div>
+                      </div>
+                    )}
+                    {(settings.faucetClaimChainCommissions ?? []).filter(c => c.enabled).map(fc => {
+                      const chain = chains.find(ch => ch.id === fc.chainId);
+                      if (!chain) return null;
+                      return (
+                        <div key={fc.chainId} className="flex items-center justify-between py-1.5 px-2 rounded-lg" style={{ background: "rgba(255,255,255,0.03)" }}>
+                          <span className="text-muted-foreground">Faucet Claim · {chain.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="px-1.5 py-0.5 rounded text-[10px]" style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>L1 {fc.level1Pct}%</span>
+                            <span className="px-1.5 py-0.5 rounded text-[10px]" style={{ background: "rgba(167,139,250,0.1)", color: "#a78bfa" }}>L2 {fc.level2Pct}%</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] font-mono text-muted-foreground pt-1">% of transaction value credited to your wallet</p>
+                </div>
+              )}
+
+              {/* Stats grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {[
                     { label: "Level 1 Refs", value: dashboard.level1Count, icon: Users, color: "#22c55e" },

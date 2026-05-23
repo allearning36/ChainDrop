@@ -2047,9 +2047,22 @@ components:
         message:
           type: string
 
+    FaucetClaimChainCommission:
+      type: object
+      required: [chainId, level1Pct, level2Pct, enabled]
+      properties:
+        chainId:
+          type: integer
+        level1Pct:
+          type: number
+        level2Pct:
+          type: number
+        enabled:
+          type: boolean
+
     ReferralSettingsPublic:
       type: object
-      required: [enabled, maintenanceMode, maintenanceMessage]
+      required: [enabled, maintenanceMode, maintenanceMessage, commissionOnExchange, commissionOnBuy, exchangeLevel1Pct, exchangeLevel2Pct, buyLevel1Pct, buyLevel2Pct, faucetClaimChainCommissions]
       properties:
         enabled:
           type: boolean
@@ -2057,17 +2070,10 @@ components:
           type: boolean
         maintenanceMessage:
           type: string
-
-    ReferralSettings:
-      type: object
-      required: [enabled, maintenanceMode, maintenanceMessage, exchangeLevel1Pct, exchangeLevel2Pct, buyLevel1Pct, buyLevel2Pct, faucetClaimLevel1Pct, faucetClaimLevel2Pct, commissionOnExchange, commissionOnBuy, commissionOnFaucetClaim, exchangeChainIds, buyChainIds, faucetClaimChainIds, claimChainIds, minClaimEth]
-      properties:
-        enabled:
+        commissionOnExchange:
           type: boolean
-        maintenanceMode:
+        commissionOnBuy:
           type: boolean
-        maintenanceMessage:
-          type: string
         exchangeLevel1Pct:
           type: number
         exchangeLevel2Pct:
@@ -2076,28 +2082,45 @@ components:
           type: number
         buyLevel2Pct:
           type: number
-        faucetClaimLevel1Pct:
-          type: number
-        faucetClaimLevel2Pct:
-          type: number
+        faucetClaimChainCommissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/FaucetClaimChainCommission"
+
+    ReferralSettings:
+      type: object
+      required: [enabled, maintenanceMode, maintenanceMessage, commissionOnExchange, exchangeLevel1Pct, exchangeLevel2Pct, exchangeChainIds, commissionOnBuy, buyLevel1Pct, buyLevel2Pct, buyChainIds, faucetClaimChainCommissions, claimChainIds, minClaimEth]
+      properties:
+        enabled:
+          type: boolean
+        maintenanceMode:
+          type: boolean
+        maintenanceMessage:
+          type: string
         commissionOnExchange:
           type: boolean
-        commissionOnBuy:
-          type: boolean
-        commissionOnFaucetClaim:
-          type: boolean
+        exchangeLevel1Pct:
+          type: number
+        exchangeLevel2Pct:
+          type: number
         exchangeChainIds:
           type: array
           items:
             type: integer
+        commissionOnBuy:
+          type: boolean
+        buyLevel1Pct:
+          type: number
+        buyLevel2Pct:
+          type: number
         buyChainIds:
           type: array
           items:
             type: integer
-        faucetClaimChainIds:
+        faucetClaimChainCommissions:
           type: array
           items:
-            type: integer
+            $ref: "#/components/schemas/FaucetClaimChainCommission"
         claimChainIds:
           type: array
           items:

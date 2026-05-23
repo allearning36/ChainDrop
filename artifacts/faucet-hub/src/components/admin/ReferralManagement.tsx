@@ -105,7 +105,6 @@ function SettingsPanel() {
           { label: "Maintenance Mode", key: "maintenanceMode" as const },
           { label: "Commission on Exchange", key: "commissionOnExchange" as const },
           { label: "Commission on Buy", key: "commissionOnBuy" as const },
-          { label: "Commission on Faucet Claim", key: "commissionOnFaucetClaim" as const },
         ].map(({ label, key }) => (
           <div key={key} className="flex items-center justify-between p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
             <span className="font-mono text-sm">{label}</span>
@@ -130,7 +129,7 @@ function SettingsPanel() {
         </div>
       )}
 
-      {/* Per-type commission percentages */}
+      {/* Exchange & Buy commission percentages */}
       {[
         {
           label: "Exchange Commission",
@@ -147,14 +146,6 @@ function SettingsPanel() {
           l2Key: "buyLevel2Pct" as const,
           chainKey: "buyChainIds" as const,
           chainLabel: "Buy Commission Chains",
-        },
-        {
-          label: "Faucet Claim Commission",
-          toggle: "commissionOnFaucetClaim" as const,
-          l1Key: "faucetClaimLevel1Pct" as const,
-          l2Key: "faucetClaimLevel2Pct" as const,
-          chainKey: "faucetClaimChainIds" as const,
-          chainLabel: "Faucet Claim Commission Chains",
         },
       ].map(({ label, toggle, l1Key, l2Key, chainKey, chainLabel }) => (
         (current as any)[toggle] && (
@@ -186,6 +177,63 @@ function SettingsPanel() {
           </div>
         )
       ))}
+
+      {/* Faucet Claim: per-chain commission */}
+      <div className="rounded-xl p-4 space-y-3" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)" }}>
+        <p className="text-xs font-mono font-semibold text-green-400">Faucet Claim Commission (Per Chain)</p>
+        <p className="text-xs font-mono text-muted-foreground">Enable commission per chain and set individual L1/L2 percentages.</p>
+        <div className="space-y-3">
+          {evmChains.map(chain => {
+            const chainCommissions = current.faucetClaimChainCommissions ?? [];
+            const existing = chainCommissions.find(c => c.chainId === chain.id);
+            const isEnabled = existing?.enabled ?? false;
+            const l1 = existing?.level1Pct ?? 0.1;
+            const l2 = existing?.level2Pct ?? 0.05;
+
+            const updateChain = (patch: Partial<{ enabled: boolean; level1Pct: number; level2Pct: number }>) => {
+              const updated = chainCommissions.filter(c => c.chainId !== chain.id);
+              updated.push({ chainId: chain.id, level1Pct: l1, level2Pct: l2, enabled: isEnabled, ...patch });
+              set({ faucetClaimChainCommissions: updated });
+            };
+
+            return (
+              <div key={chain.id} className="rounded-lg p-3 space-y-2" style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${isEnabled ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.06)"}` }}>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-sm font-medium" style={{ color: isEnabled ? "#22c55e" : "rgba(255,255,255,0.6)" }}>{chain.name}</span>
+                  <Switch checked={isEnabled} onCheckedChange={v => updateChain({ enabled: v })} />
+                </div>
+                {isEnabled && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-mono text-muted-foreground block mb-1">Level 1 %</label>
+                      <input
+                        type="number" min="0" max="100" step="0.01"
+                        className="w-full rounded-md px-2 py-1.5 font-mono text-xs bg-transparent outline-none"
+                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.9)" }}
+                        value={l1}
+                        onChange={e => updateChain({ level1Pct: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-mono text-muted-foreground block mb-1">Level 2 %</label>
+                      <input
+                        type="number" min="0" max="100" step="0.01"
+                        className="w-full rounded-md px-2 py-1.5 font-mono text-xs bg-transparent outline-none"
+                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.9)" }}
+                        value={l2}
+                        onChange={e => updateChain({ level2Pct: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {evmChains.length === 0 && (
+            <p className="text-xs font-mono text-muted-foreground">No EVM chains configured yet.</p>
+          )}
+        </div>
+      </div>
 
       {/* Min claim amount */}
       <div>

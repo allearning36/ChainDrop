@@ -40,6 +40,7 @@ export * from './claimRecordType';
 export * from './claimResult';
 export * from './claimStatus';
 export * from './errorResponse';
+export * from './faucetClaimChainCommission';
 export * from './getAdminReferralClaimRequestsParams';
 export * from './getAdminReferralClaimRequestsStatus';
 export * from './getChainsParams';

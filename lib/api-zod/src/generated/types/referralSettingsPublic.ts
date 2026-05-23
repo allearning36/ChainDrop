@@ -5,9 +5,17 @@
  * ChainDrop — Multi-chain faucet hub API
  * OpenAPI spec version: 0.1.0
  */
+import type { FaucetClaimChainCommission } from './faucetClaimChainCommission';
 
 export interface ReferralSettingsPublic {
   enabled: boolean;
   maintenanceMode: boolean;
   maintenanceMessage: string;
+  commissionOnExchange: boolean;
+  commissionOnBuy: boolean;
+  exchangeLevel1Pct: number;
+  exchangeLevel2Pct: number;
+  buyLevel1Pct: number;
+  buyLevel2Pct: number;
+  faucetClaimChainCommissions: FaucetClaimChainCommission[];
 }

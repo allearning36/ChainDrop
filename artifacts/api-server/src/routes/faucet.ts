@@ -188,16 +188,14 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
 
   // Referral commission (fire-and-forget)
   void getReferralSettings().then(async settings => {
-    if (settings.commissionOnFaucetClaim && (settings.faucetClaimChainIds.length === 0 || settings.faucetClaimChainIds.includes(chainId))) {
-      await creditCommissions({
-        refereeAddress: address,
-        sourceType: "faucet_claim",
-        sourceId: claim.id,
-        chainId,
-        amountEth: chain.claimAmount,
-        settings,
-      });
-    }
+    await creditCommissions({
+      refereeAddress: address,
+      sourceType: "faucet_claim",
+      sourceId: claim.id,
+      chainId,
+      amountEth: chain.claimAmount,
+      settings,
+    });
   }).catch(() => {/* non-critical */});
 
   res.json({
@@ -494,16 +492,14 @@ router.post("/faucet/ad-claim", claimLimiter, async (req, res): Promise<void> =>
 
   // Referral commission (fire-and-forget)
   void getReferralSettings().then(async settings => {
-    if (settings.commissionOnFaucetClaim && (settings.faucetClaimChainIds.length === 0 || settings.faucetClaimChainIds.includes(chainId))) {
-      await creditCommissions({
-        refereeAddress: address,
-        sourceType: "faucet_claim",
-        sourceId: claim.id,
-        chainId,
-        amountEth: claimAmount,
-        settings,
-      });
-    }
+    await creditCommissions({
+      refereeAddress: address,
+      sourceType: "faucet_claim",
+      sourceId: claim.id,
+      chainId,
+      amountEth: claimAmount,
+      settings,
+    });
   }).catch(() => {/* non-critical */});
 
   res.json({

@@ -648,28 +648,39 @@ export interface RegisterReferralResult {
   message?: string;
 }
 
+export interface FaucetClaimChainCommission {
+  chainId: number;
+  level1Pct: number;
+  level2Pct: number;
+  enabled: boolean;
+}
+
 export interface ReferralSettingsPublic {
   enabled: boolean;
   maintenanceMode: boolean;
   maintenanceMessage: string;
+  commissionOnExchange: boolean;
+  commissionOnBuy: boolean;
+  exchangeLevel1Pct: number;
+  exchangeLevel2Pct: number;
+  buyLevel1Pct: number;
+  buyLevel2Pct: number;
+  faucetClaimChainCommissions: FaucetClaimChainCommission[];
 }
 
 export interface ReferralSettings {
   enabled: boolean;
   maintenanceMode: boolean;
   maintenanceMessage: string;
+  commissionOnExchange: boolean;
   exchangeLevel1Pct: number;
   exchangeLevel2Pct: number;
+  exchangeChainIds: number[];
+  commissionOnBuy: boolean;
   buyLevel1Pct: number;
   buyLevel2Pct: number;
-  faucetClaimLevel1Pct: number;
-  faucetClaimLevel2Pct: number;
-  commissionOnExchange: boolean;
-  commissionOnBuy: boolean;
-  commissionOnFaucetClaim: boolean;
-  exchangeChainIds: number[];
   buyChainIds: number[];
-  faucetClaimChainIds: number[];
+  faucetClaimChainCommissions: FaucetClaimChainCommission[];
   claimChainIds: number[];
   minClaimEth: number;
 }

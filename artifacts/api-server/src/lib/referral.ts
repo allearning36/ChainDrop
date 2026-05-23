@@ -1,26 +1,33 @@
 import { ethers } from "ethers";
 import { db } from "@workspace/db";
 import { referralsTable, referralCommissionsTable, settingsTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { logger } from "./logger";
+
+export interface FaucetClaimChainCommission {
+  chainId: number;
+  level1Pct: number;
+  level2Pct: number;
+  enabled: boolean;
+}
 
 export interface ReferralSettings {
   enabled: boolean;
   maintenanceMode: boolean;
   maintenanceMessage: string;
-  // Per-type L1/L2 commission percentages
+  // Exchange commission
+  commissionOnExchange: boolean;
   exchangeLevel1Pct: number;
   exchangeLevel2Pct: number;
+  exchangeChainIds: number[];
+  // Buy commission
+  commissionOnBuy: boolean;
   buyLevel1Pct: number;
   buyLevel2Pct: number;
-  faucetClaimLevel1Pct: number;
-  faucetClaimLevel2Pct: number;
-  commissionOnExchange: boolean;
-  commissionOnBuy: boolean;
-  commissionOnFaucetClaim: boolean;
-  exchangeChainIds: number[];
   buyChainIds: number[];
-  faucetClaimChainIds: number[];
+  // Faucet Claim commission: per-chain
+  faucetClaimChainCommissions: FaucetClaimChainCommission[];
+  // Claim payout chains
   claimChainIds: number[];
   minClaimEth: number;
 }
@@ -29,18 +36,15 @@ const DEFAULT_SETTINGS: ReferralSettings = {
   enabled: true,
   maintenanceMode: false,
   maintenanceMessage: "Referral System Coming Soon...",
+  commissionOnExchange: true,
   exchangeLevel1Pct: 1,
   exchangeLevel2Pct: 0.5,
+  exchangeChainIds: [],
+  commissionOnBuy: true,
   buyLevel1Pct: 1,
   buyLevel2Pct: 0.5,
-  faucetClaimLevel1Pct: 0.1,
-  faucetClaimLevel2Pct: 0.05,
-  commissionOnExchange: true,
-  commissionOnBuy: true,
-  commissionOnFaucetClaim: false,
-  exchangeChainIds: [],
   buyChainIds: [],
-  faucetClaimChainIds: [],
+  faucetClaimChainCommissions: [],
   claimChainIds: [],
   minClaimEth: 0.001,
 };
@@ -113,6 +117,30 @@ export async function creditCommissions(params: {
 }): Promise<void> {
   if (!params.settings.enabled || params.settings.maintenanceMode) return;
 
+  // Check if commission is enabled for this source type, and get L1/L2 %
+  let l1Pct: number;
+  let l2Pct: number;
+
+  if (params.sourceType === "faucet_claim") {
+    // Per-chain faucet claim commission
+    const chainConfig = params.settings.faucetClaimChainCommissions.find(
+      c => c.chainId === params.chainId && c.enabled
+    );
+    if (!chainConfig) return;
+    l1Pct = chainConfig.level1Pct;
+    l2Pct = chainConfig.level2Pct;
+  } else if (params.sourceType === "exchange") {
+    if (!params.settings.commissionOnExchange) return;
+    if (params.settings.exchangeChainIds.length > 0 && !params.settings.exchangeChainIds.includes(params.chainId)) return;
+    l1Pct = params.settings.exchangeLevel1Pct;
+    l2Pct = params.settings.exchangeLevel2Pct;
+  } else {
+    if (!params.settings.commissionOnBuy) return;
+    if (params.settings.buyChainIds.length > 0 && !params.settings.buyChainIds.includes(params.chainId)) return;
+    l1Pct = params.settings.buyLevel1Pct;
+    l2Pct = params.settings.buyLevel2Pct;
+  }
+
   const referee = params.refereeAddress.toLowerCase();
 
   const [l1ref] = await db
@@ -122,19 +150,6 @@ export async function creditCommissions(params: {
     .limit(1);
 
   if (!l1ref) return;
-
-  // Pick per-type percentages
-  const l1Pct = params.sourceType === "exchange"
-    ? params.settings.exchangeLevel1Pct
-    : params.sourceType === "buy"
-      ? params.settings.buyLevel1Pct
-      : params.settings.faucetClaimLevel1Pct;
-
-  const l2Pct = params.sourceType === "exchange"
-    ? params.settings.exchangeLevel2Pct
-    : params.sourceType === "buy"
-      ? params.settings.buyLevel2Pct
-      : params.settings.faucetClaimLevel2Pct;
 
   await recordCommission({
     referrerAddress: l1ref.referrerAddress,
