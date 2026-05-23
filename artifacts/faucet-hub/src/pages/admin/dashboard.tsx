@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { isAuthenticated, removeToken, getToken, registerUnauthorizedHandler, adminFetch } from "@/lib/auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,7 +7,7 @@ import {
   LogOut, LayoutDashboard, Link as LinkIcon,
   HeadphonesIcon, ClipboardList, ShieldOff, Wallet,
   FileText, BarChart2, Settings2, Globe, Send, Users, Radio, ArrowLeftRight, Network, GitBranch,
-  Download, Loader2
+  Download, Upload, Loader2
 } from "lucide-react";
 import { StatsOverview } from "@/components/admin/Stats";
 import { ChainManagement } from "@/components/admin/ChainManagement";
@@ -41,6 +41,9 @@ export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const [supportUnread, setSupportUnread] = useState(0);
   const [backingUp, setBackingUp] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [restoreResult, setRestoreResult] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleBackup = async () => {
     setBackingUp(true);
@@ -56,6 +59,38 @@ export default function AdminDashboard() {
       URL.revokeObjectURL(url);
     } catch { alert("Backup failed"); }
     finally { setBackingUp(false); }
+  };
+
+  const handleRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!window.confirm(`"${file.name}" থেকে data restore করবেন? এটা বিদ্যমান data overwrite করবে।`)) {
+      e.target.value = "";
+      return;
+    }
+    setRestoring(true);
+    setRestoreResult(null);
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text) as unknown;
+      const res = await adminFetch("/api/admin/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(json),
+      });
+      const result = await res.json() as { success?: boolean; restored?: Record<string, number>; error?: string };
+      if (!res.ok || !result.success) {
+        setRestoreResult(`❌ Failed: ${result.error ?? "Unknown error"}`);
+      } else {
+        const summary = Object.entries(result.restored ?? {}).map(([k, v]) => `${k}: ${v}`).join(", ");
+        setRestoreResult(`✅ Restored — ${summary}`);
+      }
+    } catch (err) {
+      setRestoreResult(`❌ Error: ${err instanceof Error ? err.message : "Parse error"}`);
+    } finally {
+      setRestoring(false);
+      e.target.value = "";
+    }
   };
 
   useEffect(() => {
@@ -92,6 +127,12 @@ export default function AdminDashboard() {
             {backingUp ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Download className="w-3.5 h-3.5 mr-1.5" />}
             Backup
           </Button>
+          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={restoring}
+            className="font-mono text-xs border-blue-500/30 text-blue-400 hover:bg-blue-500/10">
+            {restoring ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Upload className="w-3.5 h-3.5 mr-1.5" />}
+            Restore
+          </Button>
+          <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleRestoreFile} />
           <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
             <LogOut className="w-4 h-4 mr-2" /> Disconnect
           </Button>

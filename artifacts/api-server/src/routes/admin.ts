@@ -679,4 +679,54 @@ router.get("/admin/backup", requireAdmin, async (_req, res): Promise<void> => {
   res.json(backup);
 });
 
+// ── RESTORE: POST /admin/restore ─────────────────────────────────────────────
+router.post("/admin/restore", requireAdmin, async (req, res): Promise<void> => {
+  const body = req.body as Record<string, unknown>;
+  if (!body?.data || typeof body.data !== "object") {
+    res.status(400).json({ error: "Invalid backup file. Expected { data: { ... } }" });
+    return;
+  }
+
+  const data = body.data as Record<string, unknown[]>;
+  const summary: Record<string, number> = {};
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function upsert(table: any, idCol: any, rows: unknown[], key: string) {
+    if (!Array.isArray(rows) || rows.length === 0) { summary[key] = 0; return; }
+    let ok = 0;
+    for (const row of rows) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await db.insert(table).values(row as any).onConflictDoUpdate({ target: idCol, set: row as any });
+        ok++;
+      } catch { /* skip bad rows */ }
+    }
+    summary[key] = ok;
+  }
+
+  await upsert(chainsTable,                    chainsTable.id,                    data.chains ?? [],                    "chains");
+  await upsert(claimsTable,                    claimsTable.id,                    data.claims ?? [],                    "claims");
+  await upsert(bannersTable,                   bannersTable.id,                   data.banners ?? [],                   "banners");
+  await upsert(announcementsTable,             announcementsTable.id,             data.announcements ?? [],             "announcements");
+  await upsert(referralsTable,                 referralsTable.id,                 data.referrals ?? [],                 "referrals");
+  await upsert(referralCommissionsTable,       referralCommissionsTable.id,       data.referralCommissions ?? [],       "referralCommissions");
+  await upsert(referralClaimRequestsTable,     referralClaimRequestsTable.id,     data.referralClaimRequests ?? [],     "referralClaimRequests");
+  await upsert(referralBalanceAdjustmentsTable,referralBalanceAdjustmentsTable.id,data.referralBalanceAdjustments ?? [],"referralBalanceAdjustments");
+
+  // Settings: skip adminPasswordHash to preserve current login password
+  const settingsRows = (data.settings ?? []) as Array<{ key: string; value: string }>;
+  let settingsOk = 0;
+  for (const row of settingsRows) {
+    if (!row.key || row.key === "adminPasswordHash") continue;
+    try {
+      await db.insert(settingsTable).values({ key: row.key, value: row.value })
+        .onConflictDoUpdate({ target: settingsTable.key, set: { value: row.value } });
+      settingsOk++;
+    } catch { /* skip */ }
+  }
+  summary["settings"] = settingsOk;
+
+  res.json({ success: true, restored: summary });
+});
+
 export default router;
