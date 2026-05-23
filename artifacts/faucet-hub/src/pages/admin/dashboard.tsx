@@ -7,7 +7,7 @@ import {
   LogOut, LayoutDashboard, Link as LinkIcon,
   HeadphonesIcon, ClipboardList, ShieldOff, Wallet,
   FileText, BarChart2, Settings2, Globe, Send, Users, Radio, ArrowLeftRight, Network, GitBranch,
-  Download, Upload, Loader2, Megaphone
+  Download, Upload, Loader2, Megaphone, ShieldAlert
 } from "lucide-react";
 import { StatsOverview } from "@/components/admin/Stats";
 import { ChainManagement } from "@/components/admin/ChainManagement";
@@ -26,6 +26,7 @@ import { ExchangeManagement } from "@/components/admin/ExchangeManagement";
 import { PaymentNetworkManagement } from "@/components/admin/PaymentNetworkManagement";
 import { ReferralManagement } from "@/components/admin/ReferralManagement";
 import { AdManagement } from "@/components/admin/AdManagement";
+import { AntiAbusePanel } from "@/components/admin/AntiAbusePanel";
 
 async function fetchUnreadCount(): Promise<number> {
   try {
@@ -198,6 +199,9 @@ export default function AdminDashboard() {
             <TabsTrigger value="ads" className={TAB} title="Ads">
               <Megaphone className="w-3.5 h-3.5" /> Ads
             </TabsTrigger>
+            <TabsTrigger value="antiabuse" className={TAB} title="Anti-Abuse">
+              <ShieldAlert className="w-3.5 h-3.5" /> Anti-Abuse
+            </TabsTrigger>
             <TabsTrigger value="siteconfig" className={TAB} title="Settings">
               <Settings2 className="w-3.5 h-3.5" /> Settings
             </TabsTrigger>
@@ -221,6 +225,7 @@ export default function AdminDashboard() {
           <TabsContent value="paynetworks" className="mt-0 outline-none"><PaymentNetworkManagement /></TabsContent>
           <TabsContent value="referral" className="mt-0 outline-none"><ReferralManagement /></TabsContent>
           <TabsContent value="ads" className="mt-0 outline-none"><AdManagement /></TabsContent>
+          <TabsContent value="antiabuse" className="mt-0 outline-none"><AntiAbusePanel /></TabsContent>
           <TabsContent value="siteconfig" className="mt-0 outline-none"><SiteConfig /></TabsContent>
         </Tabs>
       </main>

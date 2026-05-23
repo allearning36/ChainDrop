@@ -372,6 +372,11 @@ export interface ClaimInput {
   chainId: number;
   address: string;
   captchaToken: string;
+  fingerprint?: string | null;
+  signature?: string | null;
+  nonce?: string | null;
+  timezone?: string | null;
+  userAgent?: string | null;
 }
 
 export interface AdTokenBody {

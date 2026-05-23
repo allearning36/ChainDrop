@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ChainPublic, useGetFaucetStatus, useClaimFaucet, useRequestAdToken, useClaimFaucetWithAd, getGetChainQueryKey, getGetFaucetStatusQueryKey } from "@workspace/api-client-react";
@@ -10,6 +10,55 @@ import { formatDistanceToNow } from "date-fns";
 import ReCAPTCHA from "react-google-recaptcha";
 
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
+
+// ── Device fingerprint ────────────────────────────────────────────────────────
+async function collectFingerprint(): Promise<string> {
+  try {
+    const signals: string[] = [
+      navigator.userAgent,
+      navigator.language,
+      `${screen.width}x${screen.height}`,
+      String(screen.colorDepth),
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
+      navigator.platform,
+      String(navigator.hardwareConcurrency ?? 0),
+      String((navigator as { deviceMemory?: number }).deviceMemory ?? 0),
+    ];
+    // Canvas fingerprint
+    try {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.textBaseline = "top";
+        ctx.font = "14px Arial";
+        ctx.fillStyle = "#22c55e";
+        ctx.fillRect(0, 0, 80, 20);
+        ctx.fillStyle = "#0d1117";
+        ctx.fillText("ChainDrop", 2, 4);
+        signals.push(canvas.toDataURL());
+      }
+    } catch { /* ignore */ }
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(signals.join("|")));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return "";
+  }
+}
+
+// ── EVM wallet signature ──────────────────────────────────────────────────────
+async function getEVMSignature(address: string): Promise<{ signature: string; nonce: string } | null> {
+  try {
+    const eth = (window as { ethereum?: { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum;
+    if (!eth) return null;
+    const nonceRes = await fetch(`/api/anti-abuse/nonce/${encodeURIComponent(address.toLowerCase())}`);
+    if (!nonceRes.ok) return null;
+    const { nonce, message } = await nonceRes.json() as { nonce: string; message: string };
+    const signature = await eth.request({ method: "personal_sign", params: [message, address] }) as string;
+    return { signature, nonce };
+  } catch {
+    return null; // user rejected or no wallet
+  }
+}
 
 // ── Address helpers ──────────────────────────────────────────────────────────
 
@@ -132,10 +181,31 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
     return () => clearTimeout(timer);
   }, [step, adWatchCountdown]);
 
-  const handleClaim = () => {
+  const handleClaim = useCallback(async () => {
     if (!chain || !debouncedAddress || !captchaToken) return;
     setErrorMsg("");
-    claimMutation.mutate({ data: { chainId: chain.id, address: debouncedAddress, captchaToken } }, {
+
+    // Collect fingerprint + timezone silently
+    const [fp, tz] = await Promise.all([
+      collectFingerprint(),
+      Promise.resolve(Intl.DateTimeFormat().resolvedOptions().timeZone),
+    ]);
+
+    // Try EVM wallet signature (optional — boosts trust score)
+    const isEvm = !chain.chainType || chain.chainType === "evm";
+    const sigData = isEvm ? await getEVMSignature(debouncedAddress) : null;
+
+    claimMutation.mutate({
+      data: {
+        chainId: chain.id,
+        address: debouncedAddress,
+        captchaToken,
+        fingerprint: fp || undefined,
+        timezone: tz || undefined,
+        userAgent: navigator.userAgent || undefined,
+        ...(sigData ? { signature: sigData.signature, nonce: sigData.nonce } : {}),
+      }
+    }, {
       onSuccess: (res) => {
         setTxHash(res.txHash);
         setClaimedAmount(res.amount);
@@ -150,7 +220,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
         setErrorMsg(err?.data?.error || err.message || "Failed to claim");
       }
     });
-  };
+  }, [chain, debouncedAddress, captchaToken, claimMutation, queryClient]);
 
   const handleWatchAd = () => {
     if (!chain || !debouncedAddress) return;

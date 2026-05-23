@@ -18,6 +18,7 @@ import audienceRouter from "./audience";
 import liveRouter from "./live";
 import exchangeRouter from "./exchange";
 import referralRouter from "./referral";
+import antiAbuseRouter from "./antiAbuse";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use(siteConfigRouter);
 router.use(lookupRouter);
 router.use(audienceRouter);
 router.use(referralRouter);
+router.use(antiAbuseRouter);
 
 export default router;

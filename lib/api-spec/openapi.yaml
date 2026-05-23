@@ -1583,6 +1583,21 @@ components:
           type: string
         captchaToken:
           type: string
+        fingerprint:
+          type: string
+          nullable: true
+        signature:
+          type: string
+          nullable: true
+        nonce:
+          type: string
+          nullable: true
+        timezone:
+          type: string
+          nullable: true
+        userAgent:
+          type: string
+          nullable: true
 
     AdTokenBody:
       type: object

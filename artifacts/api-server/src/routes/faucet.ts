@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request } from "express";
 import { desc, eq, and, gt } from "drizzle-orm";
-import { db, claimsTable, chainsTable, blockedAddressesTable, ipBlocksTable, settingsTable, purchasesTable, adTokensTable } from "@workspace/db";
+import { db, claimsTable, chainsTable, blockedAddressesTable, ipBlocksTable, settingsTable, purchasesTable, adTokensTable, nonceTable } from "@workspace/db";
 import { ClaimFaucetBody, GetFaucetStatusParams, RequestAdTokenBody, ClaimFaucetWithAdBody } from "@workspace/api-zod";
 import { sendTokens, isValidAddress, type ChainType } from "../lib/chains/index";
 import { parseRpcUrls } from "../lib/rpcFailover";
@@ -8,6 +8,7 @@ import { claimLimiter } from "../lib/rateLimiters";
 import { broadcast, broadcastError, classifyError, getErrorMeta } from "../lib/liveEvents";
 import { resolveChainPrivateKey } from "../lib/encryption";
 import { creditCommissions, getReferralSettings } from "../lib/referral";
+import { evaluateClaim, verifyWalletSignature } from "../lib/antiAbuse";
 
 function getClientIp(req: Request): string {
   const fwd = req.headers["x-forwarded-for"];
@@ -69,6 +70,42 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
   if (blockedIp) {
     broadcast({ type: "claim_error", chainId, address, ip: clientIp, error: "IP blocked", rootCause: "ADDRESS_BLOCKED", detail: "IP address is blocked" });
     res.status(403).json({ error: "Your IP address has been blocked from using the faucet." });
+    return;
+  }
+
+  // ── Anti-abuse evaluation ──────────────────────────────────────────────────
+  const { fingerprint, signature, nonce, timezone } = parsed.data;
+  const userAgent = req.headers["user-agent"] ?? undefined;
+
+  // Validate nonce for wallet signature (EVM only, optional but boosts trust)
+  let validatedNonce: string | undefined;
+  if (signature && nonce && address.startsWith("0x")) {
+    const [nonceRow] = await db
+      .select()
+      .from(nonceTable)
+      .where(and(eq(nonceTable.address, address.toLowerCase()), eq(nonceTable.nonce, nonce)))
+      .limit(1);
+    if (nonceRow && !nonceRow.usedAt && nonceRow.expiresAt > new Date()) {
+      validatedNonce = nonce;
+      // Mark nonce as used
+      await db.update(nonceTable).set({ usedAt: new Date() }).where(eq(nonceTable.id, nonceRow.id));
+    }
+  }
+
+  const abuseResult = await evaluateClaim({
+    address,
+    ip: clientIp,
+    fingerprint: fingerprint ?? undefined,
+    userAgent,
+    timezone:    timezone ?? undefined,
+    chainId,
+    signature:   validatedNonce ? (signature ?? undefined) : undefined,
+    nonce:       validatedNonce,
+  });
+
+  if (!abuseResult.allowed) {
+    broadcast({ type: "claim_error", chainId, address, ip: clientIp, error: "Anti-abuse block", rootCause: "ADDRESS_BLOCKED", detail: abuseResult.flags.join(",") });
+    res.status(403).json({ error: abuseResult.reason ?? "Request blocked by anti-abuse system." });
     return;
   }
 
@@ -172,7 +209,20 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
 
   const [claim] = await db
     .insert(claimsTable)
-    .values({ chainId, address: address.toLowerCase(), txHash, amount: chain.claimAmount })
+    .values({
+      chainId,
+      address:     address.toLowerCase(),
+      txHash,
+      amount:      chain.claimAmount,
+      ip:          clientIp,
+      fingerprint: fingerprint ?? null,
+      userAgent:   userAgent ?? null,
+      country:     abuseResult.country ?? null,
+      timezone:    timezone ?? null,
+      vpnDetected: abuseResult.vpnDetected,
+      trustScore:  abuseResult.trustScore,
+      sigVerified: abuseResult.sigVerified,
+    })
     .returning();
 
   broadcast({
@@ -476,7 +526,14 @@ router.post("/faucet/ad-claim", claimLimiter, async (req, res): Promise<void> =>
 
   const [claim] = await db
     .insert(claimsTable)
-    .values({ chainId, address: address.toLowerCase(), txHash, amount: claimAmount })
+    .values({
+      chainId,
+      address:   address.toLowerCase(),
+      txHash,
+      amount:    claimAmount,
+      ip:        clientIp,
+      userAgent: (req.headers["user-agent"] as string | undefined) ?? null,
+    })
     .returning();
 
   broadcast({

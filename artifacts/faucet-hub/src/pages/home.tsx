@@ -8,7 +8,7 @@ import { Banners } from "@/components/home/Banners";
 import { ChainCard } from "@/components/home/ChainCard";
 import { RecentFeed } from "@/components/home/RecentFeed";
 import { ClaimModal } from "@/components/home/ClaimModal";
-import { useGetChains, getGetChainsQueryKey, ChainPublic, registerReferral } from "@workspace/api-client-react";
+import { useGetChains, getGetChainsQueryKey, ChainPublic } from "@workspace/api-client-react";
 import { Loader2, Search, X } from "lucide-react";
 
 export default function Home() {

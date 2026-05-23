@@ -91,7 +91,12 @@ export const GetChainResponse = zod.object({
 export const ClaimFaucetBody = zod.object({
   "chainId": zod.number(),
   "address": zod.string(),
-  "captchaToken": zod.string()
+  "captchaToken": zod.string(),
+  "fingerprint": zod.string().nullish(),
+  "signature": zod.string().nullish(),
+  "nonce": zod.string().nullish(),
+  "timezone": zod.string().nullish(),
+  "userAgent": zod.string().nullish()
 })
 
 export const ClaimFaucetResponse = zod.object({
