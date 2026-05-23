@@ -69,14 +69,14 @@ export function Footer() {
       )}
 
       <div className="container mx-auto px-4 py-8 flex flex-col gap-6">
-        {/* Top row — logo left, links centered, spacer right */}
-        <div className="flex flex-col items-center gap-4 md:grid md:grid-cols-3 md:items-center">
-          <div className="flex items-center gap-2 md:justify-start">
+        {/* Center: logo + nav links */}
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex items-center gap-2">
             <img src="/logo.svg" alt="ChainDrop" className="w-7 h-7 object-contain" />
             <span className="font-bold text-sm tracking-tight">ChainDrop</span>
           </div>
 
-          <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm">
+          <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
             {[
               { href: "/about",   label: "About" },
               { href: "/contact", label: "Contact" },
@@ -91,8 +91,6 @@ export function Footer() {
               </Link>
             ))}
           </nav>
-
-          <div className="hidden md:block" />
         </div>
 
         {/* Social section */}
@@ -137,13 +135,8 @@ export function Footer() {
         )}
 
         {/* Bottom row */}
-        <div className="border-t border-border/50 pt-4 flex flex-col md:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+        <div className="border-t border-border/50 pt-4 flex items-center justify-center text-xs text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} ChainDrop. All rights reserved.</p>
-          <div className="flex items-center gap-4 font-mono">
-            <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
-            <span className="opacity-30">|</span>
-            <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
-          </div>
         </div>
       </div>
     </footer>
