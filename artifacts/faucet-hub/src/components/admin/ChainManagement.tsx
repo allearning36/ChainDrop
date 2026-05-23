@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X, ShoppingCart, Pin, PinOff, Server, Shield, Droplets, Globe, Settings2, Clock, ArrowUp, ArrowDown, Activity, CheckCircle2, XCircle, RefreshCw, Tv2, Search } from "lucide-react";
+import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X, ShoppingCart, Pin, PinOff, Server, Shield, Droplets, Globe, Settings2, Clock, ArrowUp, ArrowDown, Activity, CheckCircle2, XCircle, RefreshCw, Tv2, Search, Key, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { adminFetch } from "@/lib/auth";
 import { formatCooldown, secondsToHms, hmsToSeconds } from "@/lib/utils";
@@ -116,6 +116,15 @@ export function ChainManagement() {
   const [formError, setFormError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [customPaymentNetworks, setCustomPaymentNetworks] = useState<{ id: string; name: string; chainId: number }[]>([]);
+  const [systemWallet, setSystemWallet] = useState<{ configured: boolean; address: string | null; error?: string } | null>(null);
+  const [copiedSysAddr, setCopiedSysAddr] = useState(false);
+
+  useEffect(() => {
+    adminFetch("/api/admin/system-wallet")
+      .then(r => r.ok ? r.json() : null)
+      .then((data: any) => { if (data) setSystemWallet(data); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     adminFetch("/api/admin/payment-networks")
@@ -333,6 +342,46 @@ export function ChainManagement() {
 
   return (
     <div className="space-y-6">
+      {/* System Default Key Info */}
+      <div className="rounded-xl p-4" style={{ background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.18)" }}>
+        <div className="flex items-center gap-2 mb-3">
+          <Key className="w-4 h-4" style={{ color: "#f87171" }} />
+          <span className="font-mono text-sm font-bold" style={{ color: "#f87171" }}>System Default Key</span>
+          <span className="text-[10px] font-mono text-muted-foreground ml-1">— used when no custom key is set on a chain</span>
+        </div>
+        {systemWallet === null ? (
+          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground"><Loader2 className="w-3 h-3 animate-spin" /> Loading…</div>
+        ) : !systemWallet.configured ? (
+          <div className="flex items-center gap-2 text-xs font-mono" style={{ color: "#f87171" }}>
+            <AlertCircle className="w-3.5 h-3.5" />
+            <span>FAUCET_PRIVATE_KEY is NOT set. Go to Railway → Variables and add it.</span>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-mono text-muted-foreground w-16 shrink-0">Address:</span>
+              {systemWallet.address ? (
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <code className="text-xs font-mono truncate" style={{ color: "#4ade80" }}>{systemWallet.address}</code>
+                  <button
+                    className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors"
+                    onClick={() => { navigator.clipboard.writeText(systemWallet.address!); setCopiedSysAddr(true); setTimeout(() => setCopiedSysAddr(false), 1500); }}
+                  >
+                    {copiedSysAddr ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5 text-muted-foreground" />}
+                  </button>
+                </div>
+              ) : (
+                <span className="text-xs font-mono text-muted-foreground">{systemWallet.error ?? "Could not derive address"}</span>
+              )}
+            </div>
+            <p className="text-[10px] font-mono text-muted-foreground">
+              To change: update <span className="font-bold text-red-400">FAUCET_PRIVATE_KEY</span> in Railway → your api-server service → Variables.
+              The new address will be auto-derived instantly.
+            </p>
+          </div>
+        )}
+      </div>
+
       <div className="flex items-center justify-between border-b border-border pb-4">
         <h2 className="text-xl font-bold font-mono tracking-tight uppercase">Chain Registry</h2>
         <Button onClick={handleOpenCreate} size="sm" className="font-mono">

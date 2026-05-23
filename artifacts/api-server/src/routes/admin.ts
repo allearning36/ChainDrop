@@ -168,6 +168,23 @@ router.get("/admin/stats", async (_req, res): Promise<void> => {
   });
 });
 
+// System wallet info (derived from FAUCET_PRIVATE_KEY env var)
+router.get("/admin/system-wallet", requireAdmin, (_req, res): Promise<void> => {
+  const sysKey = process.env.FAUCET_PRIVATE_KEY ?? "";
+  if (!sysKey) {
+    res.json({ configured: false, address: null });
+    return Promise.resolve();
+  }
+  try {
+    const pk = sysKey.startsWith("0x") ? sysKey : `0x${sysKey}`;
+    const address = new ethers.Wallet(pk).address;
+    res.json({ configured: true, address });
+  } catch {
+    res.json({ configured: true, address: null, error: "Could not derive address (non-EVM key format)" });
+  }
+  return Promise.resolve();
+});
+
 // Chains
 router.get("/admin/chains", async (_req, res): Promise<void> => {
   const chains = await db.select().from(chainsTable).orderBy(chainsTable.sortOrder, chainsTable.id);
