@@ -2,6 +2,8 @@ import express, { type Express } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
+import path from "path";
+import fs from "fs";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { globalLimiter } from "./lib/rateLimiters";
@@ -83,5 +85,26 @@ app.use(express.json({ limit: "50kb" }));
 app.use(express.urlencoded({ limit: "50kb", extended: true }));
 
 app.use("/api", router);
+
+// ── Serve faucet-hub static frontend (production) ────────────────────────────
+// In production the frontend is built to artifacts/faucet-hub/dist/public.
+// __dirname resolves to artifacts/api-server/dist at runtime.
+const frontendDist = path.resolve(
+  __dirname,
+  "..",
+  "..",
+  "faucet-hub",
+  "dist",
+  "public",
+);
+
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  // SPA fallback — serve index.html for any non-API route
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(frontendDist, "index.html"));
+  });
+  logger.info({ frontendDist }, "Serving frontend static files");
+}
 
 export default app;
