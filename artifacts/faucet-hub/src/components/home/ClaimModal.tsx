@@ -140,6 +140,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [adWatchToken, setAdWatchToken] = useState("");
   const [adWatchContent, setAdWatchContent] = useState<string | null>(null);
   const [adWatchError, setAdWatchError] = useState("");
+  const [captchaExpired, setCaptchaExpired] = useState(false);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   const queryClient = useQueryClient();
@@ -403,13 +404,24 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
 
                 {/* reCAPTCHA — shown when address is valid and not in cooldown */}
                 {addressValid && !inCooldown && (
-                  <div className="flex justify-center">
-                    <div className="rounded-xl" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <div className="flex flex-col items-center gap-1.5">
+                    {captchaExpired && (
+                      <div className="flex items-center gap-1.5 text-xs font-mono px-2.5 py-1.5 rounded-lg w-full" style={{ background: "rgba(251,191,36,0.08)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.2)" }}>
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" /> CAPTCHA expired — please verify again
+                      </div>
+                    )}
+                    {/* onMouseDown blurs any active input so mobile keyboard doesn't pop up when tapping CAPTCHA images */}
+                    <div
+                      className="rounded-xl"
+                      style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+                      onMouseDown={() => { if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); }}
+                      onTouchStart={() => { if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); }}
+                    >
                       <ReCAPTCHA
                         ref={recaptchaRef}
                         sitekey={RECAPTCHA_SITE_KEY}
-                        onChange={(val) => setCaptchaToken(val || "")}
-                        onExpired={() => setCaptchaToken("")}
+                        onChange={(val) => { setCaptchaToken(val || ""); setCaptchaExpired(false); }}
+                        onExpired={() => { setCaptchaToken(""); setCaptchaExpired(true); }}
                         theme="dark"
                       />
                     </div>

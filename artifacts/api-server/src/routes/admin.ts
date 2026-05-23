@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import fs from "fs";
 import crypto from "crypto";
 import { eq, desc, count } from "drizzle-orm";
 import { encryptPrivateKey, resolveChainWalletAddress } from "../lib/encryption";
@@ -131,18 +132,25 @@ router.get("/admin/debug-password", (req, res): void => {
   });
 });
 
-// Image upload (auth required) — delegates to the shared upload middleware from upload.ts
+// Image upload (auth required) — converts to base64 data URL so logos survive Railway redeploys.
+// The file is validated by multer (type + size), read into memory as base64, then the temp file
+// is deleted. The data URL is stored directly in the DB (logoUrl column).
 router.post("/admin/upload", requireAdmin, upload.single("file"), (req, res): void => {
   if (!req.file) {
     res.status(400).json({ error: "No file uploaded" });
     return;
   }
-  // Build URL from REPLIT_DOMAINS env var — never trust client-supplied host headers
-  const domains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
-  const url = domains.length > 0
-    ? `https://${domains[0]}/api/uploads/${req.file.filename}`
-    : `/api/uploads/${req.file.filename}`;
-  res.json({ url });
+  try {
+    const data = fs.readFileSync(req.file.path);
+    const b64 = data.toString("base64");
+    const mime = req.file.mimetype || "image/png";
+    const dataUrl = `data:${mime};base64,${b64}`;
+    // Remove temp file — logo is now in the DB as a data URL, no filesystem needed
+    try { fs.unlinkSync(req.file.path); } catch { /* ignore */ }
+    res.json({ url: dataUrl });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to process uploaded image" });
+  }
 });
 
 // All admin routes require auth
