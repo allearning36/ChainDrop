@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
@@ -93,6 +93,17 @@ app.use(express.json({ limit: "50kb" }));
 app.use(express.urlencoded({ limit: "50kb", extended: true }));
 
 app.use("/api", router);
+
+// ── Global JSON error handler ─────────────────────────────────────────────────
+// Must be defined AFTER all routes. Catches any unhandled error thrown inside
+// a route handler and returns a JSON response instead of Express's HTML page.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use("/api", (err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  logger.error({ err }, "Unhandled route error");
+  if (!res.headersSent) {
+    res.status(500).json({ error: "An unexpected error occurred. Please try again." });
+  }
+});
 
 // ── Serve faucet-hub static frontend (production) ────────────────────────────
 // In production the frontend is built to artifacts/faucet-hub/dist/public.

@@ -54,23 +54,31 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
   }
 
   // Check maintenance mode
-  const [maintenanceSetting] = await db.select().from(settingsTable).where(eq(settingsTable.key, "maintenanceMode")).limit(1);
-  if (maintenanceSetting?.value) {
-    try {
-      const mc = JSON.parse(maintenanceSetting.value) as { enabled?: boolean; message?: string };
-      if (mc.enabled) {
-        res.status(503).json({ error: mc.message || "The faucet is currently under maintenance. Please check back soon." });
-        return;
-      }
-    } catch { /* ignore */ }
+  try {
+    const [maintenanceSetting] = await db.select().from(settingsTable).where(eq(settingsTable.key, "maintenanceMode")).limit(1);
+    if (maintenanceSetting?.value) {
+      try {
+        const mc = JSON.parse(maintenanceSetting.value) as { enabled?: boolean; message?: string };
+        if (mc.enabled) {
+          res.status(503).json({ error: mc.message || "The faucet is currently under maintenance. Please check back soon." });
+          return;
+        }
+      } catch { /* ignore parse error */ }
+    }
+  } catch (err) {
+    req.log.warn({ err }, "Maintenance check failed — continuing");
   }
 
   // Check IP block
-  const [blockedIp] = await db.select().from(ipBlocksTable).where(eq(ipBlocksTable.ip, clientIp)).limit(1);
-  if (blockedIp) {
-    broadcast({ type: "claim_error", chainId, address, ip: clientIp, error: "IP blocked", rootCause: "ADDRESS_BLOCKED", detail: "IP address is blocked" });
-    res.status(403).json({ error: "Your IP address has been blocked from using the faucet." });
-    return;
+  try {
+    const [blockedIp] = await db.select().from(ipBlocksTable).where(eq(ipBlocksTable.ip, clientIp)).limit(1);
+    if (blockedIp) {
+      broadcast({ type: "claim_error", chainId, address, ip: clientIp, error: "IP blocked", rootCause: "ADDRESS_BLOCKED", detail: "IP address is blocked" });
+      res.status(403).json({ error: "Your IP address has been blocked from using the faucet." });
+      return;
+    }
+  } catch (err) {
+    req.log.warn({ err }, "IP block check failed — continuing");
   }
 
   // ── Anti-abuse evaluation ──────────────────────────────────────────────────
@@ -128,10 +136,18 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
   }
 
   // Fetch chain
-  const [chain] = await db
-    .select()
-    .from(chainsTable)
-    .where(and(eq(chainsTable.id, chainId), eq(chainsTable.isEnabled, true)));
+  let chain: typeof chainsTable.$inferSelect | undefined;
+  try {
+    const rows = await db
+      .select()
+      .from(chainsTable)
+      .where(and(eq(chainsTable.id, chainId), eq(chainsTable.isEnabled, true)));
+    chain = rows[0];
+  } catch (err) {
+    req.log.error({ err }, "Chain fetch failed");
+    res.status(503).json({ error: "Could not load chain data. Please try again." });
+    return;
+  }
 
   if (!chain) {
     res.status(404).json({ error: "Chain not found or disabled" });
@@ -151,31 +167,39 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
   }
 
   // Check if address is blocked
-  const [blocked] = await db
-    .select()
-    .from(blockedAddressesTable)
-    .where(eq(blockedAddressesTable.address, address.toLowerCase()))
-    .limit(1);
-  if (blocked) {
-    broadcast({ type: "claim_error", chainId, chainName: chain.name, address, ip: clientIp, error: "Address blocked", rootCause: "ADDRESS_BLOCKED", detail: "Wallet address is blocked" });
-    res.status(403).json({ error: "This address has been blocked from using the faucet." });
-    return;
+  try {
+    const [blocked] = await db
+      .select()
+      .from(blockedAddressesTable)
+      .where(eq(blockedAddressesTable.address, address.toLowerCase()))
+      .limit(1);
+    if (blocked) {
+      broadcast({ type: "claim_error", chainId, chainName: chain.name, address, ip: clientIp, error: "Address blocked", rootCause: "ADDRESS_BLOCKED", detail: "Wallet address is blocked" });
+      res.status(403).json({ error: "This address has been blocked from using the faucet." });
+      return;
+    }
+  } catch (err) {
+    req.log.warn({ err }, "Address block check failed — continuing");
   }
 
   const cooldownMs = chain.cooldownSeconds * 1000;
   const since = new Date(Date.now() - cooldownMs);
 
-  const [recent] = await db
-    .select()
-    .from(claimsTable)
-    .where(and(eq(claimsTable.chainId, chainId), eq(claimsTable.address, address.toLowerCase())))
-    .orderBy(desc(claimsTable.claimedAt))
-    .limit(1);
+  try {
+    const [recent] = await db
+      .select()
+      .from(claimsTable)
+      .where(and(eq(claimsTable.chainId, chainId), eq(claimsTable.address, address.toLowerCase())))
+      .orderBy(desc(claimsTable.claimedAt))
+      .limit(1);
 
-  if (recent && recent.claimedAt > since) {
-    const nextClaimAt = new Date(recent.claimedAt.getTime() + cooldownMs);
-    res.status(429).json({ error: `Already claimed. Next claim at ${nextClaimAt.toISOString()}` });
-    return;
+    if (recent && recent.claimedAt > since) {
+      const nextClaimAt = new Date(recent.claimedAt.getTime() + cooldownMs);
+      res.status(429).json({ error: `Already claimed. Next claim at ${nextClaimAt.toISOString()}` });
+      return;
+    }
+  } catch (err) {
+    req.log.warn({ err }, "Cooldown check failed — continuing");
   }
 
   let txHash: string;
