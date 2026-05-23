@@ -1,5 +1,4 @@
 {
-  "install": {
-    "command": "pnpm install --no-frozen-lockfile"
-  }
+  "$schema": "https://schema.railpack.com",
+  "installCmd": "pnpm install --no-frozen-lockfile"
 }
