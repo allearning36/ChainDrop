@@ -1,0 +1,12 @@
+{
+  "buildCommand": "pnpm install --no-frozen-lockfile && pnpm --filter @workspace/faucet-hub run build",
+  "outputDirectory": "artifacts/faucet-hub/dist/public",
+  "installCommand": "echo 'install handled by buildCommand'",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://workspaceapi-server-production-98d2.up.railway.app/api/:path*"
+    }
+  ]
+}
