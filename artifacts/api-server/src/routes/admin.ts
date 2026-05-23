@@ -41,27 +41,24 @@ router.post("/admin/auth", async (req, res): Promise<void> => {
     return;
   }
 
-  const adminPassword = (process.env.ADMIN_PASSWORD ?? "").trim();
-  if (!adminPassword) {
-    res.status(500).json({ error: "Admin password not configured" });
-    return;
-  }
-
-  // Railway ADMIN_PASSWORD is always the master override — check it first.
-  // This way, even if DB has a stored hash, changing Railway variable always works.
   const enteredTrimmed = parsed.data.password.trim();
-  const envBuf = Buffer.from(adminPassword);
-  const enteredBuf = Buffer.from(enteredTrimmed);
-  const envMatch = enteredBuf.length === envBuf.length && crypto.timingSafeEqual(enteredBuf, envBuf);
+  const envPassword = (process.env.ADMIN_PASSWORD ?? "").trim();
 
   let valid: boolean;
-  if (envMatch) {
-    // Correct Railway master password — clear any stored hash so DB stays in sync
-    valid = true;
+
+  if (envPassword) {
+    // Railway env var is set → it is the ONLY valid password; DB hash is ignored entirely.
+    const envBuf = Buffer.from(envPassword);
+    const enteredBuf = Buffer.from(enteredTrimmed);
+    valid = enteredBuf.length === envBuf.length && crypto.timingSafeEqual(enteredBuf, envBuf);
   } else {
-    // Fall back to DB-stored hash (set via change-password)
+    // No Railway env var → fall back to DB-stored hash (set via change-password).
     const storedHash = await getStoredPasswordHash();
-    valid = storedHash ? verifyPassword(enteredTrimmed, storedHash) : false;
+    if (!storedHash) {
+      res.status(500).json({ error: "Admin password not configured" });
+      return;
+    }
+    valid = verifyPassword(enteredTrimmed, storedHash);
   }
 
   if (!valid) {
