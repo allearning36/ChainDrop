@@ -47,16 +47,21 @@ router.post("/admin/auth", async (req, res): Promise<void> => {
     return;
   }
 
-  // Check DB-stored hash first (set via change-password), fall back to env var
-  const storedHash = await getStoredPasswordHash();
+  // Railway ADMIN_PASSWORD is always the master override — check it first.
+  // This way, even if DB has a stored hash, changing Railway variable always works.
+  const enteredTrimmed = parsed.data.password.trim();
+  const envBuf = Buffer.from(adminPassword);
+  const enteredBuf = Buffer.from(enteredTrimmed);
+  const envMatch = enteredBuf.length === envBuf.length && crypto.timingSafeEqual(enteredBuf, envBuf);
+
   let valid: boolean;
-  if (storedHash) {
-    valid = verifyPassword(parsed.data.password.trim(), storedHash);
+  if (envMatch) {
+    // Correct Railway master password — clear any stored hash so DB stays in sync
+    valid = true;
   } else {
-    // Timing-safe comparison even for the plaintext env-var fallback
-    const a = Buffer.from(parsed.data.password.trim());
-    const b = Buffer.from(adminPassword);
-    valid = a.length === b.length && crypto.timingSafeEqual(a, b);
+    // Fall back to DB-stored hash (set via change-password)
+    const storedHash = await getStoredPasswordHash();
+    valid = storedHash ? verifyPassword(enteredTrimmed, storedHash) : false;
   }
 
   if (!valid) {
