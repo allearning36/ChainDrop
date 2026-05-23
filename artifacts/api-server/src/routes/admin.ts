@@ -3,6 +3,12 @@ import crypto from "crypto";
 import { eq, desc, count } from "drizzle-orm";
 import { encryptPrivateKey } from "../lib/encryption";
 import { db, chainsTable, claimsTable, bannersTable, announcementsTable, settingsTable, paymentNetworksTable } from "@workspace/db";
+import {
+  referralsTable,
+  referralCommissionsTable,
+  referralClaimRequestsTable,
+  referralBalanceAdjustmentsTable,
+} from "@workspace/db/schema";
 import { getStoredPasswordHash, verifyPassword } from "./adminTools";
 import { upload } from "./upload";
 import {
@@ -626,6 +632,51 @@ router.get("/admin/payment-networks/:id/rpc-health", async (req, res): Promise<v
   const urls = [network.rpcUrl, ...extras.filter((u: string) => u && u !== network.rpcUrl)];
   const results = await Promise.all(urls.map((url) => checkRpcHealth(url)));
   res.json(results);
+});
+
+// ── BACKUP: GET /admin/backup ─────────────────────────────────────────────────
+router.get("/admin/backup", requireAdmin, async (_req, res): Promise<void> => {
+  const [
+    chains, claims, banners, announcements, settings,
+    referrals, commissions, claimRequests, adjustments,
+  ] = await Promise.all([
+    db.select().from(chainsTable),
+    db.select().from(claimsTable),
+    db.select().from(bannersTable),
+    db.select().from(announcementsTable),
+    db.select().from(settingsTable),
+    db.select().from(referralsTable),
+    db.select().from(referralCommissionsTable),
+    db.select().from(referralClaimRequestsTable),
+    db.select().from(referralBalanceAdjustmentsTable),
+  ]);
+
+  const backup = {
+    exportedAt: new Date().toISOString(),
+    version: 1,
+    tables: {
+      chains: chains.length,
+      claims: claims.length,
+      referrals: referrals.length,
+      referralCommissions: commissions.length,
+    },
+    data: {
+      chains,
+      claims,
+      banners,
+      announcements,
+      settings,
+      referrals,
+      referralCommissions: commissions,
+      referralClaimRequests: claimRequests,
+      referralBalanceAdjustments: adjustments,
+    },
+  };
+
+  const filename = `chaindrop-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  res.setHeader("Content-Type", "application/json");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.json(backup);
 });
 
 export default router;

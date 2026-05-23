@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import {
   LogOut, LayoutDashboard, Link as LinkIcon,
   HeadphonesIcon, ClipboardList, ShieldOff, Wallet,
-  FileText, BarChart2, Settings2, Globe, Send, Users, Radio, ArrowLeftRight, Network, GitBranch
+  FileText, BarChart2, Settings2, Globe, Send, Users, Radio, ArrowLeftRight, Network, GitBranch,
+  Download, Loader2
 } from "lucide-react";
 import { StatsOverview } from "@/components/admin/Stats";
 import { ChainManagement } from "@/components/admin/ChainManagement";
@@ -39,6 +40,23 @@ const TAB = "font-mono text-xs data-[state=active]:bg-primary/20 data-[state=act
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const [supportUnread, setSupportUnread] = useState(0);
+  const [backingUp, setBackingUp] = useState(false);
+
+  const handleBackup = async () => {
+    setBackingUp(true);
+    try {
+      const res = await adminFetch("/api/admin/backup");
+      if (!res.ok) { alert("Backup failed"); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `chaindrop-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { alert("Backup failed"); }
+    finally { setBackingUp(false); }
+  };
 
   useEffect(() => {
     const redirectToLogin = () => setLocation("/admin/login");
@@ -68,9 +86,16 @@ export default function AdminDashboard() {
           <img src="/logo.svg" alt="CD" className="w-8 h-8 object-contain" />
           <span className="font-bold font-mono uppercase tracking-tight text-lg hidden sm:inline-block">Terminal Admin</span>
         </div>
-        <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
-          <LogOut className="w-4 h-4 mr-2" /> Disconnect
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleBackup} disabled={backingUp}
+            className="font-mono text-xs border-green-500/30 text-green-400 hover:bg-green-500/10">
+            {backingUp ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Download className="w-3.5 h-3.5 mr-1.5" />}
+            Backup
+          </Button>
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground">
+            <LogOut className="w-4 h-4 mr-2" /> Disconnect
+          </Button>
+        </div>
       </header>
 
       <main className="flex-1 container mx-auto px-4 py-8">
