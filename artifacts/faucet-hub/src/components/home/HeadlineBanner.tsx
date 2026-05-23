@@ -5,6 +5,7 @@ interface HeadlineSettings {
   headlineColor: string;
   headlineBg: string;
   headlineEmoji: string;
+  headlineSpeed: number;
 }
 
 const DEFAULTS: HeadlineSettings = {
@@ -12,6 +13,7 @@ const DEFAULTS: HeadlineSettings = {
   headlineColor: "#ffffff",
   headlineBg: "#16a34a",
   headlineEmoji: "📢",
+  headlineSpeed: 5,
 };
 
 function hexToRgb(hex: string): string {
@@ -20,6 +22,13 @@ function hexToRgb(hex: string): string {
     ? clean.split("").map(c => c + c).join("")
     : clean, 16);
   return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
+}
+
+function speedToDuration(speed: number): string {
+  // speed 1 = 50s (slow), speed 5 = 30s (normal), speed 10 = 5s (fast)
+  const clamped = Math.max(1, Math.min(10, speed));
+  const duration = Math.round(55 - clamped * 5);
+  return `${duration}s`;
 }
 
 export function HeadlineBanner() {
@@ -34,6 +43,7 @@ export function HeadlineBanner() {
           headlineColor: data.headlineColor ?? DEFAULTS.headlineColor,
           headlineBg:    data.headlineBg    ?? DEFAULTS.headlineBg,
           headlineEmoji: data.headlineEmoji ?? DEFAULTS.headlineEmoji,
+          headlineSpeed: data.headlineSpeed ? Number(data.headlineSpeed) : DEFAULTS.headlineSpeed,
         });
       })
       .catch(() => {});
@@ -72,7 +82,13 @@ export function HeadlineBanner() {
         alignItems: "center",
       }}
     >
-      <div className="headline-marquee-track" style={{ color: cfg.headlineColor }}>
+      <div
+        className="headline-marquee-track"
+        style={{
+          color: cfg.headlineColor,
+          animationDuration: speedToDuration(cfg.headlineSpeed),
+        }}
+      >
         {item}{item}{item}{item}
       </div>
 

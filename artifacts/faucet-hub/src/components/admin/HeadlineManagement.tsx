@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Save, Trash2, Type } from "lucide-react";
 
@@ -13,6 +14,7 @@ interface HeadlineForm {
   headlineColor: string;
   headlineBg: string;
   headlineEmoji: string;
+  headlineSpeed: number;
 }
 
 const DEFAULTS: HeadlineForm = {
@@ -20,7 +22,16 @@ const DEFAULTS: HeadlineForm = {
   headlineColor: "#ffffff",
   headlineBg: "#16a34a",
   headlineEmoji: "📢",
+  headlineSpeed: 5,
 };
+
+function speedLabel(speed: number): string {
+  if (speed <= 2) return "Very Slow";
+  if (speed <= 4) return "Slow";
+  if (speed <= 6) return "Normal";
+  if (speed <= 8) return "Fast";
+  return "Very Fast";
+}
 
 export function HeadlineManagement() {
   const { toast } = useToast();
@@ -37,6 +48,7 @@ export function HeadlineManagement() {
           headlineColor: data.headlineColor ?? DEFAULTS.headlineColor,
           headlineBg: data.headlineBg ?? DEFAULTS.headlineBg,
           headlineEmoji: data.headlineEmoji ?? DEFAULTS.headlineEmoji,
+          headlineSpeed: data.headlineSpeed ? Number(data.headlineSpeed) : DEFAULTS.headlineSpeed,
         });
       })
       .catch(() => {});
@@ -48,10 +60,11 @@ export function HeadlineManagement() {
   async function save() {
     setSaving(true);
     try {
+      const payload = { ...form, headlineSpeed: String(form.headlineSpeed) };
       const res = await adminFetch("/api/admin/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Save failed");
       window.dispatchEvent(new CustomEvent("headlineSettingsChanged", { detail: form }));
@@ -171,6 +184,29 @@ export function HeadlineManagement() {
                 className="font-mono text-xs"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Scroll Speed */}
+        <div className="space-y-3 p-4 rounded-lg border border-border bg-card/40">
+          <div className="flex items-center justify-between">
+            <Label className="font-mono text-xs">Scroll Speed</Label>
+            <span className="text-xs font-mono text-primary font-semibold">
+              {form.headlineSpeed} / 10 — {speedLabel(form.headlineSpeed)}
+            </span>
+          </div>
+          <Slider
+            min={1}
+            max={10}
+            step={1}
+            value={[form.headlineSpeed]}
+            onValueChange={([v]) => set("headlineSpeed", v)}
+            className="w-full"
+          />
+          <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
+            <span>Slow</span>
+            <span>Normal</span>
+            <span>Fast</span>
           </div>
         </div>
 
