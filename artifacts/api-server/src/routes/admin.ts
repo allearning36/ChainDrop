@@ -81,6 +81,47 @@ router.post("/admin/clear-lockout", (req, res): void => {
   res.json({ ok: true, message: "All rate-limit records cleared" });
 });
 
+// Emergency password reset — requires SESSION_SECRET as Bearer token
+// Body: { newPassword: string }
+router.post("/admin/emergency-reset-password", async (req, res): Promise<void> => {
+  const auth = req.headers.authorization;
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || !auth || auth !== `Bearer ${secret}`) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const { newPassword } = req.body as { newPassword?: string };
+  if (!newPassword || newPassword.length < 6) {
+    res.status(400).json({ error: "newPassword must be at least 6 characters" });
+    return;
+  }
+  const { hashPassword } = await import("./adminTools");
+  const hash = hashPassword(newPassword.trim());
+  await db
+    .insert(settingsTable)
+    .values({ key: "adminPasswordHash", value: hash })
+    .onConflictDoUpdate({ target: settingsTable.key, set: { value: hash } });
+  clearAllRateLimits();
+  res.json({ ok: true, message: "Password reset successfully. Rate limits also cleared." });
+});
+
+// Password debug — requires SESSION_SECRET, returns length info only (no value)
+router.get("/admin/debug-password", (req, res): void => {
+  const auth = req.headers.authorization;
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || !auth || auth !== `Bearer ${secret}`) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const pw = process.env.ADMIN_PASSWORD ?? "";
+  res.json({
+    envPasswordLength: pw.length,
+    envPasswordTrimmedLength: pw.trim().length,
+    hasLeadingSpace: pw !== pw.trimStart(),
+    hasTrailingSpace: pw !== pw.trimEnd(),
+  });
+});
+
 // Image upload (auth required) — delegates to the shared upload middleware from upload.ts
 router.post("/admin/upload", requireAdmin, upload.single("file"), (req, res): void => {
   if (!req.file) {
