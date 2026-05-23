@@ -5,6 +5,7 @@ import { db, claimsTable, chainsTable, blockedAddressesTable, settingsTable } fr
 import { requireAdmin } from "../lib/adminAuth";
 import { getWalletBalance, type ChainType } from "../lib/chains/index";
 import { parseRpcUrls } from "../lib/rpcFailover";
+import { resolveChainWalletAddress } from "../lib/encryption";
 
 const router: IRouter = Router();
 
@@ -186,7 +187,7 @@ router.get("/admin/wallet-health", requireAdmin, async (_req, res): Promise<void
       isEnabled: c.isEnabled,
       walletAddress: c.walletAddress,
       claimAmount: c.claimAmount,
-      balance: await getWalletBalance(c.chainType as ChainType, parseRpcUrls(c.rpcUrls, c.rpcUrl), c.walletAddress),
+      balance: await getWalletBalance(c.chainType as ChainType, parseRpcUrls(c.rpcUrls, c.rpcUrl), resolveChainWalletAddress(c.walletAddress)),
     }))
   );
 

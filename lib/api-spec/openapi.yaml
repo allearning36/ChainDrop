@@ -1415,7 +1415,7 @@ components:
 
     ChainInput:
       type: object
-      required: [name, symbol, rpcUrl, privateKey, walletAddress]
+      required: [name, symbol, rpcUrl]
       properties:
         name:
           type: string

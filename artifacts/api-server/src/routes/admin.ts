@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import crypto from "crypto";
 import { eq, desc, count } from "drizzle-orm";
-import { encryptPrivateKey } from "../lib/encryption";
+import { encryptPrivateKey, resolveChainWalletAddress } from "../lib/encryption";
+import { ethers } from "ethers";
 import { db, chainsTable, claimsTable, bannersTable, announcementsTable, settingsTable, paymentNetworksTable } from "@workspace/db";
 import {
   referralsTable,
@@ -235,9 +236,22 @@ router.post("/admin/chains", async (req, res): Promise<void> => {
     return;
   }
 
-  const insertData = { ...parsed.data, rpcUrls: rpcUrlsForDb };
-  if (insertData.privateKey) insertData.privateKey = encryptPrivateKey(insertData.privateKey);
-  const [chain] = await db.insert(chainsTable).values(insertData).returning();
+  const insertData: Record<string, unknown> = { ...parsed.data, rpcUrls: rpcUrlsForDb };
+  const rawPk = (insertData.privateKey as string | undefined)?.trim();
+  if (rawPk) {
+    // Auto-derive wallet address from private key if not supplied (EVM only)
+    if (!insertData.walletAddress) {
+      try {
+        const pk = rawPk.startsWith("0x") ? rawPk : `0x${rawPk}`;
+        insertData.walletAddress = new ethers.Wallet(pk).address;
+      } catch { /* non-EVM key format — admin must supply address manually */ }
+    }
+    insertData.privateKey = encryptPrivateKey(rawPk);
+  } else {
+    insertData.privateKey = null;
+  }
+  if (!(insertData.walletAddress as string | undefined)?.trim()) insertData.walletAddress = null;
+  const [chain] = await db.insert(chainsTable).values(insertData as any).returning();
 
   res.status(201).json({
     id: chain.id,
@@ -304,8 +318,18 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
   const updateData: Record<string, unknown> = rpcUrlsForDb !== undefined
     ? { ...parsed.data, rpcUrls: rpcUrlsForDb }
     : { ...parsed.data };
-  if (typeof updateData.privateKey === "string" && updateData.privateKey) {
-    updateData.privateKey = encryptPrivateKey(updateData.privateKey as string);
+  const rawUpdatePk = (updateData.privateKey as string | undefined)?.trim();
+  if (rawUpdatePk) {
+    // Auto-derive wallet address from private key if not supplied (EVM only)
+    if (!updateData.walletAddress) {
+      try {
+        const pk = rawUpdatePk.startsWith("0x") ? rawUpdatePk : `0x${rawUpdatePk}`;
+        updateData.walletAddress = new ethers.Wallet(pk).address;
+      } catch { /* non-EVM key — keep whatever walletAddress is provided */ }
+    }
+    updateData.privateKey = encryptPrivateKey(rawUpdatePk);
+  } else if ("privateKey" in updateData) {
+    updateData.privateKey = null;
   }
 
   const [chain] = await db

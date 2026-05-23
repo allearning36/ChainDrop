@@ -13,7 +13,7 @@ import { requireAdmin } from "../lib/adminAuth";
 import { getReferralSettings, saveReferralSettings, verifySignature } from "../lib/referral";
 import { sendTokens, type ChainType } from "../lib/chains/index";
 import { parseRpcUrls } from "../lib/rpcFailover";
-import { decryptPrivateKey } from "../lib/encryption";
+import { resolveChainPrivateKey } from "../lib/encryption";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -414,7 +414,7 @@ router.post("/admin/referral/claim-requests/:id/approve", requireAdmin, async (r
   try {
     const chainType = chain.chainType as ChainType;
     const rpcUrls = parseRpcUrls(chain.rpcUrls, chain.rpcUrl);
-    const privateKey = decryptPrivateKey(chain.privateKey);
+    const privateKey = resolveChainPrivateKey(chain.privateKey);
     const result = await sendTokens(chainType, rpcUrls, privateKey, request.walletAddress, request.amountEth);
     txHash = result.txHash;
   } catch (err) {

@@ -271,12 +271,8 @@ export function ChainManagement() {
   const handleSave = () => {
     setFormError("");
     const validRpcs = rpcUrlsList.filter(u => u.trim().length > 0);
-    if (!formData.name || !formData.symbol || validRpcs.length === 0 || !formData.walletAddress) {
-      setFormError("Name, symbol, at least one RPC URL, and wallet address are required.");
-      return;
-    }
-    if (!editingChain && !formData.privateKey) {
-      setFormError("Private key is required for new chains.");
+    if (!formData.name || !formData.symbol || validRpcs.length === 0) {
+      setFormError("Name, symbol, and at least one RPC URL are required.");
       return;
     }
     if (formData.buyEnabled && getEnabledCurrencies().length === 0) {
@@ -638,16 +634,16 @@ export function ChainManagement() {
               </div>
               <div className="p-4 grid grid-cols-1 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Faucet Wallet Address <span className="text-destructive">*</span></Label>
-                  <Input value={formData.walletAddress} onChange={e => setFormData({...formData, walletAddress: e.target.value})} placeholder={getAddressPlaceholder(formData.chainType ?? "evm")} className="font-mono text-sm h-9" />
+                  <Label className="text-xs">Faucet Wallet Address <span className="text-muted-foreground font-normal">(blank = system default)</span></Label>
+                  <Input value={formData.walletAddress} onChange={e => setFormData({...formData, walletAddress: e.target.value})} placeholder={`${getAddressPlaceholder(formData.chainType ?? "evm")} — or leave blank for system`} className="font-mono text-sm h-9" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">
-                    Private Key <span className="text-destructive">*</span>
-                    {editingChain && <span className="text-muted-foreground font-normal ml-1">(leave empty to keep current)</span>}
+                    Private Key <span className="text-muted-foreground font-normal">(blank = use system key)</span>
+                    {editingChain && <span className="text-muted-foreground font-normal ml-1">· leave empty to keep current</span>}
                   </Label>
-                  <Input type="password" value={formData.privateKey} onChange={e => setFormData({...formData, privateKey: e.target.value})} placeholder={getPrivateKeyPlaceholder(formData.chainType ?? "evm")} className="font-mono text-sm h-9" />
-                  <p className="text-[10px] font-mono" style={{ color: "#f87171", opacity: 0.7 }}>Never share this key. It controls the faucet wallet.</p>
+                  <Input type="password" value={formData.privateKey} onChange={e => setFormData({...formData, privateKey: e.target.value})} placeholder={`${getPrivateKeyPlaceholder(formData.chainType ?? "evm")} — or leave blank for system`} className="font-mono text-sm h-9" />
+                  <p className="text-[10px] font-mono" style={{ color: "#f87171", opacity: 0.7 }}>Custom key overrides system key. Leave blank to use FAUCET_PRIVATE_KEY.</p>
                 </div>
               </div>
             </div>

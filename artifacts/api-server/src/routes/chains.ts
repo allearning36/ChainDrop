@@ -4,6 +4,7 @@ import { db, chainsTable } from "@workspace/db";
 import { GetChainsQueryParams, GetChainParams } from "@workspace/api-zod";
 import { getWalletBalance, type ChainType } from "../lib/chains/index";
 import { parseRpcUrls } from "../lib/rpcFailover";
+import { resolveChainWalletAddress } from "../lib/encryption";
 
 const router: IRouter = Router();
 
@@ -70,7 +71,7 @@ router.get("/chains/:id", async (req, res): Promise<void> => {
   const walletBalanceEth = await getWalletBalance(
     chain.chainType as ChainType,
     parseRpcUrls(chain.rpcUrls, chain.rpcUrl),
-    chain.walletAddress
+    resolveChainWalletAddress(chain.walletAddress)
   );
 
   res.json({

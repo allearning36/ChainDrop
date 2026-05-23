@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { ethers } from "ethers";
 
 const ALGO = "aes-256-gcm";
 const PREFIX = "enc:v1";
@@ -20,6 +21,35 @@ export function encryptPrivateKey(plain: string): string {
   const encrypted = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
   const tag = (cipher as any).getAuthTag() as Buffer;
   return `${PREFIX}:${iv.toString("hex")}:${tag.toString("hex")}:${encrypted.toString("hex")}`;
+}
+
+/**
+ * Resolve the private key for a chain.
+ * If the chain has its own private key stored, use that (decrypt if needed).
+ * Otherwise fall back to the system FAUCET_PRIVATE_KEY env var.
+ */
+export function resolveChainPrivateKey(stored: string | null | undefined): string {
+  if (stored?.trim()) return decryptPrivateKey(stored.trim());
+  const sysKey = process.env.FAUCET_PRIVATE_KEY ?? "";
+  if (!sysKey) throw new Error("No private key configured for this chain and FAUCET_PRIVATE_KEY is not set");
+  return sysKey;
+}
+
+/**
+ * Resolve the wallet address for a chain.
+ * If the chain has its own wallet address, return that.
+ * Otherwise derive from FAUCET_PRIVATE_KEY (EVM only).
+ */
+export function resolveChainWalletAddress(stored: string | null | undefined): string {
+  if (stored?.trim()) return stored.trim();
+  const sysKey = process.env.FAUCET_PRIVATE_KEY ?? "";
+  if (!sysKey) return "";
+  try {
+    const pk = sysKey.startsWith("0x") ? sysKey : `0x${sysKey}`;
+    return new ethers.Wallet(pk).address;
+  } catch {
+    return "";
+  }
 }
 
 /**

@@ -271,8 +271,8 @@ export interface ChainInput {
   chainType?: ChainInputChainType;
   logoUrl?: string;
   rpcUrl: string;
-  privateKey: string;
-  walletAddress: string;
+  privateKey?: string;
+  walletAddress?: string;
   claimAmount?: string;
   cooldownSeconds?: number;
   isTestnet?: boolean;

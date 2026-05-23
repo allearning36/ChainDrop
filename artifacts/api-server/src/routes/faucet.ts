@@ -6,7 +6,7 @@ import { sendTokens, isValidAddress, type ChainType } from "../lib/chains/index"
 import { parseRpcUrls } from "../lib/rpcFailover";
 import { claimLimiter } from "../lib/rateLimiters";
 import { broadcast, broadcastError, classifyError, getErrorMeta } from "../lib/liveEvents";
-import { decryptPrivateKey } from "../lib/encryption";
+import { resolveChainPrivateKey } from "../lib/encryption";
 import { creditCommissions, getReferralSettings } from "../lib/referral";
 
 function getClientIp(req: Request): string {
@@ -125,7 +125,7 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
 
   let txHash: string;
   try {
-    const result = await sendTokens(chainType, parseRpcUrls(chain.rpcUrls, chain.rpcUrl), decryptPrivateKey(chain.privateKey), address, chain.claimAmount, { gasPriceGwei: chain.gasPriceGwei, gasLimit: chain.gasLimit });
+    const result = await sendTokens(chainType, parseRpcUrls(chain.rpcUrls, chain.rpcUrl), resolveChainPrivateKey(chain.privateKey), address, chain.claimAmount, { gasPriceGwei: chain.gasPriceGwei, gasLimit: chain.gasLimit });
     txHash = result.txHash;
   } catch (err) {
     req.log.error({ err }, "Failed to send tokens");
@@ -461,7 +461,7 @@ router.post("/faucet/ad-claim", claimLimiter, async (req, res): Promise<void> =>
     const result = await sendTokens(
       chainType,
       parseRpcUrls(chain.rpcUrls, chain.rpcUrl),
-      decryptPrivateKey(chain.privateKey),
+      resolveChainPrivateKey(chain.privateKey),
       address,
       claimAmount,
       { gasPriceGwei: chain.gasPriceGwei, gasLimit: chain.gasLimit }
