@@ -5,7 +5,7 @@ generated = []
 id = "zFHxcCacC3D4tb2SYQnAj"
 uri = "file://artifacts/faucet-hub/public/logo.svg"
 type = "image"
-title = "ChainDrop Logo v2 (SVG)"
+title = "ChainDrop Logo SVG"
 
 [[outputs]]
 id = "eyo0UP3EKjY3UuNAiXf1X"
@@ -17,4 +17,4 @@ title = "ChainDrop - Full Source Code"
 id = "UWrW7ExVg3IkE156bnPYq"
 uri = "file://artifacts/faucet-hub/public/logo.png"
 type = "image"
-title = "ChainDrop Logo"
+title = "ChainDrop Logo PNG"
