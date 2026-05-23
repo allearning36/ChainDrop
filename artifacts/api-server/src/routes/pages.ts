@@ -10,182 +10,215 @@ const DEFAULT_PAGES: Record<string, { title: string; content: string }> = {
     title: "About ChainDrop",
     content: `# About ChainDrop
 
-ChainDrop is a multi-chain cryptocurrency faucet hub designed for developers, testers, and blockchain enthusiasts.
+If you've ever tried to test a smart contract or experiment with a new blockchain, you know the struggle — getting testnet tokens is surprisingly annoying. Most faucets are slow, broken, or limited to a single network. We built ChainDrop to fix that.
 
-## Our Mission
+ChainDrop is a multi-chain testnet faucet hub. You paste your wallet address, pick a network, and get tokens in seconds. No sign-up, no email, no KYC. Just free testnet crypto when you need it.
 
-We provide free testnet tokens to help developers build and test decentralized applications without the need to purchase real cryptocurrency.
+## Who is this for?
 
-## How It Works
+Mostly developers and people learning Web3. If you're building a DApp, testing a contract on Sepolia, exploring a new EVM chain, or just curious about how blockchain transactions work — ChainDrop is for you.
 
-1. Select a supported blockchain network
-2. Enter your wallet address
-3. Click "Request Funds" and receive tokens instantly
+We also support mainnet faucets for certain smaller networks where tokens hold real value but are hard to come by through normal means.
 
-## Supported Networks
+## How it works
 
-ChainDrop supports multiple EVM-compatible testnets including Sepolia, Mumbai, and more. New networks are added regularly.
+It's straightforward:
 
-## Why ChainDrop?
+1. Go to the home page and find the network you need
+2. Paste your wallet address
+3. Hit "Request Funds" — tokens arrive within a minute
 
-- Fast and reliable token distribution
-- Multiple networks in one place
-- No registration required
-- 24-hour cooldown to ensure fair distribution`,
+Each wallet address has a cooldown timer per network. This exists to keep things fair for everyone. Once your cooldown is up, you can claim again.
+
+## What networks do we support?
+
+We support dozens of EVM-compatible testnets and some non-EVM networks. Sepolia, Mumbai, and other popular testnets are always available. We regularly add new networks based on what the community is actually using.
+
+You can check the **Status** page anytime to see which networks are live and how each one is doing.
+
+## A small team, big ambitions
+
+ChainDrop is maintained by a small team that genuinely cares about making Web3 development easier. We're not a big company — just people who got frustrated with existing faucets and decided to build something better.
+
+If you have feedback, ideas, or run into issues, the **Support** button at the top of the page goes straight to us. We read everything.`,
   },
   contact: {
     title: "Contact Us",
     content: `# Contact Us
 
-Have questions or need support? We're here to help.
+We're a small team and we try to stay accessible. Here's the best way to reach us depending on what you need.
 
-## Live Support Chat
+## For quick help — use the Support chat
 
-Use the **Support** button in the top navigation to chat with our team directly. We typically respond within a few hours.
+The fastest way to get in touch is through the **Support** button at the top of the page. It opens a live chat with our team. We typically respond within a few hours, sometimes faster.
+
+This is the right channel for:
+- Problems claiming tokens
+- Questions about a specific network
+- Reporting a bug or unexpected behavior
+- General questions about how things work
+
+## To report abuse or fraud
+
+If you notice someone misusing the faucet — like draining funds unfairly or trying to bypass rate limits — please reach out through the support chat and let us know. We take these reports seriously and act quickly.
+
+## For feedback and suggestions
+
+We genuinely want to hear what you think. If a network we don't support would be useful to you, or if you have an idea for a feature, tell us. A lot of what's on ChainDrop today came from user requests.
 
 ## Community
 
-Join our community channels to stay updated on new features, network additions, and announcements.
+We occasionally announce new network additions, maintenance windows, and other updates through the Announcement bar on the home page. Keep an eye on that if you want to stay in the loop.
 
-## Report Abuse
-
-If you encounter technical issues or want to report misuse of the faucet, please use the support chat. Our team will review and act promptly.
-
-## Feedback
-
-We love hearing from the community. Feature requests, bug reports, and general feedback are always welcome through the support chat.`,
+We're working on expanding our community presence. For now, the support chat is the best place to find us.`,
   },
   privacy: {
     title: "Privacy Policy",
     content: `# Privacy Policy
 
-Last updated: January 2025
+*Last updated: May 2025*
 
-## Information We Collect
+We try to keep things simple. ChainDrop doesn't need much information from you to work, and we don't collect anything beyond what's necessary to run the service.
 
-ChainDrop collects minimal information necessary to provide our faucet service:
+## What we collect
 
-- **Wallet addresses** — Used to process token requests and enforce fair use policies
-- **IP addresses** — Collected temporarily for rate limiting and abuse prevention
-- **Support messages** — If you contact our support team, we store your name, email, and message content
+**Wallet addresses** — When you request tokens, your wallet address is stored so we can process the request and enforce the cooldown period. This is the only piece of information that's directly tied to your activity on the site.
 
-## How We Use Your Information
+**IP addresses** — We log IP addresses temporarily for rate limiting and abuse prevention. We don't use them to track you across sessions or tie them to your wallet address long-term.
 
-- To process faucet requests and send tokens to your wallet
-- To enforce cooldown periods and prevent abuse
-- To respond to support inquiries
-- To improve our service
+**Support messages** — If you reach out through the support chat, we keep a record of the conversation so we can follow up and resolve your issue. This includes any contact details you choose to share.
 
-## Data Retention
+**Usage data** — Like most websites, we collect basic analytics (page views, general traffic patterns). This data is anonymized and only used to understand how the site is performing.
 
-- Wallet addresses and claim records are retained for operational purposes
-- Support conversations are retained for 90 days
-- IP-based rate limiting data is cleared automatically
+## What we don't collect
 
-## Third-Party Services
+We don't ask for your name, email address, or any personal information to use the faucet. No account, no registration.
 
-ChainDrop uses public blockchain networks to process transactions. Transaction data is publicly visible on their respective block explorers.
+## How we use what we collect
 
-## Your Rights
+Wallet addresses and IP data are used to run the faucet fairly — processing requests, preventing abuse, and enforcing cooldowns. Support messages are used to help you. That's it.
 
-You may request deletion of any personally identifiable data we hold by contacting us through the support chat.
+We don't sell data. We don't share data with advertisers. We don't build profiles.
 
-## Contact
+## Blockchain transactions
 
-If you have questions about this privacy policy, please contact us through our support chat.`,
+When we send tokens to your wallet, that transaction is recorded on the public blockchain. This is inherent to how blockchain works and is outside our control. Anyone can look up your wallet address on a block explorer and see the transaction.
+
+## How long we keep data
+
+Claim records are kept as long as necessary to run the service. Support conversations are kept for 90 days. IP rate-limiting data expires automatically.
+
+## Your rights
+
+If you want to know what data we hold about your wallet address, or you want it removed, contact us through the support chat. We'll handle it promptly.
+
+## Changes to this policy
+
+If we make significant changes to this policy, we'll post a notice on the site. The date at the top of this page reflects when it was last updated.`,
   },
   faq: {
     title: "Frequently Asked Questions",
     content: `# Frequently Asked Questions
 
-## What is ChainDrop?
+## What exactly is ChainDrop?
 
-ChainDrop is a multi-chain cryptocurrency faucet hub that provides free testnet tokens for developers, testers, and blockchain enthusiasts.
+ChainDrop is a faucet hub — a single place where you can get free testnet tokens across multiple blockchain networks. Testnet tokens let you build and test apps on a blockchain without spending real money. ChainDrop makes it easy to get those tokens quickly, without jumping between a dozen different faucet websites.
+
+## Do I need to create an account?
+
+No. Just paste your wallet address on the home page and request tokens. There's no sign-up, no email, no password.
 
 ## How do I claim tokens?
 
-1. Select a supported blockchain network from the home page
-2. Enter your EVM wallet address
-3. Click "Request Funds" — tokens will arrive in seconds
+1. Go to the home page
+2. Find the network you need (you can search or filter by testnet/mainnet)
+3. Click on the network card and enter your wallet address
+4. Hit "Request Funds" — tokens typically arrive within a minute
 
-## Is there a cooldown period?
+## Why is there a cooldown?
 
-Yes. Each address has a cooldown period per chain to ensure fair distribution for all users. The cooldown varies by network and is displayed on each chain card.
+The cooldown exists so that one person can't drain the faucet for everyone else. Each wallet address can claim once per cooldown period, per network. The cooldown length varies by network and is shown on each card.
 
-## Why is my claim failing?
+Once your cooldown is up, you can claim again. If you need more tokens before the cooldown expires, reach out via the Support button and we'll see what we can do.
 
-Common reasons:
-- Your address is still in the cooldown period — check the claim button for the next available time
-- The faucet wallet is temporarily low on funds
-- You entered an invalid wallet address
-- The chain is temporarily unavailable
+## My claim failed — what happened?
 
-## Are these tokens real money?
+A few common reasons:
 
-No. Testnet tokens have **no real monetary value**. They are provided solely for development and testing purposes on public test networks.
+- **Still in cooldown** — Check the timer on the network card to see when you can claim again
+- **Invalid address** — Make sure you pasted the full wallet address and there are no extra spaces
+- **Faucet wallet is low** — Our faucet wallets are refilled regularly, but they can run dry occasionally. Check the Status page or try again later
+- **Network issues** — Sometimes the underlying blockchain RPC has problems. The Status page will usually reflect this
 
-## Can I claim from multiple chains?
+If none of these apply, use the Support button and we'll look into it.
 
-Yes! Each chain has its own independent cooldown, so you can claim from multiple networks simultaneously.
+## Are these tokens worth real money?
 
-## What if I need more tokens?
+Testnet tokens have no monetary value — they exist purely for testing. You cannot sell them, transfer them to mainnet, or use them for anything financial.
 
-Each address is limited to one claim per cooldown period per chain. If you require larger amounts, please contact us via the support chat.
+Some mainnet tokens on smaller networks do have real (if small) value, but those are clearly labeled on the home page.
 
-## How do I check my claim history?
+## Can I claim from multiple networks at once?
 
-Use the **Lookup** page (linked in the footer) to enter any wallet address and view its full claim history across all chains.
+Yes. Each network has its own independent cooldown. You can claim from Sepolia, Mumbai, and any other network you need, all on the same day.
 
-## How do I report an issue?
+## How do I see my claim history?
 
-Use the **Support** button in the navigation bar to chat with our team directly. We typically respond within a few hours.
+Go to the **Lookup** page (linked in the footer), type in any wallet address, and you'll see the full claim history for that address across all networks on ChainDrop.
 
-## My wallet address was blocked — what do I do?
+## My wallet address was blocked — is there a mistake?
 
-If you believe your address was blocked by mistake, contact us via the support chat with your wallet address and we will review your case promptly.`,
+If you believe your address was blocked unfairly, contact us through the Support button. Give us your wallet address and a brief explanation, and we'll review the case. Blocks are usually the result of automated abuse detection and we do occasionally get it wrong.
+
+## Can I use ChainDrop for automated scripts or bots?
+
+Not without permission. Automated claiming is against our fair use policy. If you have a legitimate need — like testing infrastructure that requires large amounts of tokens — reach out and let's talk. We'd rather work something out than block you.
+
+## How often are new networks added?
+
+We add new networks when there's genuine demand for them. If there's a network you need that we don't have, let us know through the support chat. It's genuinely the fastest way to get it added.`,
   },
   terms: {
-    title: "Terms & Conditions",
-    content: `# Terms & Conditions
+    title: "Terms of Service",
+    content: `# Terms of Service
 
-Last updated: January 2025
+*Last updated: May 2025*
 
-## Acceptance of Terms
+By using ChainDrop, you agree to these terms. Please read them — they're not very long.
 
-By using ChainDrop, you agree to these terms and conditions in full.
+## What ChainDrop is
 
-## Use of Service
+ChainDrop is a faucet service that distributes free testnet tokens and small amounts of certain mainnet tokens to help people develop and test blockchain applications. It is not a financial service, an exchange, or a wallet.
 
-ChainDrop provides testnet tokens for development and testing purposes only. By using our service, you agree to:
+## What you're agreeing to
 
-- Use tokens only for legitimate development and testing activities
-- Not attempt to abuse or circumvent rate limiting mechanisms
-- Not use automated scripts to claim tokens without prior permission
-- Not use claimed tokens for any commercial or fraudulent purposes
+By using the site, you agree to the following:
 
-## Token Value
+**Use the service for legitimate purposes.** ChainDrop exists to help developers and learners. Using it to drain faucet wallets, harm other users, or do anything you know is wrong isn't allowed.
 
-Testnet tokens distributed by ChainDrop have **no real monetary value**. They are provided solely for testing purposes on public test networks.
+**Don't try to game the system.** Using bots, scripts, VPNs to rotate IPs, multiple wallets to bypass cooldowns, or any other method to claim more than your fair share is not allowed. We will block addresses and IP ranges when we detect this.
 
-## Fair Use
+**You're responsible for what you do with the tokens.** We send tokens to the address you provide. What happens after that is on you.
 
-To ensure fair access for all users, we enforce a 24-hour cooldown per wallet address. Abuse of the service may result in permanent blocking of your wallet address.
+**Testnet tokens have no monetary value.** We don't guarantee any token will be worth anything. Testnet tokens are explicitly worthless by design. Don't treat them otherwise.
 
-## Service Availability
+## What we guarantee (and don't)
 
-ChainDrop makes no guarantees about service uptime or token availability. Faucet wallets may run low on funds periodically and are replenished on a best-effort basis.
+We run ChainDrop on a best-effort basis. We try to keep the service up and faucet wallets funded, but we can't promise 100% uptime or that a specific network will always be available. Faucet wallets can run dry, RPC nodes go down, and sometimes things break.
 
-## Limitation of Liability
+ChainDrop is provided "as is." We're not liable for losses, damages, or problems arising from your use of the service.
 
-ChainDrop is provided "as is" without warranties of any kind. We are not liable for any damages arising from the use of our service.
+## Blocking and termination
 
-## Changes to Terms
+We reserve the right to block wallet addresses or IP addresses at our discretion, especially in cases of abuse. If you think you've been blocked by mistake, contact us.
 
-We reserve the right to modify these terms at any time. Continued use of the service constitutes acceptance of updated terms.
+## Changes to these terms
 
-## Contact
+We may update these terms from time to time. If we make material changes, we'll note it on the site. The date at the top of this page reflects the last update. Continued use of the service means you accept the current terms.
 
-For questions about these terms, please use our support chat.`,
+## Questions
+
+If you have questions about these terms, reach out through the Support button. We're a small team and we'll get back to you.`,
   },
 };
 
