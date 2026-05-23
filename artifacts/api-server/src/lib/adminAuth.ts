@@ -134,3 +134,8 @@ export function recordSuccessfulLogin(req: Request): void {
   const ip = getClientIp(req);
   attempts.delete(ip);
 }
+
+/** Clear all rate-limit records (used by emergency reset endpoint). */
+export function clearAllRateLimits(): void {
+  attempts.clear();
+}

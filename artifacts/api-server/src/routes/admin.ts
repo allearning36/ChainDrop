@@ -20,7 +20,7 @@ import {
   UpdateAnnouncementParams,
   DeleteAnnouncementParams,
 } from "@workspace/api-zod";
-import { signAdminToken, requireAdmin, checkLoginRateLimit, recordFailedLogin, recordSuccessfulLogin } from "../lib/adminAuth";
+import { signAdminToken, requireAdmin, checkLoginRateLimit, recordFailedLogin, recordSuccessfulLogin, clearAllRateLimits } from "../lib/adminAuth";
 import { parseRpcUrls, checkRpcHealth } from "../lib/rpcFailover";
 
 const router: IRouter = Router();
@@ -41,7 +41,7 @@ router.post("/admin/auth", async (req, res): Promise<void> => {
     return;
   }
 
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  const adminPassword = (process.env.ADMIN_PASSWORD ?? "").trim();
   if (!adminPassword) {
     res.status(500).json({ error: "Admin password not configured" });
     return;
@@ -51,10 +51,10 @@ router.post("/admin/auth", async (req, res): Promise<void> => {
   const storedHash = await getStoredPasswordHash();
   let valid: boolean;
   if (storedHash) {
-    valid = verifyPassword(parsed.data.password, storedHash);
+    valid = verifyPassword(parsed.data.password.trim(), storedHash);
   } else {
     // Timing-safe comparison even for the plaintext env-var fallback
-    const a = Buffer.from(parsed.data.password);
+    const a = Buffer.from(parsed.data.password.trim());
     const b = Buffer.from(adminPassword);
     valid = a.length === b.length && crypto.timingSafeEqual(a, b);
   }
@@ -67,6 +67,18 @@ router.post("/admin/auth", async (req, res): Promise<void> => {
 
   recordSuccessfulLogin(req);
   res.json({ token: signAdminToken() });
+});
+
+// Emergency rate-limit reset — requires SESSION_SECRET as Bearer token
+router.post("/admin/clear-lockout", (req, res): void => {
+  const auth = req.headers.authorization;
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || !auth || auth !== `Bearer ${secret}`) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  clearAllRateLimits();
+  res.json({ ok: true, message: "All rate-limit records cleared" });
 });
 
 // Image upload (auth required) — delegates to the shared upload middleware from upload.ts
