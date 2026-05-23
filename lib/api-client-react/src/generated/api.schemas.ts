@@ -658,8 +658,12 @@ export interface ReferralSettings {
   enabled: boolean;
   maintenanceMode: boolean;
   maintenanceMessage: string;
-  level1Pct: number;
-  level2Pct: number;
+  exchangeLevel1Pct: number;
+  exchangeLevel2Pct: number;
+  buyLevel1Pct: number;
+  buyLevel2Pct: number;
+  faucetClaimLevel1Pct: number;
+  faucetClaimLevel2Pct: number;
   commissionOnExchange: boolean;
   commissionOnBuy: boolean;
   commissionOnFaucetClaim: boolean;

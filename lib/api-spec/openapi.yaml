@@ -2060,7 +2060,7 @@ components:
 
     ReferralSettings:
       type: object
-      required: [enabled, maintenanceMode, maintenanceMessage, level1Pct, level2Pct, commissionOnExchange, commissionOnBuy, commissionOnFaucetClaim, exchangeChainIds, buyChainIds, faucetClaimChainIds, claimChainIds, minClaimEth]
+      required: [enabled, maintenanceMode, maintenanceMessage, exchangeLevel1Pct, exchangeLevel2Pct, buyLevel1Pct, buyLevel2Pct, faucetClaimLevel1Pct, faucetClaimLevel2Pct, commissionOnExchange, commissionOnBuy, commissionOnFaucetClaim, exchangeChainIds, buyChainIds, faucetClaimChainIds, claimChainIds, minClaimEth]
       properties:
         enabled:
           type: boolean
@@ -2068,9 +2068,17 @@ components:
           type: boolean
         maintenanceMessage:
           type: string
-        level1Pct:
+        exchangeLevel1Pct:
           type: number
-        level2Pct:
+        exchangeLevel2Pct:
+          type: number
+        buyLevel1Pct:
+          type: number
+        buyLevel2Pct:
+          type: number
+        faucetClaimLevel1Pct:
+          type: number
+        faucetClaimLevel2Pct:
           type: number
         commissionOnExchange:
           type: boolean

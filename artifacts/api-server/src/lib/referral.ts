@@ -8,8 +8,13 @@ export interface ReferralSettings {
   enabled: boolean;
   maintenanceMode: boolean;
   maintenanceMessage: string;
-  level1Pct: number;
-  level2Pct: number;
+  // Per-type L1/L2 commission percentages
+  exchangeLevel1Pct: number;
+  exchangeLevel2Pct: number;
+  buyLevel1Pct: number;
+  buyLevel2Pct: number;
+  faucetClaimLevel1Pct: number;
+  faucetClaimLevel2Pct: number;
   commissionOnExchange: boolean;
   commissionOnBuy: boolean;
   commissionOnFaucetClaim: boolean;
@@ -24,8 +29,12 @@ const DEFAULT_SETTINGS: ReferralSettings = {
   enabled: true,
   maintenanceMode: false,
   maintenanceMessage: "Referral System Coming Soon...",
-  level1Pct: 1,
-  level2Pct: 0.5,
+  exchangeLevel1Pct: 1,
+  exchangeLevel2Pct: 0.5,
+  buyLevel1Pct: 1,
+  buyLevel2Pct: 0.5,
+  faucetClaimLevel1Pct: 0.1,
+  faucetClaimLevel2Pct: 0.05,
   commissionOnExchange: true,
   commissionOnBuy: true,
   commissionOnFaucetClaim: false,
@@ -114,6 +123,19 @@ export async function creditCommissions(params: {
 
   if (!l1ref) return;
 
+  // Pick per-type percentages
+  const l1Pct = params.sourceType === "exchange"
+    ? params.settings.exchangeLevel1Pct
+    : params.sourceType === "buy"
+      ? params.settings.buyLevel1Pct
+      : params.settings.faucetClaimLevel1Pct;
+
+  const l2Pct = params.sourceType === "exchange"
+    ? params.settings.exchangeLevel2Pct
+    : params.sourceType === "buy"
+      ? params.settings.buyLevel2Pct
+      : params.settings.faucetClaimLevel2Pct;
+
   await recordCommission({
     referrerAddress: l1ref.referrerAddress,
     refereeAddress: referee,
@@ -122,7 +144,7 @@ export async function creditCommissions(params: {
     sourceId: params.sourceId,
     chainId: params.chainId,
     baseAmountEth: params.amountEth,
-    pct: params.settings.level1Pct,
+    pct: l1Pct,
   });
 
   const [l2ref] = await db
@@ -141,7 +163,7 @@ export async function creditCommissions(params: {
     sourceId: params.sourceId,
     chainId: params.chainId,
     baseAmountEth: params.amountEth,
-    pct: params.settings.level2Pct,
+    pct: l2Pct,
   });
 }
 

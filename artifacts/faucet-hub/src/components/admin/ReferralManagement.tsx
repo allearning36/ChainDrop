@@ -130,35 +130,68 @@ function SettingsPanel() {
         </div>
       )}
 
-      {/* Commission percentages */}
-      <div className="grid grid-cols-2 gap-3">
-        {[
-          { label: "Level 1 Commission %", key: "level1Pct" as const },
-          { label: "Level 2 Commission %", key: "level2Pct" as const },
-        ].map(({ label, key }) => (
-          <div key={key}>
-            <label className="text-xs font-mono text-muted-foreground block mb-1.5">{label}</label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.1"
-              className="w-full rounded-lg px-3 py-2 font-mono text-sm bg-transparent outline-none"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.9)" }}
-              value={(current as any)[key] ?? 0}
-              onChange={e => set({ [key]: parseFloat(e.target.value) || 0 })}
-            />
+      {/* Per-type commission percentages */}
+      {[
+        {
+          label: "Exchange Commission",
+          toggle: "commissionOnExchange" as const,
+          l1Key: "exchangeLevel1Pct" as const,
+          l2Key: "exchangeLevel2Pct" as const,
+          chainKey: "exchangeChainIds" as const,
+          chainLabel: "Exchange Commission Chains",
+        },
+        {
+          label: "Buy Commission",
+          toggle: "commissionOnBuy" as const,
+          l1Key: "buyLevel1Pct" as const,
+          l2Key: "buyLevel2Pct" as const,
+          chainKey: "buyChainIds" as const,
+          chainLabel: "Buy Commission Chains",
+        },
+        {
+          label: "Faucet Claim Commission",
+          toggle: "commissionOnFaucetClaim" as const,
+          l1Key: "faucetClaimLevel1Pct" as const,
+          l2Key: "faucetClaimLevel2Pct" as const,
+          chainKey: "faucetClaimChainIds" as const,
+          chainLabel: "Faucet Claim Commission Chains",
+        },
+      ].map(({ label, toggle, l1Key, l2Key, chainKey, chainLabel }) => (
+        (current as any)[toggle] && (
+          <div key={toggle} className="rounded-xl p-4 space-y-3" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <p className="text-xs font-mono font-semibold text-green-400">{label}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-mono text-muted-foreground block mb-1.5">Level 1 %</label>
+                <input
+                  type="number" min="0" max="100" step="0.01"
+                  className="w-full rounded-lg px-3 py-2 font-mono text-sm bg-transparent outline-none"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.9)" }}
+                  value={(current as any)[l1Key] ?? 0}
+                  onChange={e => set({ [l1Key]: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-mono text-muted-foreground block mb-1.5">Level 2 %</label>
+                <input
+                  type="number" min="0" max="100" step="0.01"
+                  className="w-full rounded-lg px-3 py-2 font-mono text-sm bg-transparent outline-none"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.9)" }}
+                  value={(current as any)[l2Key] ?? 0}
+                  onChange={e => set({ [l2Key]: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+            <ChainMultiSelect label={chainLabel} chainIds={evmChains} value={(current as any)[chainKey] ?? []} onChange={ids => set({ [chainKey]: ids })} />
           </div>
-        ))}
-      </div>
+        )
+      ))}
 
       {/* Min claim amount */}
       <div>
         <label className="text-xs font-mono text-muted-foreground block mb-1.5">Minimum Claim Amount (ETH)</label>
         <input
-          type="number"
-          min="0"
-          step="0.001"
+          type="number" min="0" step="0.001"
           className="w-full rounded-lg px-3 py-2 font-mono text-sm bg-transparent outline-none"
           style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.9)" }}
           value={current.minClaimEth ?? 0.001}
@@ -166,17 +199,8 @@ function SettingsPanel() {
         />
       </div>
 
-      {/* Chain selections */}
-      <div className="space-y-4">
-        {current.commissionOnExchange && (
-          <ChainMultiSelect label="Exchange Commission Chains" chainIds={evmChains} value={current.exchangeChainIds ?? []} onChange={ids => set({ exchangeChainIds: ids })} />
-        )}
-        {current.commissionOnBuy && (
-          <ChainMultiSelect label="Buy Commission Chains" chainIds={evmChains} value={current.buyChainIds ?? []} onChange={ids => set({ buyChainIds: ids })} />
-        )}
-        {current.commissionOnFaucetClaim && (
-          <ChainMultiSelect label="Faucet Claim Commission Chains" chainIds={evmChains} value={current.faucetClaimChainIds ?? []} onChange={ids => set({ faucetClaimChainIds: ids })} />
-        )}
+      {/* Allowed claim chains */}
+      <div className="space-y-2">
         <ChainMultiSelect label="Allowed Claim Chains" chainIds={evmChains} value={current.claimChainIds ?? []} onChange={ids => set({ claimChainIds: ids })} />
       </div>
 
