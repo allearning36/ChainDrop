@@ -12,3 +12,9 @@ id = "eyo0UP3EKjY3UuNAiXf1X"
 uri = "file://ChainDrop.zip"
 type = "unspecified"
 title = "ChainDrop - Full Source Code"
+
+[[outputs]]
+id = "UWrW7ExVg3IkE156bnPYq"
+uri = "file://artifacts/faucet-hub/public/logo.png"
+type = "image"
+title = "ChainDrop Logo"
