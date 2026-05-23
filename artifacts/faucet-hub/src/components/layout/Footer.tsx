@@ -69,9 +69,9 @@ export function Footer() {
       )}
 
       <div className="container mx-auto px-4 py-8 flex flex-col gap-6">
-        {/* Top row */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+        {/* Top row — logo left, links centered, spacer right */}
+        <div className="flex flex-col items-center gap-4 md:grid md:grid-cols-3 md:items-center">
+          <div className="flex items-center gap-2 md:justify-start">
             <img src="/logo.svg" alt="ChainDrop" className="w-7 h-7 object-contain" />
             <span className="font-bold text-sm tracking-tight">ChainDrop</span>
           </div>
@@ -91,6 +91,8 @@ export function Footer() {
               </Link>
             ))}
           </nav>
+
+          <div className="hidden md:block" />
         </div>
 
         {/* Social section */}
