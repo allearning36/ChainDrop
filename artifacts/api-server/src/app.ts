@@ -44,9 +44,11 @@ app.use(helmet({
 // ── CORS — restrict to own Replit domains + any extra origins in production ───
 const replitDomains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
 const extraOrigins = (process.env.ALLOWED_ORIGINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
+// Normalize: ensure every entry has https:// prefix
+const normalizeOrigin = (o: string) => o.startsWith("http") ? o : `https://${o}`;
 const allowedOrigins = [
   ...replitDomains.map(d => `https://${d}`),
-  ...extraOrigins,
+  ...extraOrigins.map(normalizeOrigin),
 ];
 
 app.use(cors({
@@ -55,7 +57,11 @@ app.use(cors({
     if (
       allowedOrigins.length === 0 ||
       allowedOrigins.some(o => origin === o) ||
-      origin.startsWith("http://localhost")
+      origin.startsWith("http://localhost") ||
+      origin.endsWith(".vercel.app") ||
+      origin.endsWith(".railway.app") ||
+      origin.endsWith(".replit.app") ||
+      origin.endsWith(".replit.dev")
     ) {
       return callback(null, true);
     }
