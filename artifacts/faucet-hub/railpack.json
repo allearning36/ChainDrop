@@ -1,5 +1,6 @@
 {
   "$schema": "https://schema.railpack.com",
-  "installCmd": "pnpm install --no-frozen-lockfile"
+  "installCmd": "pnpm install --no-frozen-lockfile",
+  "buildCmd": "pnpm --filter @workspace/faucet-hub run build",
+  "startCmd": "npx --yes serve@14 artifacts/faucet-hub/dist -s -l $PORT"
 }
-
