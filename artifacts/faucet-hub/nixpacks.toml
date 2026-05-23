@@ -1,0 +1,8 @@
+[phases.install]
+cmds = ["pnpm install --no-frozen-lockfile"]
+
+[phases.build]
+cmds = ["pnpm --filter @workspace/faucet-hub run build"]
+
+[start]
+cmd = "npx serve artifacts/faucet-hub/dist -s -l $PORT"
