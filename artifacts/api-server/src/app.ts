@@ -39,14 +39,22 @@ app.use(helmet({
   },
 }));
 
-// ── CORS — restrict to own Replit domains in production ──────────────────────
+// ── CORS — restrict to own Replit domains + any extra origins in production ───
 const replitDomains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
-const allowedOrigins = replitDomains.map(d => `https://${d}`);
+const extraOrigins = (process.env.ALLOWED_ORIGINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
+const allowedOrigins = [
+  ...replitDomains.map(d => `https://${d}`),
+  ...extraOrigins,
+];
 
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.length === 0 || allowedOrigins.some(o => origin === o || origin.startsWith("http://localhost"))) {
+    if (
+      allowedOrigins.length === 0 ||
+      allowedOrigins.some(o => origin === o) ||
+      origin.startsWith("http://localhost")
+    ) {
       return callback(null, true);
     }
     return callback(new Error("Not allowed by CORS"));
