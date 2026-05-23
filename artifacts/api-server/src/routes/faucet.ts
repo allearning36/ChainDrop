@@ -79,29 +79,47 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
 
   // Validate nonce for wallet signature (EVM only, optional but boosts trust)
   let validatedNonce: string | undefined;
-  if (signature && nonce && address.startsWith("0x")) {
-    const [nonceRow] = await db
-      .select()
-      .from(nonceTable)
-      .where(and(eq(nonceTable.address, address.toLowerCase()), eq(nonceTable.nonce, nonce)))
-      .limit(1);
-    if (nonceRow && !nonceRow.usedAt && nonceRow.expiresAt > new Date()) {
-      validatedNonce = nonce;
-      // Mark nonce as used
-      await db.update(nonceTable).set({ usedAt: new Date() }).where(eq(nonceTable.id, nonceRow.id));
+  try {
+    if (signature && nonce && address.startsWith("0x")) {
+      const [nonceRow] = await db
+        .select()
+        .from(nonceTable)
+        .where(and(eq(nonceTable.address, address.toLowerCase()), eq(nonceTable.nonce, nonce)))
+        .limit(1);
+      if (nonceRow && !nonceRow.usedAt && nonceRow.expiresAt > new Date()) {
+        validatedNonce = nonce;
+        await db.update(nonceTable).set({ usedAt: new Date() }).where(eq(nonceTable.id, nonceRow.id));
+      }
     }
+  } catch (err) {
+    req.log.warn({ err }, "Nonce validation failed — skipping");
   }
 
-  const abuseResult = await evaluateClaim({
-    address,
-    ip: clientIp,
-    fingerprint: fingerprint ?? undefined,
-    userAgent,
-    timezone:    timezone ?? undefined,
-    chainId,
-    signature:   validatedNonce ? (signature ?? undefined) : undefined,
-    nonce:       validatedNonce,
-  });
+  // Fail-safe: if anti-abuse evaluation throws for any reason, allow the claim
+  let abuseResult: Awaited<ReturnType<typeof evaluateClaim>>;
+  try {
+    abuseResult = await evaluateClaim({
+      address,
+      ip: clientIp,
+      fingerprint: fingerprint ?? undefined,
+      userAgent,
+      timezone:    timezone ?? undefined,
+      chainId,
+      signature:   validatedNonce ? (signature ?? undefined) : undefined,
+      nonce:       validatedNonce,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Anti-abuse evaluation failed — allowing claim (fail-safe)");
+    abuseResult = {
+      allowed: true,
+      trustScore: 50,
+      flags: ["EVAL_ERROR"],
+      country: "Unknown",
+      vpnDetected: false,
+      sigVerified: false,
+      ipRep: { country: "Unknown", countryCode: "XX", isp: "", org: "", vpnDetected: false, proxyDetected: false, torDetected: false, datacenterDetected: false, reputationScore: 100 },
+    };
+  }
 
   if (!abuseResult.allowed) {
     broadcast({ type: "claim_error", chainId, address, ip: clientIp, error: "Anti-abuse block", rootCause: "ADDRESS_BLOCKED", detail: abuseResult.flags.join(",") });
@@ -207,23 +225,40 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
     return;
   }
 
-  const [claim] = await db
-    .insert(claimsTable)
-    .values({
-      chainId,
-      address:     address.toLowerCase(),
-      txHash,
-      amount:      chain.claimAmount,
-      ip:          clientIp,
-      fingerprint: fingerprint ?? null,
-      userAgent:   userAgent ?? null,
-      country:     abuseResult.country ?? null,
-      timezone:    timezone ?? null,
-      vpnDetected: abuseResult.vpnDetected,
-      trustScore:  abuseResult.trustScore,
-      sigVerified: abuseResult.sigVerified,
-    })
-    .returning();
+  // Insert claim — try with anti-abuse fields, fallback to core fields only
+  let claim: typeof claimsTable.$inferSelect;
+  try {
+    const [inserted] = await db
+      .insert(claimsTable)
+      .values({
+        chainId,
+        address:     address.toLowerCase(),
+        txHash,
+        amount:      chain.claimAmount,
+        ip:          clientIp,
+        fingerprint: fingerprint ?? null,
+        userAgent:   userAgent ?? null,
+        country:     abuseResult.country ?? null,
+        timezone:    timezone ?? null,
+        vpnDetected: abuseResult.vpnDetected,
+        trustScore:  abuseResult.trustScore,
+        sigVerified: abuseResult.sigVerified,
+      })
+      .returning();
+    claim = inserted!;
+  } catch (err) {
+    req.log.warn({ err }, "Claim insert with anti-abuse fields failed — retrying with core fields");
+    const [inserted] = await db
+      .insert(claimsTable)
+      .values({
+        chainId,
+        address: address.toLowerCase(),
+        txHash,
+        amount:  chain.claimAmount,
+      })
+      .returning();
+    claim = inserted!;
+  }
 
   broadcast({
     type: "claim_success",
