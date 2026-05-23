@@ -79,7 +79,9 @@ export function LiveMonitor() {
       if (cancelled) return;
 
       // Step 2: open SSE with the ticket
-      const es = new EventSource(`/api/admin/live?ticket=${encodeURIComponent(ticket)}`);
+      // Use Railway URL directly so Vercel's 30s proxy timeout doesn't kill the stream
+      const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
+      const es = new EventSource(`${apiBase}/api/admin/live?ticket=${encodeURIComponent(ticket)}`);
       esRef.current = es;
 
       es.onopen = () => setConnected(true);

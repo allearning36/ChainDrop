@@ -160,7 +160,14 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
   }
 
   const chainType = chain.chainType as ChainType;
-  const addressValid = await isValidAddress(chainType, address);
+  let addressValid: boolean;
+  try {
+    addressValid = await isValidAddress(chainType, address);
+  } catch (err) {
+    req.log.warn({ err }, "isValidAddress threw — treating as invalid");
+    res.status(400).json({ error: `Invalid ${chain.name} address format` });
+    return;
+  }
   if (!addressValid) {
     res.status(400).json({ error: `Invalid ${chain.name} address format` });
     return;
@@ -272,16 +279,22 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
     claim = inserted!;
   } catch (err) {
     req.log.warn({ err }, "Claim insert with anti-abuse fields failed — retrying with core fields");
-    const [inserted] = await db
-      .insert(claimsTable)
-      .values({
-        chainId,
-        address: address.toLowerCase(),
-        txHash,
-        amount:  chain.claimAmount,
-      })
-      .returning();
-    claim = inserted!;
+    try {
+      const [inserted] = await db
+        .insert(claimsTable)
+        .values({
+          chainId,
+          address: address.toLowerCase(),
+          txHash,
+          amount:  chain.claimAmount,
+        })
+        .returning();
+      claim = inserted!;
+    } catch (err2) {
+      req.log.error({ err2 }, "Fallback claim insert also failed — tokens were sent but claim not recorded");
+      res.status(500).json({ error: "Tokens sent but record failed. Please contact support with your tx hash." });
+      return;
+    }
   }
 
   broadcast({
@@ -336,7 +349,12 @@ router.get("/faucet/status/:chainId/:address", async (req, res): Promise<void> =
   }
 
   const chainType = chain.chainType as ChainType;
-  const addressValid = await isValidAddress(chainType, address);
+  let addressValid: boolean;
+  try {
+    addressValid = await isValidAddress(chainType, address);
+  } catch {
+    addressValid = false;
+  }
   if (!addressValid) {
     res.status(400).json({ error: `Invalid ${chain.name} address format` });
     return;
@@ -444,7 +462,12 @@ router.post("/faucet/ad-token", async (req, res): Promise<void> => {
   }
 
   const chainType = chain.chainType as ChainType;
-  const addressValid = await isValidAddress(chainType, address);
+  let addressValid: boolean;
+  try {
+    addressValid = await isValidAddress(chainType, address);
+  } catch {
+    addressValid = false;
+  }
   if (!addressValid) {
     res.status(400).json({ error: `Invalid ${chain.name} address format` });
     return;
