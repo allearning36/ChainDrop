@@ -278,8 +278,10 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
       .returning();
     claim = inserted!;
   } catch (err) {
-    req.log.warn({ err }, "Claim insert with anti-abuse fields failed — retrying with core fields");
+    req.log.warn({ err }, "Claim insert with anti-abuse fields failed — retrying with core fields only");
     try {
+      // Use explicit RETURNING with only core columns so this works even if
+      // the production DB hasn't run the anti-abuse schema migration yet.
       const [inserted] = await db
         .insert(claimsTable)
         .values({
@@ -288,10 +290,29 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
           txHash,
           amount:  chain.claimAmount,
         })
-        .returning();
-      claim = inserted!;
+        .returning({
+          id:        claimsTable.id,
+          chainId:   claimsTable.chainId,
+          address:   claimsTable.address,
+          txHash:    claimsTable.txHash,
+          amount:    claimsTable.amount,
+          claimedAt: claimsTable.claimedAt,
+        });
+      // Merge with TypeScript-level defaults for anti-abuse fields (may be absent in older DB)
+      claim = {
+        ...inserted!,
+        ip:          null,
+        fingerprint: null,
+        userAgent:   null,
+        country:     null,
+        timezone:    null,
+        vpnDetected: false,
+        trustScore:  50,
+        sigVerified: false,
+      };
     } catch (err2) {
       req.log.error({ err2 }, "Fallback claim insert also failed — tokens were sent but claim not recorded");
+      broadcastError("server_error", err2, { chainId, chainName: chain.name, address, ip: clientIp });
       res.status(500).json({ error: "Tokens sent but record failed. Please contact support with your tx hash." });
       return;
     }
