@@ -1,7 +1,7 @@
 {
-  "buildCommand": "pnpm install --no-frozen-lockfile && pnpm --filter @workspace/faucet-hub run build",
+  "installCommand": "pnpm install --no-frozen-lockfile",
+  "buildCommand": "pnpm --filter @workspace/faucet-hub run build",
   "outputDirectory": "artifacts/faucet-hub/dist/public",
-  "installCommand": "echo 'install handled by buildCommand'",
   "framework": null,
   "rewrites": [
     {
