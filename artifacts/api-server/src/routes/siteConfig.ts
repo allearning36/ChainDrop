@@ -21,7 +21,7 @@ const DEFAULT_SOCIAL = { twitter: "", telegram: "", discord: "", github: "" };
 const DEFAULT_SEO = { title: "ChainDrop — Multi-Chain Crypto Faucet Hub", description: "Get free testnet crypto tokens from ChainDrop. Supports multiple EVM-compatible chains including Sepolia and more.", ogImage: "" };
 const DEFAULT_MAINTENANCE = { enabled: false, message: "We're currently performing maintenance. Please check back soon." };
 const DEFAULT_RATELIMIT = { maxAttempts: 5, lockoutMinutes: 15 };
-const DEFAULT_IPCLAIMCONFIG = { dailyFreeChains: 2, cooldownHours: 0 };
+const DEFAULT_IPCLAIMCONFIG = { windowHours: 24, maxClaimsPerWindow: 2 };
 const DEFAULT_INTEGRATIONS = {
   googleAds: { enabled: false, publisherId: "", slots: { header: "", inContent: "", footer: "" } },
   googleAnalytics: { enabled: false, measurementId: "" },
