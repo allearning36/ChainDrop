@@ -569,8 +569,22 @@ export function ExchangeManagement() {
                 {/* Row 1: symbol + actions */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
+                    {p.fromLogoUrl
+                      ? <img src={p.fromLogoUrl} alt={p.fromSymbol} className="w-5 h-5 rounded-full shrink-0 object-contain"
+                          style={{ background: "rgba(255,255,255,0.08)" }}
+                          onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      : <span className="w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-[9px] font-bold"
+                          style={{ background: "rgba(167,139,250,0.18)", color: "#a78bfa" }}>{p.fromSymbol.slice(0,2)}</span>
+                    }
                     <span className="font-bold font-mono text-sm text-white">{p.fromSymbol}</span>
                     <ArrowLeftRight className="w-3.5 h-3.5 shrink-0" style={{ color: "#a78bfa" }} />
+                    {p.toLogoUrl
+                      ? <img src={p.toLogoUrl} alt={p.toSymbol} className="w-5 h-5 rounded-full shrink-0 object-contain"
+                          style={{ background: "rgba(255,255,255,0.08)" }}
+                          onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      : <span className="w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-[9px] font-bold"
+                          style={{ background: "rgba(167,139,250,0.18)", color: "#a78bfa" }}>{p.toSymbol.slice(0,2)}</span>
+                    }
                     <span className="font-bold font-mono text-sm text-white">{p.toSymbol}</span>
                     <span className="text-xs font-mono text-muted-foreground truncate hidden sm:inline ml-1.5">{p.name}</span>
                     {p.pairPrivateKey && (
