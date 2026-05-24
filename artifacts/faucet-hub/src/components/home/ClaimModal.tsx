@@ -142,8 +142,6 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [adWatchError, setAdWatchError] = useState("");
   const [captchaExpired, setCaptchaExpired] = useState(false);
   const [ipLimitReached, setIpLimitReached] = useState(false);
-  const [lastTxHash, setLastTxHash] = useState("");
-  const [addrCopied, setAddrCopied] = useState(false);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   const queryClient = useQueryClient();
@@ -165,17 +163,6 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
     debouncedAddress,
     { query: { enabled: !!chain && !!debouncedAddress, queryKey: getGetFaucetStatusQueryKey(chain?.id || 0, debouncedAddress) } }
   );
-
-  // Load last tx hash from localStorage when address enters cooldown
-  useEffect(() => {
-    const cooldown = !!debouncedAddress && !!status && !status.canClaim;
-    if (chain && debouncedAddress && cooldown) {
-      const stored = localStorage.getItem(`cd:tx:${chain.id}:${debouncedAddress.toLowerCase()}`);
-      setLastTxHash(stored || "");
-    } else if (!cooldown) {
-      setLastTxHash("");
-    }
-  }, [chain, debouncedAddress, status]);
 
   useEffect(() => {
     if (step === "ad") {
@@ -229,10 +216,6 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
         recaptchaRef.current?.reset();
         setAdCountdown(5);
         setStep("ad");
-        // Persist tx hash so cooldown UI can show it after modal reopen
-        if (res.txHash) {
-          localStorage.setItem(`cd:tx:${chain.id}:${debouncedAddress.toLowerCase()}`, res.txHash);
-        }
         queryClient.invalidateQueries({ queryKey: getGetChainQueryKey(chain.id) });
       },
       onError: (err: any) => {
@@ -373,105 +356,53 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
             {step === "input" && (
               <div className="px-5 py-5 flex flex-col gap-4">
 
-                {/* Cooldown result-like display */}
-                {inCooldown ? (
-                  <div className="flex flex-col gap-3">
-                    {/* Address read-only row */}
-                    <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-                      <div className="px-3 py-1.5" style={{ background: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                        <p className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.35)" }}>Wallet Address</p>
-                      </div>
-                      <div className="px-3 py-2.5 flex items-center justify-between gap-2 min-w-0">
-                        <span className="text-xs font-mono truncate min-w-0 flex-1" style={{ color: "rgba(255,255,255,0.7)" }}>{debouncedAddress}</span>
-                        <button
-                          onClick={() => { navigator.clipboard.writeText(debouncedAddress); setAddrCopied(true); setTimeout(() => setAddrCopied(false), 1500); }}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                          style={{ background: "rgba(255,255,255,0.05)", color: addrCopied ? "#22c55e" : "rgba(255,255,255,0.4)" }}
-                        >
-                          {addrCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
+                {/* Wallet Input */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-[11px] font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.4)" }}>
+                    Wallet Address
+                  </label>
+                  <div className="relative">
+                    <Input
+                      placeholder={getAddressPlaceholder(chainType)}
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="font-mono text-sm h-11 pl-4 pr-10"
+                      style={{
+                        background: "rgba(255,255,255,0.04)",
+                        border: address.length > 5
+                          ? addressValid
+                            ? inCooldown ? "1px solid rgba(239,68,68,0.4)" : "1px solid rgba(34,197,94,0.4)"
+                            : "1px solid rgba(239,68,68,0.3)"
+                          : "1px solid rgba(255,255,255,0.1)",
+                        color: "white",
+                        borderRadius: "10px",
+                      }}
+                    />
+                    {/* Status icon */}
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {debouncedAddress && isStatusLoading && (
+                        <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#22c55e" }} />
+                      )}
+                      {debouncedAddress && !isStatusLoading && status?.canClaim && (
+                        <CheckCircle2 className="w-4 h-4" style={{ color: "#22c55e" }} />
+                      )}
+                      {debouncedAddress && !isStatusLoading && inCooldown && (
+                        <Clock className="w-4 h-4" style={{ color: "#ef4444" }} />
+                      )}
                     </div>
+                  </div>
 
-                    {/* Tx hash row (if stored) */}
-                    {lastTxHash && (
-                      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-                        <div className="px-3 py-1.5" style={{ background: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                          <p className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.35)" }}>Transaction Hash</p>
-                        </div>
-                        <div className="px-3 py-2.5 flex items-center justify-between gap-2 min-w-0">
-                          <span className="text-xs font-mono truncate min-w-0 flex-1" style={{ color: "rgba(255,255,255,0.6)" }}>{lastTxHash}</span>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              onClick={() => { navigator.clipboard.writeText(lastTxHash); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-                              className="w-7 h-7 rounded-lg flex items-center justify-center"
-                              style={{ background: "rgba(255,255,255,0.05)", color: copied ? "#22c55e" : "rgba(255,255,255,0.4)" }}
-                            >
-                              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                            </button>
-                            <a
-                              href={getTxExplorerUrl(chainType, chain.isTestnet, lastTxHash, chain.explorerUrl)}
-                              target="_blank" rel="noopener noreferrer"
-                              className="w-7 h-7 rounded-lg flex items-center justify-center"
-                              style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" }}
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                            </a>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Cooldown countdown */}
+                  {/* Cooldown message */}
+                  {inCooldown && (
                     <div
                       className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-mono"
                       style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}
                     >
                       <Clock className="w-3.5 h-3.5 shrink-0" />
                       Next claim {status?.nextClaimAt ? formatDistanceToNow(new Date(status.nextClaimAt), { addSuffix: true }) : "later"}
-                      <button
-                        onClick={() => setAddress("")}
-                        className="ml-auto text-[10px] font-mono underline underline-offset-2"
-                        style={{ color: "rgba(255,255,255,0.3)" }}
-                      >
-                        change
-                      </button>
                     </div>
-                  </div>
-                ) : (
-                  /* Normal editable input */
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[11px] font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.4)" }}>
-                      Wallet Address
-                    </label>
-                    <div className="relative">
-                      <Input
-                        placeholder={getAddressPlaceholder(chainType)}
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        className="font-mono text-sm h-11 pl-4 pr-10"
-                        style={{
-                          background: "rgba(255,255,255,0.04)",
-                          border: address.length > 5
-                            ? addressValid
-                              ? "1px solid rgba(34,197,94,0.4)"
-                              : "1px solid rgba(239,68,68,0.3)"
-                            : "1px solid rgba(255,255,255,0.1)",
-                          color: "white",
-                          borderRadius: "10px",
-                        }}
-                      />
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        {debouncedAddress && isStatusLoading && (
-                          <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#22c55e" }} />
-                        )}
-                        {debouncedAddress && !isStatusLoading && status?.canClaim && (
-                          <CheckCircle2 className="w-4 h-4" style={{ color: "#22c55e" }} />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {errorMsg && (
                   <div className="flex items-center gap-2 text-xs font-mono px-3 py-2 rounded-lg" style={{ background: ipLimitReached ? "rgba(251,191,36,0.08)" : "rgba(239,68,68,0.08)", color: ipLimitReached ? "#fbbf24" : "#f87171", border: ipLimitReached ? "1px solid rgba(251,191,36,0.2)" : "1px solid rgba(239,68,68,0.2)" }}>
