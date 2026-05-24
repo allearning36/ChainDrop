@@ -111,13 +111,13 @@ export function HeroSection({ totalChains }: { totalChains: number }) {
         )}
 
         {stats.length > 0 && (
-          <div className="flex flex-wrap justify-center gap-4 sm:gap-8">
+          <div className="flex flex-nowrap justify-center gap-3 xs:gap-5 sm:gap-8 overflow-x-auto">
             {stats.map((st) => (
-              <div key={st.label} className="flex flex-col items-center gap-0.5">
+              <div key={st.label} className="flex flex-col items-center gap-0.5 shrink-0">
                 <span className={`${s.statVal} font-bold font-mono`} style={{ color: "#22c55e" }}>
                   {st.value}
                 </span>
-                <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.35)" }}>
+                <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider whitespace-nowrap" style={{ color: "rgba(255,255,255,0.35)" }}>
                   {st.label}
                 </span>
               </div>

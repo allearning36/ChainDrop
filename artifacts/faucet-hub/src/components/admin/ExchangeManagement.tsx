@@ -548,8 +548,8 @@ export function ExchangeManagement() {
                 value={pairSearch}
                 onChange={e => setPairSearch(e.target.value)}
                 placeholder="Search by name, from or to symbol…"
-                className="w-full pl-9 pr-4 py-2 rounded-xl text-sm font-mono border focus:outline-none focus:ring-1 focus:ring-primary/40 placeholder:text-muted-foreground"
-                style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}
+                className="w-full pl-9 pr-4 py-2 rounded-xl text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary/40 placeholder:text-white/40 text-white/90"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.22)" }}
               />
             </div>
           )}

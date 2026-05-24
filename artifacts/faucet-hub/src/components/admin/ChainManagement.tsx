@@ -417,7 +417,8 @@ export function ChainManagement() {
           value={chainSearch}
           onChange={e => setChainSearch(e.target.value)}
           placeholder="Search by name or symbol…"
-          className="w-full pl-9 pr-4 py-2 rounded-xl text-sm font-mono bg-muted/30 border border-border focus:outline-none focus:ring-1 focus:ring-primary/40 placeholder:text-muted-foreground"
+          className="w-full pl-9 pr-4 py-2 rounded-xl text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary/40 placeholder:text-white/40 text-white/90"
+          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.22)" }}
         />
       </div>
 
