@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { Bell, MessageCircle, ChevronDown, ChevronRight, Megaphone, ArrowLeftRight, Users } from "lucide-react";
-import { useGetAnnouncements, getGetAnnouncementsQueryKey } from "@workspace/api-client-react";
+import { useGetAnnouncements, getGetAnnouncementsQueryKey, useGetReferralSettings, getGetReferralSettingsQueryKey } from "@workspace/api-client-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { SupportModal } from "@/components/support/SupportModal";
@@ -30,6 +30,10 @@ export function Navbar() {
   const { data: announcements = [] } = useGetAnnouncements({
     query: { queryKey: getGetAnnouncementsQueryKey() }
   });
+  const { data: referralSettings } = useGetReferralSettings({
+    query: { queryKey: getGetReferralSettingsQueryKey() }
+  });
+  const referralEnabled = referralSettings?.enabled ?? true;
   const [open, setOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [supportOpen, setSupportOpen] = useState(false);
@@ -107,18 +111,20 @@ export function Navbar() {
                   </div>
                   <span className="font-mono font-semibold text-sm">Exchange</span>
                 </Link>
-                <button
-                  onClick={() => { setMenuOpen(false); setReferralOpen(true); }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors"
-                  style={{ color: "rgba(255,255,255,0.75)" }}
-                  onMouseEnter={(e: any) => (e.currentTarget.style.background = "rgba(34,197,94,0.08)")}
-                  onMouseLeave={(e: any) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)" }}>
-                    <Users className="w-3.5 h-3.5" style={{ color: "#22c55e" }} />
-                  </div>
-                  <span className="font-mono font-semibold text-sm">Referral</span>
-                </button>
+                {referralEnabled && (
+                  <button
+                    onClick={() => { setMenuOpen(false); setReferralOpen(true); }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors"
+                    style={{ color: "rgba(255,255,255,0.75)" }}
+                    onMouseEnter={(e: any) => (e.currentTarget.style.background = "rgba(34,197,94,0.08)")}
+                    onMouseLeave={(e: any) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)" }}>
+                      <Users className="w-3.5 h-3.5" style={{ color: "#22c55e" }} />
+                    </div>
+                    <span className="font-mono font-semibold text-sm">Referral</span>
+                  </button>
+                )}
               </div>
             </div>
           )}

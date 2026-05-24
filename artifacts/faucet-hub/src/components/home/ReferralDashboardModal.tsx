@@ -189,8 +189,21 @@ export function ReferralDashboardModal({ open, onClose }: ReferralDashboardModal
           </div>
 
           <div className="overflow-y-auto max-h-[80vh]">
-            {/* Maintenance mode — full block, no wallet connect or dashboard */}
-            {settings?.maintenanceMode ? (
+            {/* Referral system disabled by admin */}
+            {settings && !settings.enabled ? (
+              <div className="flex flex-col items-center justify-center py-16 px-6 gap-4">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}>
+                  <AlertCircle className="w-7 h-7 text-red-400" />
+                </div>
+                <div className="text-center space-y-1.5">
+                  <p className="font-mono font-bold text-sm text-red-300">Referral System Unavailable</p>
+                  <p className="text-xs font-mono text-muted-foreground">
+                    The referral program is currently disabled. Please check back later.
+                  </p>
+                </div>
+              </div>
+            ) : /* Maintenance mode — full block, no wallet connect or dashboard */
+            settings?.maintenanceMode ? (
               <div className="flex flex-col items-center justify-center py-16 px-6 gap-4">
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "rgba(234,179,8,0.1)", border: "1px solid rgba(234,179,8,0.25)" }}>
                   <AlertCircle className="w-7 h-7 text-yellow-400" />
