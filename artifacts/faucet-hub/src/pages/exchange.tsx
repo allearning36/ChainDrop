@@ -473,14 +473,14 @@ export default function ExchangePage() {
       setOrder(orderData);
 
       const provider = walletProvider || window.ethereum;
-      if (provider) {
-        try {
-          await provider.request({
-            method: "wallet_switchEthereumChain",
-            params: [{ chainId: `0x${pair.fromChainId.toString(16)}` }],
-          });
-        } catch { /* user may reject */ }
-      }
+      if (!provider) throw new Error("No wallet connected. Please connect your wallet and try again.");
+
+      try {
+        await provider.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: `0x${pair.fromChainId.toString(16)}` }],
+        });
+      } catch { /* user may reject chain switch */ }
 
       const txHash = await provider.request({
         method: "eth_sendTransaction",
