@@ -26,7 +26,7 @@ interface SocialLinks { twitter: string; telegram: string; discord: string; gith
 interface SEOSettings { title: string; description: string; ogImage: string; }
 interface MaintenanceMode { enabled: boolean; message: string; }
 interface RateLimitConfig { maxAttempts: number; lockoutMinutes: number; }
-interface IpClaimConfig { dailyFreeChains: number; cooldownHours: number; }
+interface IpClaimConfig { windowHours: number; maxClaimsPerWindow: number; }
 interface IntegrationsConfig {
   googleAds: { enabled: boolean; publisherId: string; slots: { header: string; inContent: string; footer: string } };
   googleAnalytics: { enabled: boolean; measurementId: string };
@@ -39,7 +39,7 @@ const DEFAULT: SiteConfigData = {
   seoSettings: { title: "ChainDrop — Multi-Chain Crypto Faucet Hub", description: "Get free testnet crypto tokens from ChainDrop.", ogImage: "" },
   maintenanceMode: { enabled: false, message: "We're currently performing maintenance. Please check back soon." },
   rateLimitConfig: { maxAttempts: 5, lockoutMinutes: 15 },
-  ipClaimConfig: { dailyFreeChains: 2, cooldownHours: 0 },
+  ipClaimConfig: { windowHours: 24, maxClaimsPerWindow: 2 },
   integrations: {
     googleAds: { enabled: false, publisherId: "", slots: { header: "", inContent: "", footer: "" } },
     googleAnalytics: { enabled: false, measurementId: "" },
@@ -219,34 +219,35 @@ function IpClaimConfigTab({ data, onSave, saving }: { data: IpClaimConfig; onSav
   return (
     <div className="space-y-6 max-w-lg">
       <p className="text-sm text-muted-foreground">
-        Control how many free claims each IP address can make per day, and how long they must wait between claims.
-        Once the free limit is reached, users can still claim by watching an ad.
+        Set how many chains a user can claim for free within a rolling time window.
+        Once the limit is hit, users must wait for the window to slide forward — or watch an ad to keep claiming.
       </p>
       <div className="rounded-xl border border-border bg-card p-5 space-y-5">
         <div className="space-y-1.5">
-          <Label className="font-mono text-xs">Free Claims Per IP Per Day</Label>
+          <Label className="font-mono text-xs">Time Window (hours)</Label>
           <Input
-            type="number" min={1} max={50}
-            value={form.dailyFreeChains}
-            onChange={e => setForm(p => ({ ...p, dailyFreeChains: parseInt(e.target.value) || 2 }))}
+            type="number" min={1} max={168}
+            value={form.windowHours}
+            onChange={e => setForm(p => ({ ...p, windowHours: parseInt(e.target.value) || 24 }))}
             className="font-mono bg-background border-border"
           />
           <p className="text-xs text-muted-foreground">
-            How many chains a single IP can claim from for free in a 24-hour window. Default: <strong>2</strong>.
-            Set to a high number (e.g. 50) to effectively disable this limit.
+            Rolling window length in hours. Default: <strong>24</strong> (= per day).
+            Set to <strong>1</strong> for per-hour limits, <strong>168</strong> for per-week.
           </p>
         </div>
         <div className="space-y-1.5">
-          <Label className="font-mono text-xs">Min Hours Between Claims (same IP)</Label>
+          <Label className="font-mono text-xs">Max Claims Per Window (per IP)</Label>
           <Input
-            type="number" min={0} max={168}
-            value={form.cooldownHours}
-            onChange={e => setForm(p => ({ ...p, cooldownHours: parseFloat(e.target.value) || 0 }))}
+            type="number" min={1} max={200}
+            value={form.maxClaimsPerWindow}
+            onChange={e => setForm(p => ({ ...p, maxClaimsPerWindow: parseInt(e.target.value) || 2 }))}
             className="font-mono bg-background border-border"
           />
           <p className="text-xs text-muted-foreground">
-            Minimum gap (hours) between any two free claims from the same IP, regardless of chain.
-            Set to <strong>0</strong> to disable. Example: <strong>1</strong> = at least 1 hour between claims.
+            How many chains one IP can claim within the time window above. Default: <strong>2</strong>.
+            Example: window = 1h, max = 2 → user can claim 2 chains per hour, then must wait.
+            Set to a high number (e.g. 200) to effectively disable this limit.
           </p>
         </div>
       </div>

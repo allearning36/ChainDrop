@@ -81,58 +81,53 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
     req.log.warn({ err }, "IP block check failed — continuing");
   }
 
-  // ── IP daily free claim limit ──────────────────────────────────────────────
-  // Counts successful claims from this IP in the last 24 h.
-  // If over the admin-configured limit, the user must watch an ad to continue.
-  // The IP cooldown (hours between consecutive claims) is also enforced here.
+  // ── IP rolling-window claim limit ─────────────────────────────────────────
+  // Admin sets: windowHours (e.g. 1) + maxClaimsPerWindow (e.g. 2).
+  // We count how many successful claims this IP made in the last windowHours.
+  // If at or over the limit → deny (user can bypass by watching an ad).
   try {
     const [configRow] = await db
       .select().from(settingsTable).where(eq(settingsTable.key, "ipClaimConfig")).limit(1);
     const config = configRow?.value
-      ? (JSON.parse(configRow.value) as { dailyFreeChains?: number; cooldownHours?: number })
+      ? (JSON.parse(configRow.value) as { windowHours?: number; maxClaimsPerWindow?: number })
       : {};
-    const dailyLimit    = typeof config.dailyFreeChains === "number" ? config.dailyFreeChains : 2;
-    const cooldownHours = typeof config.cooldownHours   === "number" ? config.cooldownHours   : 0;
+    const windowHours       = typeof config.windowHours        === "number" ? config.windowHours        : 24;
+    const maxClaimsPerWindow = typeof config.maxClaimsPerWindow === "number" ? config.maxClaimsPerWindow : 2;
 
-    const dayStart = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const windowStart = new Date(Date.now() - windowHours * 3600 * 1000);
     const [ipCountResult] = await db
       .select({ n: sql<number>`count(*)::int` })
       .from(claimsTable)
-      .where(and(eq(claimsTable.ip, clientIp), gte(claimsTable.claimedAt, dayStart)));
+      .where(and(eq(claimsTable.ip, clientIp), gte(claimsTable.claimedAt, windowStart)));
     const ipCount = ipCountResult?.n ?? 0;
 
-    if (ipCount >= dailyLimit) {
+    if (ipCount >= maxClaimsPerWindow) {
+      // Tell the user when the oldest claim in this window expires so they know when to retry.
+      const [oldestInWindow] = await db
+        .select({ claimedAt: claimsTable.claimedAt })
+        .from(claimsTable)
+        .where(and(eq(claimsTable.ip, clientIp), gte(claimsTable.claimedAt, windowStart)))
+        .orderBy(claimsTable.claimedAt)
+        .limit(1);
+      const nextFreeAt  = oldestInWindow
+        ? new Date(oldestInWindow.claimedAt.getTime() + windowHours * 3600 * 1000)
+        : new Date(Date.now() + windowHours * 3600 * 1000);
+      const remainMs    = nextFreeAt.getTime() - Date.now();
+      const remainH     = Math.floor(remainMs / 3600000);
+      const remainM     = Math.floor((remainMs % 3600000) / 60000);
+      const timeStr     = remainH > 0 ? `${remainH}h ${remainM}m` : `${remainM}m`;
+      const windowLabel = windowHours < 24
+        ? `${windowHours}h window`
+        : windowHours === 24 ? "day" : `${windowHours / 24}-day window`;
       res.status(429).json({
-        error: `Daily free limit reached (${dailyLimit} claim${dailyLimit !== 1 ? "s" : ""}/day per IP). Watch an ad to keep claiming.`,
+        error: `IP limit reached: ${maxClaimsPerWindow} claim${maxClaimsPerWindow !== 1 ? "s" : ""} per ${windowLabel}. Next free slot in ${timeStr}. Watch an ad to keep claiming.`,
         ipLimitReached: true,
+        nextFreeAt: nextFreeAt.toISOString(),
       });
       return;
     }
-
-    if (cooldownHours > 0) {
-      const cooldownMs   = cooldownHours * 3600 * 1000;
-      const cooldownSince = new Date(Date.now() - cooldownMs);
-      const [lastIpClaim] = await db
-        .select({ claimedAt: claimsTable.claimedAt })
-        .from(claimsTable)
-        .where(and(eq(claimsTable.ip, clientIp), gte(claimsTable.claimedAt, cooldownSince)))
-        .orderBy(desc(claimsTable.claimedAt))
-        .limit(1);
-      if (lastIpClaim) {
-        const nextAt    = new Date(lastIpClaim.claimedAt.getTime() + cooldownMs);
-        const remainMs  = nextAt.getTime() - Date.now();
-        const remainH   = Math.floor(remainMs / 3600000);
-        const remainM   = Math.floor((remainMs % 3600000) / 60000);
-        const timeStr   = remainH > 0 ? `${remainH}h ${remainM}m` : `${remainM}m`;
-        res.status(429).json({
-          error: `Please wait ${timeStr} before claiming again from this IP.`,
-          nextClaimAt: nextAt.toISOString(),
-        });
-        return;
-      }
-    }
   } catch (err) {
-    req.log.warn({ err }, "IP daily limit check failed — continuing");
+    req.log.warn({ err }, "IP window limit check failed — continuing");
   }
 
   // ── Anti-abuse evaluation ──────────────────────────────────────────────────

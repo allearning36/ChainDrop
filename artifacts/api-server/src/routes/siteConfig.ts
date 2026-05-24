@@ -101,10 +101,10 @@ router.patch("/admin/site-config/rateLimitConfig", requireAdmin, async (req, res
 });
 
 router.patch("/admin/site-config/ipClaimConfig", requireAdmin, async (req, res): Promise<void> => {
-  const { dailyFreeChains, cooldownHours } = req.body as Record<string, unknown>;
+  const { windowHours, maxClaimsPerWindow } = req.body as Record<string, unknown>;
   await setSetting("ipClaimConfig", {
-    dailyFreeChains: Math.max(1, Math.min(50, Number(dailyFreeChains) || 2)),
-    cooldownHours:   Math.max(0, Math.min(168, Number(cooldownHours)  || 0)),
+    windowHours:        Math.max(1, Math.min(168, Number(windowHours)        || 24)),
+    maxClaimsPerWindow: Math.max(1, Math.min(200, Number(maxClaimsPerWindow) || 2)),
   });
   res.json({ ok: true });
 });
