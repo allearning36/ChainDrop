@@ -6,6 +6,7 @@ import {
   useUpdateBanner, 
   useDeleteBanner,
   getGetAdminBannersQueryKey,
+  getGetBannersQueryKey,
   Banner
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -117,6 +118,7 @@ export function BannerManagement() {
     (mutation as any).mutate(mutateArgs, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetAdminBannersQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetBannersQueryKey() });
         setIsFormOpen(false);
         toast({ title: "Success", description: "Banner saved successfully." });
       },
@@ -132,6 +134,7 @@ export function BannerManagement() {
     deleteMutation.mutate({ id: deletingBanner.id }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetAdminBannersQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetBannersQueryKey() });
         setIsDeleteOpen(false);
         toast({ title: "Success", description: "Banner deleted." });
       },
