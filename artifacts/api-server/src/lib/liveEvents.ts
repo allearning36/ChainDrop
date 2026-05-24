@@ -1,4 +1,5 @@
 import type { Response } from "express";
+import { db, liveErrorLogsTable } from "@workspace/db";
 
 export type LiveEventType =
   | "claim_success"
@@ -181,6 +182,19 @@ export function broadcastError(
     hint,
     ...context,
   });
+
+  // Persist error to DB so admin can review it days later
+  db.insert(liveErrorLogsTable).values({
+    type,
+    chainId:   context.chainId   ?? null,
+    chainName: context.chainName ?? null,
+    address:   context.address   ?? null,
+    ip:        context.ip        ?? null,
+    error:     rawMsg.slice(0, 500),
+    rootCause,
+    detail,
+    hint,
+  }).catch(() => { /* never block broadcast on DB failure */ });
 }
 
 export { classifyError, getErrorMeta };

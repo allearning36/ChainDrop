@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { eq, desc, count, gte, and } from "drizzle-orm";
 import { encryptPrivateKey, resolveChainWalletAddress } from "../lib/encryption";
 import { ethers } from "ethers";
-import { db, chainsTable, claimsTable, bannersTable, announcementsTable, settingsTable, paymentNetworksTable, abuseLogsTable, masterChainsTable, exchangePairsTable } from "@workspace/db";
+import { db, chainsTable, claimsTable, bannersTable, announcementsTable, settingsTable, paymentNetworksTable, abuseLogsTable, masterChainsTable, exchangePairsTable, liveErrorLogsTable } from "@workspace/db";
 import {
   referralsTable,
   referralCommissionsTable,
@@ -154,12 +154,13 @@ router.post("/admin/upload", requireAdmin, upload.single("file"), (req, res): vo
 });
 
 // ── GET /api/admin/live-history ─────────────────────────────────────────────
-// Returns last 72h of claim successes + blocked abuse events for the Live Monitor.
-// Lets admins see what happened even after reconnecting days later.
+// Returns last 7 days of claim successes + errors + blocked abuse events.
+// Errors are persisted to DB so admin can review them even days later.
 router.get("/admin/live-history", requireAdmin, async (_req, res): Promise<void> => {
-  const since = new Date(Date.now() - 72 * 60 * 60 * 1000);
+  const since7d  = new Date(Date.now() - 7  * 24 * 60 * 60 * 1000);
+  const since72h = new Date(Date.now() - 72 * 60 * 60 * 1000);
 
-  const [claims, abuseLogs] = await Promise.all([
+  const [claims, abuseLogs, errorLogs] = await Promise.all([
     db
       .select({
         id:        claimsTable.id,
@@ -174,16 +175,23 @@ router.get("/admin/live-history", requireAdmin, async (_req, res): Promise<void>
       })
       .from(claimsTable)
       .leftJoin(chainsTable, eq(claimsTable.chainId, chainsTable.id))
-      .where(gte(claimsTable.claimedAt, since))
+      .where(gte(claimsTable.claimedAt, since72h))
       .orderBy(desc(claimsTable.claimedAt))
-      .limit(150),
+      .limit(200),
 
     db
       .select()
       .from(abuseLogsTable)
-      .where(and(gte(abuseLogsTable.createdAt, since), eq(abuseLogsTable.action, "blocked")))
+      .where(and(gte(abuseLogsTable.createdAt, since72h), eq(abuseLogsTable.action, "blocked")))
       .orderBy(desc(abuseLogsTable.createdAt))
-      .limit(150),
+      .limit(100),
+
+    db
+      .select()
+      .from(liveErrorLogsTable)
+      .where(gte(liveErrorLogsTable.ts, since7d))
+      .orderBy(desc(liveErrorLogsTable.ts))
+      .limit(300),
   ]);
 
   const events = [
@@ -212,7 +220,21 @@ router.get("/admin/live-history", requireAdmin, async (_req, res): Promise<void>
       detail:    `Trust: ${l.trustScore} · ${(l.flags as string[])?.join(", ") || ""}`,
       historical: true,
     })),
-  ].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()).slice(0, 200);
+    ...errorLogs.map(e => ({
+      id:        `hist_err_${e.id}`,
+      type:      e.type as "claim_error" | "rpc_error" | "server_error",
+      ts:        e.ts.toISOString(),
+      chainId:   e.chainId  ?? undefined,
+      chainName: e.chainName ?? undefined,
+      address:   e.address  ?? undefined,
+      ip:        e.ip       ?? undefined,
+      error:     e.error    ?? undefined,
+      rootCause: e.rootCause ?? undefined,
+      detail:    e.detail   ?? undefined,
+      hint:      e.hint     ?? undefined,
+      historical: true,
+    })),
+  ].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()).slice(0, 400);
 
   res.json(events);
 });
