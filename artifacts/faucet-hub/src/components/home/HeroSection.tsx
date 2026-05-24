@@ -29,7 +29,6 @@ const SIZE = {
 const STATS = [
   { value: "Free",    label: "No Registration" },
   { value: "Instant", label: "Token Delivery"  },
-  { value: "24/7",    label: "Always Online"   },
 ];
 
 export function HeroSection({ totalChains }: { totalChains: number }) {
