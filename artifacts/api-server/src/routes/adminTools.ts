@@ -173,22 +173,42 @@ router.delete("/admin/blocked-addresses/:address", requireAdmin, async (req, res
 });
 
 // ── Wallet Health ────────────────────────────────────────────────────────────
+const BALANCE_TIMEOUT_MS = 8_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
+  ]);
+}
+
 router.get("/admin/wallet-health", requireAdmin, async (_req, res): Promise<void> => {
   const chains = await db.select().from(chainsTable).orderBy(asc(chainsTable.sortOrder), asc(chainsTable.id));
 
   const results = await Promise.allSettled(
-    chains.map(async c => ({
-      id: c.id,
-      name: c.name,
-      symbol: c.symbol,
-      chainType: c.chainType,
-      logoUrl: c.logoUrl,
-      isTestnet: c.isTestnet,
-      isEnabled: c.isEnabled,
-      walletAddress: c.walletAddress,
-      claimAmount: c.claimAmount,
-      balance: await getWalletBalance(c.chainType as ChainType, parseRpcUrls(c.rpcUrls, c.rpcUrl), resolveChainWalletAddress(c.walletAddress)),
-    }))
+    chains.map(async c => {
+      let balance: string | null = null;
+      try {
+        balance = await withTimeout(
+          getWalletBalance(c.chainType as ChainType, parseRpcUrls(c.rpcUrls, c.rpcUrl), resolveChainWalletAddress(c.walletAddress)),
+          BALANCE_TIMEOUT_MS
+        );
+      } catch {
+        balance = null;
+      }
+      return {
+        id: c.id,
+        name: c.name,
+        symbol: c.symbol,
+        chainType: c.chainType,
+        logoUrl: c.logoUrl,
+        isTestnet: c.isTestnet,
+        isEnabled: c.isEnabled,
+        walletAddress: c.walletAddress,
+        claimAmount: c.claimAmount,
+        balance,
+      };
+    })
   );
 
   res.json(
