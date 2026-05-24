@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { eq, desc, count, gte, and } from "drizzle-orm";
 import { encryptPrivateKey, resolveChainWalletAddress } from "../lib/encryption";
 import { ethers } from "ethers";
-import { db, chainsTable, claimsTable, bannersTable, announcementsTable, settingsTable, paymentNetworksTable, abuseLogsTable } from "@workspace/db";
+import { db, chainsTable, claimsTable, bannersTable, announcementsTable, settingsTable, paymentNetworksTable, abuseLogsTable, masterChainsTable, exchangePairsTable } from "@workspace/db";
 import {
   referralsTable,
   referralCommissionsTable,
