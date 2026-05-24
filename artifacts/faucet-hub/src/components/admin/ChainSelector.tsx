@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Search, X, Loader2, CheckCircle2 } from "lucide-react";
 import { adminFetch } from "@/lib/auth";
 
@@ -43,46 +44,69 @@ export function ChainSelector({ open, onClose, onSelect, title = "Select from Ch
     return !q || c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q) || String(c.chainId ?? "").includes(q);
   });
 
-  return (
+  const modal = (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.8)", backdropFilter: "blur(4px)" }}
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 9999,
+        display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem",
+        background: "rgba(0,0,0,0.85)", backdropFilter: "blur(6px)",
+      }}
+      onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="w-full max-w-lg max-h-[80vh] flex flex-col rounded-2xl overflow-hidden"
-        style={{ background: "#0d1117", border: "1px solid rgba(255,255,255,0.12)" }}>
-
-        <div className="flex items-center justify-between px-4 py-3.5"
-          style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-          <span className="font-bold font-mono text-sm text-white">{title}</span>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/10">
-            <X className="w-4 h-4 text-muted-foreground" />
+      <div
+        style={{
+          width: "100%", maxWidth: "32rem", maxHeight: "80vh",
+          display: "flex", flexDirection: "column",
+          borderRadius: "1rem", overflow: "hidden",
+          background: "#0d1117", border: "1px solid rgba(255,255,255,0.12)",
+          boxShadow: "0 24px 80px rgba(0,0,0,0.7)",
+        }}
+        onMouseDown={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.875rem 1rem", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0 }}>
+          <span style={{ fontWeight: 700, fontFamily: "monospace", fontSize: "0.875rem", color: "#fff" }}>{title}</span>
+          <button
+            onClick={onClose}
+            style={{ padding: "0.25rem", borderRadius: "0.5rem", background: "transparent", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", display: "flex" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          >
+            <X style={{ width: "1rem", height: "1rem" }} />
           </button>
         </div>
 
-        <div className="p-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        {/* Search */}
+        <div style={{ padding: "0.75rem", borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+          <div style={{ position: "relative" }}>
+            <Search style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", width: "1rem", height: "1rem", color: "rgba(255,255,255,0.35)", pointerEvents: "none" }} />
             <input
               autoFocus
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search by name, symbol or chain ID…"
-              className="w-full pl-9 pr-4 py-2 rounded-xl text-sm font-mono border focus:outline-none focus:ring-1 focus:ring-primary/40"
-              style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)", color: "#fff" }}
+              style={{
+                width: "100%", paddingLeft: "2.25rem", paddingRight: "1rem", paddingTop: "0.5rem", paddingBottom: "0.5rem",
+                borderRadius: "0.75rem", fontSize: "0.875rem", fontFamily: "monospace",
+                border: "1px solid rgba(255,255,255,0.08)", outline: "none",
+                background: "rgba(255,255,255,0.04)", color: "#fff", boxSizing: "border-box",
+              }}
+              onFocus={e => (e.target.style.borderColor = "rgba(167,139,250,0.4)")}
+              onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.08)")}
             />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        {/* List */}
+        <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
           {loading ? (
-            <div className="flex items-center justify-center py-12 gap-2 text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm font-mono">Loading…</span>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "3rem", gap: "0.5rem", color: "rgba(255,255,255,0.4)" }}>
+              <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} />
+              <span style={{ fontFamily: "monospace", fontSize: "0.875rem" }}>Loading…</span>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-2 text-muted-foreground px-4 text-center">
-              <p className="text-sm font-mono">
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "3rem 1rem", textAlign: "center", color: "rgba(255,255,255,0.4)" }}>
+              <p style={{ fontFamily: "monospace", fontSize: "0.875rem" }}>
                 {chains.length === 0
                   ? "Chain Library is empty. Go to the 'Chain Library' tab to add chains first."
                   : "No chains match your search."}
@@ -93,38 +117,44 @@ export function ChainSelector({ open, onClose, onSelect, title = "Select from Ch
               <button
                 key={chain.id}
                 onClick={() => { onSelect(chain); onClose(); }}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/5"
-                style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", gap: "0.75rem",
+                  padding: "0.75rem 1rem", textAlign: "left", cursor: "pointer",
+                  background: "transparent", border: "none", borderBottom: "1px solid rgba(255,255,255,0.04)",
+                  color: "#fff",
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
               >
                 {chain.logoUrl ? (
-                  <img src={chain.logoUrl} alt={chain.name}
-                    className="w-8 h-8 rounded-full object-contain shrink-0"
-                    style={{ background: "rgba(255,255,255,0.08)" }}
-                    onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  <img
+                    src={chain.logoUrl} alt={chain.name}
+                    style={{ width: "2rem", height: "2rem", borderRadius: "50%", objectFit: "contain", flexShrink: 0, background: "rgba(255,255,255,0.08)" }}
+                    onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
                 ) : (
-                  <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-bold"
-                    style={{ background: "rgba(167,139,250,0.15)", color: "#a78bfa" }}>
+                  <div style={{ width: "2rem", height: "2rem", borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", fontWeight: 700, background: "rgba(167,139,250,0.15)", color: "#a78bfa" }}>
                     {chain.symbol.slice(0, 2).toUpperCase()}
                   </div>
                 )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm text-white truncate">{chain.name}</span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full shrink-0"
-                      style={{
-                        background: chain.isTestnet ? "rgba(250,204,21,0.12)" : "rgba(34,197,94,0.12)",
-                        color: chain.isTestnet ? "#facc15" : "#22c55e",
-                      }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                    <span style={{ fontWeight: 600, fontSize: "0.875rem", color: "#fff" }}>{chain.name}</span>
+                    <span style={{
+                      fontSize: "0.625rem", fontFamily: "monospace", padding: "0.125rem 0.375rem", borderRadius: "9999px", flexShrink: 0,
+                      background: chain.isTestnet ? "rgba(250,204,21,0.12)" : "rgba(34,197,94,0.12)",
+                      color: chain.isTestnet ? "#facc15" : "#22c55e",
+                    }}>
                       {chain.isTestnet ? "Testnet" : "Mainnet"}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 mt-0.5 text-xs font-mono text-muted-foreground">
+                  <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.125rem", fontSize: "0.75rem", fontFamily: "monospace", color: "rgba(255,255,255,0.4)" }}>
                     <span>{chain.symbol}</span>
                     {chain.chainId != null && <span>ID: {chain.chainId}</span>}
                     <span>{chain.rpcUrls.length} RPC</span>
                   </div>
                 </div>
-                <CheckCircle2 className="w-4 h-4 text-muted-foreground/25 shrink-0" />
+                <CheckCircle2 style={{ width: "1rem", height: "1rem", color: "rgba(255,255,255,0.2)", flexShrink: 0 }} />
               </button>
             ))
           )}
@@ -132,4 +162,6 @@ export function ChainSelector({ open, onClose, onSelect, title = "Select from Ch
       </div>
     </div>
   );
+
+  return createPortal(modal, document.body);
 }
