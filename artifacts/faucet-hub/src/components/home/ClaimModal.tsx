@@ -141,6 +141,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [adWatchContent, setAdWatchContent] = useState<string | null>(null);
   const [adWatchError, setAdWatchError] = useState("");
   const [captchaExpired, setCaptchaExpired] = useState(false);
+  const [ipLimitReached, setIpLimitReached] = useState(false);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   const queryClient = useQueryClient();
@@ -218,6 +219,9 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
       onError: (err: any) => {
         setCaptchaToken("");
         recaptchaRef.current?.reset();
+        if (err?.data?.ipLimitReached) {
+          setIpLimitReached(true);
+        }
         setErrorMsg(err?.data?.error || err.message || "Failed to claim");
       }
     });
@@ -275,6 +279,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
         setStep("input"); setAddress(""); setDebouncedAddress("");
         setAdCountdown(5); setErrorMsg(""); setCaptchaToken("");
         setAdWatchToken(""); setAdWatchContent(null); setAdWatchCountdown(0); setAdWatchError("");
+        setIpLimitReached(false);
         recaptchaRef.current?.reset();
       }, 300);
       onClose();
@@ -397,9 +402,39 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                 </div>
 
                 {errorMsg && (
-                  <div className="flex items-center gap-2 text-xs font-mono px-3 py-2 rounded-lg" style={{ background: "rgba(239,68,68,0.08)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
+                  <div className="flex items-center gap-2 text-xs font-mono px-3 py-2 rounded-lg" style={{ background: ipLimitReached ? "rgba(251,191,36,0.08)" : "rgba(239,68,68,0.08)", color: ipLimitReached ? "#fbbf24" : "#f87171", border: ipLimitReached ? "1px solid rgba(251,191,36,0.2)" : "1px solid rgba(239,68,68,0.2)" }}>
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {errorMsg}
                   </div>
+                )}
+
+                {/* Watch Ad — shown when IP daily limit is reached */}
+                {ipLimitReached && (chain as any).adClaimEnabled && (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+                      <span className="text-[10px] font-bold font-mono" style={{ color: "rgba(255,255,255,0.25)" }}>WATCH AN AD TO CONTINUE</span>
+                      <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+                    </div>
+                    {adWatchError && (
+                      <p className="text-xs font-mono text-center px-3 py-2 rounded-xl" style={{ color: "#f87171", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>{adWatchError}</p>
+                    )}
+                    <button
+                      onClick={handleWatchAd}
+                      disabled={requestAdTokenMutation.isPending}
+                      className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all duration-200"
+                      style={{
+                        background: requestAdTokenMutation.isPending ? "rgba(234,179,8,0.1)" : "linear-gradient(135deg, #78350f 0%, #d97706 100%)",
+                        color: requestAdTokenMutation.isPending ? "rgba(234,179,8,0.4)" : "white",
+                        boxShadow: requestAdTokenMutation.isPending ? "none" : "0 0 20px rgba(217,119,6,0.3)",
+                        cursor: requestAdTokenMutation.isPending ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {requestAdTokenMutation.isPending
+                        ? <><Loader2 className="w-4 h-4 animate-spin" /> Starting Ad...</>
+                        : <><Play className="w-4 h-4" /> Watch Ad · Claim More</>
+                      }
+                    </button>
+                  </>
                 )}
 
                 {/* reCAPTCHA — shown when address is valid and not in cooldown */}

@@ -10,12 +10,13 @@ import { LogoManagement } from "./LogoManagement";
 import { ChangePassword } from "./ChangePassword";
 
 
-type Tab = "social" | "seo" | "maintenance" | "ratelimit" | "integrations" | "logo" | "password";
+type Tab = "social" | "seo" | "maintenance" | "ratelimit" | "claimlimits" | "integrations" | "logo" | "password";
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "social", label: "Social Links", icon: Globe },
   { id: "seo", label: "SEO Settings", icon: Search },
   { id: "maintenance", label: "Maintenance", icon: Wrench },
   { id: "ratelimit", label: "Rate Limit", icon: Shield },
+  { id: "claimlimits", label: "Claim Limits", icon: AlertTriangle },
   { id: "integrations", label: "Integrations", icon: Puzzle },
   { id: "logo", label: "Logo", icon: Paintbrush },
   { id: "password", label: "Password", icon: KeyRound },
@@ -25,18 +26,20 @@ interface SocialLinks { twitter: string; telegram: string; discord: string; gith
 interface SEOSettings { title: string; description: string; ogImage: string; }
 interface MaintenanceMode { enabled: boolean; message: string; }
 interface RateLimitConfig { maxAttempts: number; lockoutMinutes: number; }
+interface IpClaimConfig { dailyFreeChains: number; cooldownHours: number; }
 interface IntegrationsConfig {
   googleAds: { enabled: boolean; publisherId: string; slots: { header: string; inContent: string; footer: string } };
   googleAnalytics: { enabled: boolean; measurementId: string };
   googleSearchConsole: { verificationCode: string };
 }
-interface SiteConfigData { socialLinks: SocialLinks; seoSettings: SEOSettings; maintenanceMode: MaintenanceMode; rateLimitConfig: RateLimitConfig; integrations: IntegrationsConfig; }
+interface SiteConfigData { socialLinks: SocialLinks; seoSettings: SEOSettings; maintenanceMode: MaintenanceMode; rateLimitConfig: RateLimitConfig; ipClaimConfig: IpClaimConfig; integrations: IntegrationsConfig; }
 
 const DEFAULT: SiteConfigData = {
   socialLinks: { twitter: "", telegram: "", discord: "", github: "" },
   seoSettings: { title: "ChainDrop — Multi-Chain Crypto Faucet Hub", description: "Get free testnet crypto tokens from ChainDrop.", ogImage: "" },
   maintenanceMode: { enabled: false, message: "We're currently performing maintenance. Please check back soon." },
   rateLimitConfig: { maxAttempts: 5, lockoutMinutes: 15 },
+  ipClaimConfig: { dailyFreeChains: 2, cooldownHours: 0 },
   integrations: {
     googleAds: { enabled: false, publisherId: "", slots: { header: "", inContent: "", footer: "" } },
     googleAnalytics: { enabled: false, measurementId: "" },
@@ -210,6 +213,48 @@ function RateLimitTab({ data, onSave, saving }: { data: RateLimitConfig; onSave:
   );
 }
 
+function IpClaimConfigTab({ data, onSave, saving }: { data: IpClaimConfig; onSave: SaveFn; saving: boolean }) {
+  const [form, setForm] = useState(data);
+  useEffect(() => setForm(data), [data]);
+  return (
+    <div className="space-y-6 max-w-lg">
+      <p className="text-sm text-muted-foreground">
+        Control how many free claims each IP address can make per day, and how long they must wait between claims.
+        Once the free limit is reached, users can still claim by watching an ad.
+      </p>
+      <div className="rounded-xl border border-border bg-card p-5 space-y-5">
+        <div className="space-y-1.5">
+          <Label className="font-mono text-xs">Free Claims Per IP Per Day</Label>
+          <Input
+            type="number" min={1} max={50}
+            value={form.dailyFreeChains}
+            onChange={e => setForm(p => ({ ...p, dailyFreeChains: parseInt(e.target.value) || 2 }))}
+            className="font-mono bg-background border-border"
+          />
+          <p className="text-xs text-muted-foreground">
+            How many chains a single IP can claim from for free in a 24-hour window. Default: <strong>2</strong>.
+            Set to a high number (e.g. 50) to effectively disable this limit.
+          </p>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="font-mono text-xs">Min Hours Between Claims (same IP)</Label>
+          <Input
+            type="number" min={0} max={168}
+            value={form.cooldownHours}
+            onChange={e => setForm(p => ({ ...p, cooldownHours: parseFloat(e.target.value) || 0 }))}
+            className="font-mono bg-background border-border"
+          />
+          <p className="text-xs text-muted-foreground">
+            Minimum gap (hours) between any two free claims from the same IP, regardless of chain.
+            Set to <strong>0</strong> to disable. Example: <strong>1</strong> = at least 1 hour between claims.
+          </p>
+        </div>
+      </div>
+      <SaveBtn onClick={() => onSave("ipClaimConfig", form)} saving={saving} />
+    </div>
+  );
+}
+
 function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
   return (
     <button onClick={onToggle}
@@ -317,6 +362,7 @@ export function SiteConfig() {
         seoSettings:       { ...DEFAULT.seoSettings,       ...(d.seoSettings       ?? {}) },
         maintenanceMode:   { ...DEFAULT.maintenanceMode,   ...(d.maintenanceMode   ?? {}) },
         rateLimitConfig:   { ...DEFAULT.rateLimitConfig,   ...(d.rateLimitConfig   ?? {}) },
+        ipClaimConfig:     { ...DEFAULT.ipClaimConfig,     ...(d.ipClaimConfig     ?? {}) },
         integrations:      { ...prev.integrations,         ...(d.integrations      ?? {}) },
       })))
       .catch(() => {})
@@ -357,6 +403,7 @@ export function SiteConfig() {
       {tab === "seo" && <SEOTab data={cfg.seoSettings} onSave={save} saving={saving} />}
       {tab === "maintenance" && <MaintenanceTab data={cfg.maintenanceMode} onSave={save} saving={saving} />}
       {tab === "ratelimit" && <RateLimitTab data={cfg.rateLimitConfig} onSave={save} saving={saving} />}
+      {tab === "claimlimits" && <IpClaimConfigTab data={cfg.ipClaimConfig} onSave={save} saving={saving} />}
       {tab === "integrations" && <IntegrationsTab data={cfg.integrations} onSave={save} saving={saving} />}
       {tab === "logo" && <LogoManagement />}
       {tab === "password" && <ChangePassword />}

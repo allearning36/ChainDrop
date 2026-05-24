@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
-import { desc, eq, and, gt } from "drizzle-orm";
+import { desc, eq, and, gt, gte, sql } from "drizzle-orm";
 import { db, claimsTable, chainsTable, blockedAddressesTable, ipBlocksTable, settingsTable, purchasesTable, adTokensTable, nonceTable } from "@workspace/db";
 import { ClaimFaucetBody, GetFaucetStatusParams, RequestAdTokenBody, ClaimFaucetWithAdBody } from "@workspace/api-zod";
 import { sendTokens, isValidAddress, type ChainType } from "../lib/chains/index";
@@ -79,6 +79,60 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
     }
   } catch (err) {
     req.log.warn({ err }, "IP block check failed — continuing");
+  }
+
+  // ── IP daily free claim limit ──────────────────────────────────────────────
+  // Counts successful claims from this IP in the last 24 h.
+  // If over the admin-configured limit, the user must watch an ad to continue.
+  // The IP cooldown (hours between consecutive claims) is also enforced here.
+  try {
+    const [configRow] = await db
+      .select().from(settingsTable).where(eq(settingsTable.key, "ipClaimConfig")).limit(1);
+    const config = configRow?.value
+      ? (JSON.parse(configRow.value) as { dailyFreeChains?: number; cooldownHours?: number })
+      : {};
+    const dailyLimit    = typeof config.dailyFreeChains === "number" ? config.dailyFreeChains : 2;
+    const cooldownHours = typeof config.cooldownHours   === "number" ? config.cooldownHours   : 0;
+
+    const dayStart = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [ipCountResult] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(claimsTable)
+      .where(and(eq(claimsTable.ip, clientIp), gte(claimsTable.claimedAt, dayStart)));
+    const ipCount = ipCountResult?.n ?? 0;
+
+    if (ipCount >= dailyLimit) {
+      res.status(429).json({
+        error: `Daily free limit reached (${dailyLimit} claim${dailyLimit !== 1 ? "s" : ""}/day per IP). Watch an ad to keep claiming.`,
+        ipLimitReached: true,
+      });
+      return;
+    }
+
+    if (cooldownHours > 0) {
+      const cooldownMs   = cooldownHours * 3600 * 1000;
+      const cooldownSince = new Date(Date.now() - cooldownMs);
+      const [lastIpClaim] = await db
+        .select({ claimedAt: claimsTable.claimedAt })
+        .from(claimsTable)
+        .where(and(eq(claimsTable.ip, clientIp), gte(claimsTable.claimedAt, cooldownSince)))
+        .orderBy(desc(claimsTable.claimedAt))
+        .limit(1);
+      if (lastIpClaim) {
+        const nextAt    = new Date(lastIpClaim.claimedAt.getTime() + cooldownMs);
+        const remainMs  = nextAt.getTime() - Date.now();
+        const remainH   = Math.floor(remainMs / 3600000);
+        const remainM   = Math.floor((remainMs % 3600000) / 60000);
+        const timeStr   = remainH > 0 ? `${remainH}h ${remainM}m` : `${remainM}m`;
+        res.status(429).json({
+          error: `Please wait ${timeStr} before claiming again from this IP.`,
+          nextClaimAt: nextAt.toISOString(),
+        });
+        return;
+      }
+    }
+  } catch (err) {
+    req.log.warn({ err }, "IP daily limit check failed — continuing");
   }
 
   // ── Anti-abuse evaluation ──────────────────────────────────────────────────

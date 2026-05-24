@@ -21,6 +21,7 @@ const DEFAULT_SOCIAL = { twitter: "", telegram: "", discord: "", github: "" };
 const DEFAULT_SEO = { title: "ChainDrop — Multi-Chain Crypto Faucet Hub", description: "Get free testnet crypto tokens from ChainDrop. Supports multiple EVM-compatible chains including Sepolia and more.", ogImage: "" };
 const DEFAULT_MAINTENANCE = { enabled: false, message: "We're currently performing maintenance. Please check back soon." };
 const DEFAULT_RATELIMIT = { maxAttempts: 5, lockoutMinutes: 15 };
+const DEFAULT_IPCLAIMCONFIG = { dailyFreeChains: 2, cooldownHours: 0 };
 const DEFAULT_INTEGRATIONS = {
   googleAds: { enabled: false, publisherId: "", slots: { header: "", inContent: "", footer: "" } },
   googleAnalytics: { enabled: false, measurementId: "" },
@@ -48,14 +49,15 @@ router.get("/site-config/public", async (_req, res): Promise<void> => {
 
 // ── Admin: get all config ─────────────────────────────────────────────────────
 router.get("/admin/site-config", requireAdmin, async (_req, res): Promise<void> => {
-  const [socialLinks, seoSettings, maintenanceMode, rateLimitConfig, integrations] = await Promise.all([
+  const [socialLinks, seoSettings, maintenanceMode, rateLimitConfig, ipClaimConfig, integrations] = await Promise.all([
     getSetting("socialLinks", DEFAULT_SOCIAL),
     getSetting("seoSettings", DEFAULT_SEO),
     getSetting("maintenanceMode", DEFAULT_MAINTENANCE),
     getSetting("rateLimitConfig", DEFAULT_RATELIMIT),
+    getSetting("ipClaimConfig", DEFAULT_IPCLAIMCONFIG),
     getSetting("integrations", DEFAULT_INTEGRATIONS),
   ]);
-  res.json({ socialLinks, seoSettings, maintenanceMode, rateLimitConfig, integrations });
+  res.json({ socialLinks, seoSettings, maintenanceMode, rateLimitConfig, ipClaimConfig, integrations });
 });
 
 // ── Admin: update sections ────────────────────────────────────────────────────
@@ -94,6 +96,15 @@ router.patch("/admin/site-config/rateLimitConfig", requireAdmin, async (req, res
   await setSetting("rateLimitConfig", {
     maxAttempts: Math.max(1, Math.min(20, Number(maxAttempts) || 5)),
     lockoutMinutes: Math.max(1, Math.min(1440, Number(lockoutMinutes) || 15)),
+  });
+  res.json({ ok: true });
+});
+
+router.patch("/admin/site-config/ipClaimConfig", requireAdmin, async (req, res): Promise<void> => {
+  const { dailyFreeChains, cooldownHours } = req.body as Record<string, unknown>;
+  await setSetting("ipClaimConfig", {
+    dailyFreeChains: Math.max(1, Math.min(50, Number(dailyFreeChains) || 2)),
+    cooldownHours:   Math.max(0, Math.min(168, Number(cooldownHours)  || 0)),
   });
   res.json({ ok: true });
 });
