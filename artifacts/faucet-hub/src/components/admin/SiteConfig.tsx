@@ -299,36 +299,22 @@ function IpClaimConfigTab({ data, onSave, saving }: { data: IpClaimConfig; onSav
 
 function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
   return (
-    <button
-      onClick={onToggle}
-      style={{
-        position: "relative",
-        display: "inline-flex",
-        alignItems: "center",
-        width: 44,
-        height: 24,
-        borderRadius: 9999,
-        flexShrink: 0,
-        cursor: "pointer",
-        border: "none",
-        padding: 0,
-        background: enabled ? "var(--primary, #22c55e)" : "rgba(255,255,255,0.12)",
-        transition: "background 0.2s",
-      }}
-      aria-pressed={enabled}
-    >
-      <span style={{
-        position: "absolute",
-        top: 3,
-        left: enabled ? 23 : 3,
-        width: 18,
-        height: 18,
-        borderRadius: "50%",
-        background: "white",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
-        transition: "left 0.2s",
-      }} />
-    </button>
+    <div className="flex items-center gap-2 shrink-0">
+      <span className={`text-xs font-bold font-mono w-7 text-right ${enabled ? "text-green-400" : "text-muted-foreground"}`}>
+        {enabled ? "ON" : "OFF"}
+      </span>
+      <button
+        onClick={onToggle}
+        className={`relative shrink-0 rounded-full transition-colors duration-200 ${enabled ? "bg-green-500" : "bg-muted"}`}
+        style={{ width: 44, height: 24, border: "none", padding: 0, cursor: "pointer" }}
+        aria-pressed={enabled}
+      >
+        <span
+          className="absolute rounded-full bg-white shadow transition-all duration-200"
+          style={{ top: 3, left: enabled ? 23 : 3, width: 18, height: 18 }}
+        />
+      </button>
+    </div>
   );
 }
 
