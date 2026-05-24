@@ -293,6 +293,7 @@ router.get("/admin/chains", async (_req, res): Promise<void> => {
       adDurationSeconds: c.adDurationSeconds,
       adNetworkCode: c.adNetworkCode ?? null,
       adCooldownSeconds: c.adCooldownSeconds,
+      captchaEnabled: c.captchaEnabled,
       sortOrder: c.sortOrder,
       createdAt: c.createdAt.toISOString(),
     }))
@@ -373,6 +374,7 @@ router.post("/admin/chains", async (req, res): Promise<void> => {
     adDurationSeconds: chain.adDurationSeconds,
     adNetworkCode: chain.adNetworkCode ?? null,
     adCooldownSeconds: chain.adCooldownSeconds,
+    captchaEnabled: chain.captchaEnabled,
     sortOrder: chain.sortOrder,
     createdAt: chain.createdAt.toISOString(),
   });
@@ -464,6 +466,7 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     adDurationSeconds: chain.adDurationSeconds,
     adNetworkCode: chain.adNetworkCode ?? null,
     adCooldownSeconds: chain.adCooldownSeconds,
+    captchaEnabled: chain.captchaEnabled,
     sortOrder: chain.sortOrder,
     createdAt: chain.createdAt.toISOString(),
   });

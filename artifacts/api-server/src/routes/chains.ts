@@ -44,6 +44,7 @@ router.get("/chains", async (req, res): Promise<void> => {
       coingeckoId: c.coingeckoId,
       adClaimEnabled: c.adClaimEnabled,
       adDurationSeconds: c.adDurationSeconds,
+      captchaEnabled: c.captchaEnabled,
       sortOrder: c.sortOrder,
     }))
   );
