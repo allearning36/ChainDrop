@@ -299,9 +299,35 @@ function IpClaimConfigTab({ data, onSave, saving }: { data: IpClaimConfig; onSav
 
 function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
   return (
-    <button onClick={onToggle}
-      className={`relative w-12 h-6 rounded-full transition-colors ${enabled ? "bg-primary" : "bg-muted"}`}>
-      <span className={`absolute top-1 left-0 w-4 h-4 rounded-full bg-white transition-transform ${enabled ? "translate-x-7" : "translate-x-1"}`} />
+    <button
+      onClick={onToggle}
+      style={{
+        position: "relative",
+        display: "inline-flex",
+        alignItems: "center",
+        width: 44,
+        height: 24,
+        borderRadius: 9999,
+        flexShrink: 0,
+        cursor: "pointer",
+        border: "none",
+        padding: 0,
+        background: enabled ? "var(--primary, #22c55e)" : "rgba(255,255,255,0.12)",
+        transition: "background 0.2s",
+      }}
+      aria-pressed={enabled}
+    >
+      <span style={{
+        position: "absolute",
+        top: 3,
+        left: enabled ? 23 : 3,
+        width: 18,
+        height: 18,
+        borderRadius: "50%",
+        background: "white",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+        transition: "left 0.2s",
+      }} />
     </button>
   );
 }
