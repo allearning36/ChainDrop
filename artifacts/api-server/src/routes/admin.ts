@@ -1,10 +1,10 @@
 import { Router, type IRouter } from "express";
 import fs from "fs";
 import crypto from "crypto";
-import { eq, desc, count } from "drizzle-orm";
+import { eq, desc, count, gte, and } from "drizzle-orm";
 import { encryptPrivateKey, resolveChainWalletAddress } from "../lib/encryption";
 import { ethers } from "ethers";
-import { db, chainsTable, claimsTable, bannersTable, announcementsTable, settingsTable, paymentNetworksTable } from "@workspace/db";
+import { db, chainsTable, claimsTable, bannersTable, announcementsTable, settingsTable, paymentNetworksTable, abuseLogsTable } from "@workspace/db";
 import {
   referralsTable,
   referralCommissionsTable,
@@ -151,6 +151,70 @@ router.post("/admin/upload", requireAdmin, upload.single("file"), (req, res): vo
   } catch (err) {
     res.status(500).json({ error: "Failed to process uploaded image" });
   }
+});
+
+// ── GET /api/admin/live-history ─────────────────────────────────────────────
+// Returns last 72h of claim successes + blocked abuse events for the Live Monitor.
+// Lets admins see what happened even after reconnecting days later.
+router.get("/admin/live-history", requireAdmin, async (_req, res): Promise<void> => {
+  const since = new Date(Date.now() - 72 * 60 * 60 * 1000);
+
+  const [claims, abuseLogs] = await Promise.all([
+    db
+      .select({
+        id:        claimsTable.id,
+        chainId:   claimsTable.chainId,
+        chainName: chainsTable.name,
+        symbol:    chainsTable.symbol,
+        address:   claimsTable.address,
+        txHash:    claimsTable.txHash,
+        amount:    claimsTable.amount,
+        ip:        claimsTable.ip,
+        ts:        claimsTable.claimedAt,
+      })
+      .from(claimsTable)
+      .leftJoin(chainsTable, eq(claimsTable.chainId, chainsTable.id))
+      .where(gte(claimsTable.claimedAt, since))
+      .orderBy(desc(claimsTable.claimedAt))
+      .limit(150),
+
+    db
+      .select()
+      .from(abuseLogsTable)
+      .where(and(gte(abuseLogsTable.createdAt, since), eq(abuseLogsTable.action, "blocked")))
+      .orderBy(desc(abuseLogsTable.createdAt))
+      .limit(150),
+  ]);
+
+  const events = [
+    ...claims.map(c => ({
+      id:        `hist_claim_${c.id}`,
+      type:      "claim_success" as const,
+      ts:        c.ts.toISOString(),
+      chainId:   c.chainId,
+      chainName: c.chainName ?? undefined,
+      symbol:    c.symbol ?? undefined,
+      address:   c.address,
+      txHash:    c.txHash,
+      amount:    c.amount,
+      ip:        c.ip ?? undefined,
+      historical: true,
+    })),
+    ...abuseLogs.map(l => ({
+      id:        `hist_abuse_${l.id}`,
+      type:      "claim_error" as const,
+      ts:        l.createdAt.toISOString(),
+      chainId:   l.chainId ?? undefined,
+      address:   l.address,
+      ip:        l.ip,
+      error:     (l.flags as string[])?.join(", ") || "blocked",
+      rootCause: "ADDRESS_BLOCKED",
+      detail:    `Trust: ${l.trustScore} · ${(l.flags as string[])?.join(", ") || ""}`,
+      historical: true,
+    })),
+  ].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()).slice(0, 200);
+
+  res.json(events);
 });
 
 // All admin routes require auth

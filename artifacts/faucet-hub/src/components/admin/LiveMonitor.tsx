@@ -25,6 +25,7 @@ interface LiveEvent {
   detail?: string;
   hint?: string;
   clients?: number;
+  historical?: boolean;
 }
 
 function maskAddress(addr?: string) {
@@ -57,10 +58,34 @@ export function LiveMonitor() {
   const [connected, setConnected] = useState(false);
   const [events, setEvents] = useState<LiveEvent[]>(() => loadStoredEvents());
   const [paused, setPaused] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const pausedRef = useRef(false);
   const esRef = useRef<EventSource | null>(null);
   const successCount = events.filter((e) => e.type === "claim_success").length;
   const errorCount = events.filter((e) => e.type === "claim_error" || e.type === "rpc_error" || e.type === "server_error").length;
+
+  // Load DB history once on mount
+  useEffect(() => {
+    async function loadHistory() {
+      try {
+        const r = await adminFetch("/api/admin/live-history");
+        if (!r.ok) return;
+        const hist = await r.json() as LiveEvent[];
+        if (!hist.length) return;
+        setEvents((prev) => {
+          // Merge: live events (non-historical) come first, then DB history
+          const live = prev.filter(e => !e.historical);
+          const liveIds = new Set(live.map(e => e.id));
+          const fresh = hist.filter(h => !liveIds.has(h.id));
+          const next = [...live, ...fresh].slice(0, 300);
+          try { sessionStorage.setItem(LIVE_EVENTS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+          return next;
+        });
+        setHistoryLoaded(true);
+      } catch { /* non-critical */ }
+    }
+    void loadHistory();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,7 +122,10 @@ export function LiveMonitor() {
           const event = JSON.parse(e.data as string) as LiveEvent;
           if (event.type === "ping") return;
           setEvents((prev) => {
-            const next = [event, ...prev].slice(0, 200);
+            // New live events go to the top, above any historical entries
+            const historical = prev.filter(p => p.historical);
+            const live = prev.filter(p => !p.historical);
+            const next = [event, ...live, ...historical].slice(0, 300);
             try { sessionStorage.setItem(LIVE_EVENTS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
             return next;
           });
@@ -166,9 +194,25 @@ export function LiveMonitor() {
             </div>
           ) : (
             <div className="divide-y divide-border/50">
-              {events.map((ev) => (
-                <EventRow key={ev.id} event={ev} />
-              ))}
+              {events.map((ev, idx) => {
+                const prevEv = events[idx - 1];
+                const showHistorySeparator =
+                  ev.historical && (idx === 0 || !prevEv?.historical);
+                return (
+                  <div key={ev.id}>
+                    {showHistorySeparator && (
+                      <div className="flex items-center gap-2 px-4 py-2 bg-muted/20">
+                        <div className="h-px flex-1 bg-border/60" />
+                        <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+                          DB History (last 72h)
+                        </span>
+                        <div className="h-px flex-1 bg-border/60" />
+                      </div>
+                    )}
+                    <EventRow event={ev} />
+                  </div>
+                );
+              })}
             </div>
           )}
         </ScrollArea>
@@ -206,6 +250,7 @@ function EventRow({ event: ev }: { event: LiveEvent }) {
       isError && "bg-red-500/5 hover:bg-red-500/10",
       isConnected && "bg-primary/5",
       !isSuccess && !isError && !isConnected && "hover:bg-muted/30",
+      ev.historical && "opacity-60",
     )}>
       <div className="flex items-center gap-2 flex-wrap">
         {isSuccess && <CheckCircle2 className="w-3.5 h-3.5 text-green-400 shrink-0" />}
