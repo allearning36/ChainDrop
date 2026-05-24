@@ -44,6 +44,8 @@ router.get("/referral/settings", async (_req, res): Promise<void> => {
     buyLevel1Pct: s.buyLevel1Pct,
     buyLevel2Pct: s.buyLevel2Pct,
     faucetClaimChainCommissions: s.faucetClaimChainCommissions,
+    claimChainIds: s.claimChainIds,
+    minClaimEth: s.minClaimEth,
   });
 });
 

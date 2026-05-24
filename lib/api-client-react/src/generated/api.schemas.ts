@@ -679,6 +679,8 @@ export interface ReferralSettingsPublic {
   buyLevel1Pct: number;
   buyLevel2Pct: number;
   faucetClaimChainCommissions: FaucetClaimChainCommission[];
+  claimChainIds: number[];
+  minClaimEth: number;
 }
 
 export interface ReferralSettings {

@@ -49,6 +49,8 @@ async function detectInjectedWallet(): Promise<string | null> {
   } catch { return null; }
 }
 
+const WALLET_STORAGE_KEY = "chainDrop_referralWallet";
+
 export function ReferralDashboardModal({ open, onClose }: ReferralDashboardModalProps) {
   const [wallet, setWallet] = useState<ConnectedWallet | null>(null);
   const [walletSelectorOpen, setWalletSelectorOpen] = useState(false);
@@ -68,7 +70,19 @@ export function ReferralDashboardModal({ open, onClose }: ReferralDashboardModal
     query: { queryKey: getGetChainsQueryKey() }
   });
 
-  const evmChains = chains.filter(c => c.chainType === "evm" && c.isEnabled);
+  // Bug fix 2: filter by allowed claim chains from admin settings (empty = all chains)
+  const allowedClaimIds: number[] = settings?.claimChainIds ?? [];
+  const evmChains = chains.filter(c =>
+    c.chainType === "evm" &&
+    c.isEnabled &&
+    (allowedClaimIds.length === 0 || allowedClaimIds.includes(c.id))
+  );
+
+  // Reset selectedChainId if it's no longer in the allowed list
+  const selectedChainInList = evmChains.some(c => c.id === selectedChainId);
+  if (selectedChainId !== null && !selectedChainInList) {
+    setSelectedChainId(null);
+  }
 
   const { data: dashboard, isLoading, error: dashError } = useGetReferralDashboard(
     wallet?.address ?? "",
@@ -83,15 +97,28 @@ export function ReferralDashboardModal({ open, onClose }: ReferralDashboardModal
 
   const claimMutation = useSubmitReferralClaimRequest();
 
-  // Auto-detect already-connected injected wallet on open
+  // Bug fix 1: restore wallet from localStorage on open (survives page refresh / navigation)
   useEffect(() => {
     if (!open) return;
     detectInjectedWallet().then(addr => {
-      if (addr) setWallet({ address: addr.toLowerCase(), provider: "injected" });
+      if (addr) {
+        const w = { address: addr.toLowerCase(), provider: "injected" as const };
+        setWallet(w);
+        try { localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify({ address: w.address, provider: w.provider })); } catch { /* ignore */ }
+      } else {
+        // No injected wallet active — try restoring saved session (e.g. WalletConnect)
+        try {
+          const saved = localStorage.getItem(WALLET_STORAGE_KEY);
+          if (saved) {
+            const { address, provider } = JSON.parse(saved) as { address: string; provider: "injected" | "walletconnect" };
+            setWallet({ address, provider, wcProvider: undefined });
+          }
+        } catch { /* ignore */ }
+      }
     });
   }, [open]);
 
-  // Reset state on close
+  // Reset UI state on close but keep wallet in localStorage
   useEffect(() => {
     if (!open) {
       setWallet(null);
@@ -104,6 +131,8 @@ export function ReferralDashboardModal({ open, onClose }: ReferralDashboardModal
   const handleWalletConnected = useCallback((address: string, provider: "injected" | "walletconnect", wcProvider?: any) => {
     setWallet({ address: address.toLowerCase(), provider, wcProvider });
     setWalletSelectorOpen(false);
+    // Persist so wallet auto-restores on next open / refresh
+    try { localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify({ address: address.toLowerCase(), provider })); } catch { /* ignore */ }
 
     // Register pending referrer from ?ref= URL param
     const pendingRef = sessionStorage.getItem("pendingReferrer");
@@ -250,7 +279,10 @@ export function ReferralDashboardModal({ open, onClose }: ReferralDashboardModal
                       <span className="font-mono text-xs text-muted-foreground truncate">{wallet.address}</span>
                     </div>
                     <button
-                      onClick={() => setWallet(null)}
+                      onClick={() => {
+                        setWallet(null);
+                        try { localStorage.removeItem(WALLET_STORAGE_KEY); } catch { /* ignore */ }
+                      }}
                       className="text-[10px] font-mono shrink-0 px-2 py-1 rounded"
                       style={{ color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)" }}
                     >

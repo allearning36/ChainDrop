@@ -377,7 +377,9 @@ export const GetReferralSettingsResponse = zod.object({
   "level1Pct": zod.number(),
   "level2Pct": zod.number(),
   "enabled": zod.boolean()
-}))
+})),
+  "claimChainIds": zod.array(zod.number()),
+  "minClaimEth": zod.number()
 })
 
 
