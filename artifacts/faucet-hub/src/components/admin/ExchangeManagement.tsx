@@ -4,12 +4,14 @@ import {
   ArrowLeftRight, Plus, Trash2, Edit2, Save, X,
   AlertCircle, CheckCircle2, Loader2,
   ClipboardList, Activity, ArrowUp, ArrowDown, Upload, XCircle, RefreshCw,
-  Key, Eye, EyeOff, Wallet, Settings, Search,
+  Key, Eye, EyeOff, Wallet, Settings, Search, Database,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { ChainSelector } from "./ChainSelector";
+import type { MasterChain } from "./ChainSelector";
 
 interface ExchangePair {
   id: number; name: string;
@@ -293,6 +295,8 @@ export function ExchangeManagement() {
   const [showPairKey, setShowPairKey] = useState(false);
 
   const [pairSearch, setPairSearch] = useState("");
+  const [chainSelectorOpen, setChainSelectorOpen] = useState(false);
+  const [chainSelectorSide, setChainSelectorSide] = useState<"from" | "to">("from");
 
   const fetchPairs = async () => {
     const res = await adminFetch("/api/admin/exchange/pairs");
@@ -415,6 +419,34 @@ export function ExchangeManagement() {
       setTimeout(() => fetchOrders(), 10000);
     } catch (e: any) { setSuccess(""); setError(e.message); }
     finally { setRetrying(null); }
+  };
+
+  const handleChainLibrarySelect = (chain: MasterChain) => {
+    const rpcs = chain.rpcUrls.length > 0 ? chain.rpcUrls : [""];
+    const explorer = chain.explorerUrls[0] ?? "";
+    if (chainSelectorSide === "from") {
+      setForm(f => ({
+        ...f,
+        fromChainName: chain.name,
+        fromSymbol: chain.symbol,
+        fromChainId: chain.chainId ?? 0,
+        fromExplorerUrl: explorer,
+        fromLogoUrl: chain.logoUrl ?? "",
+      }));
+      setFromRpcs(rpcs);
+      setFromHealth({});
+    } else {
+      setForm(f => ({
+        ...f,
+        toChainName: chain.name,
+        toSymbol: chain.symbol,
+        toChainId: chain.chainId ?? 0,
+        toExplorerUrl: explorer,
+        toLogoUrl: chain.logoUrl ?? "",
+      }));
+      setToRpcs(rpcs);
+      setToHealth({});
+    }
   };
 
   const handleToggle = async (p: ExchangePair) => {
@@ -832,9 +864,19 @@ export function ExchangeManagement() {
 
               {/* FROM chain */}
               <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(34,197,94,0.2)" }}>
-                <div className="px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest"
-                  style={{ background: "rgba(34,197,94,0.05)", color: "#22c55e", borderBottom: "1px solid rgba(34,197,94,0.15)" }}>
-                  From Chain (Users Send Here)
+                <div className="px-4 py-2 flex items-center justify-between"
+                  style={{ background: "rgba(34,197,94,0.05)", borderBottom: "1px solid rgba(34,197,94,0.15)" }}>
+                  <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: "#22c55e" }}>
+                    From Chain (Users Send Here)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setChainSelectorSide("from"); setChainSelectorOpen(true); }}
+                    className="flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded-lg transition-colors"
+                    style={{ background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.25)", color: "#a78bfa" }}
+                  >
+                    <Database className="w-3 h-3" /> Select from Library
+                  </button>
                 </div>
                 <div className="p-4 space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -890,9 +932,19 @@ export function ExchangeManagement() {
 
               {/* TO chain */}
               <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(96,165,250,0.2)" }}>
-                <div className="px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest"
-                  style={{ background: "rgba(96,165,250,0.05)", color: "#60a5fa", borderBottom: "1px solid rgba(96,165,250,0.15)" }}>
-                  To Chain (Users Receive Here)
+                <div className="px-4 py-2 flex items-center justify-between"
+                  style={{ background: "rgba(96,165,250,0.05)", borderBottom: "1px solid rgba(96,165,250,0.15)" }}>
+                  <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: "#60a5fa" }}>
+                    To Chain (Users Receive Here)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setChainSelectorSide("to"); setChainSelectorOpen(true); }}
+                    className="flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded-lg transition-colors"
+                    style={{ background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.25)", color: "#a78bfa" }}
+                  >
+                    <Database className="w-3 h-3" /> Select from Library
+                  </button>
                 </div>
                 <div className="p-4 space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -930,6 +982,13 @@ export function ExchangeManagement() {
           </div>
         </div>
       )}
+
+      <ChainSelector
+        open={chainSelectorOpen}
+        onClose={() => setChainSelectorOpen(false)}
+        onSelect={handleChainLibrarySelect}
+        title={chainSelectorSide === "from" ? "Select From Chain" : "Select To Chain"}
+      />
     </div>
   );
 }

@@ -16,10 +16,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X, ShoppingCart, Pin, PinOff, Server, Shield, Droplets, Globe, Settings2, Clock, ArrowUp, ArrowDown, Activity, CheckCircle2, XCircle, RefreshCw, Tv2, Search, Key, Copy } from "lucide-react";
+import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X, ShoppingCart, Pin, PinOff, Server, Shield, Droplets, Globe, Settings2, Clock, ArrowUp, ArrowDown, Activity, CheckCircle2, XCircle, RefreshCw, Tv2, Search, Key, Copy, Database } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { adminFetch } from "@/lib/auth";
 import { formatCooldown, secondsToHms, hmsToSeconds } from "@/lib/utils";
+import { ChainSelector } from "./ChainSelector";
+import type { MasterChain } from "./ChainSelector";
 
 const ALL_PAYMENT_NETWORKS = [
   { id: "eth",      name: "Ethereum Mainnet", chainId: 1 },
@@ -119,6 +121,7 @@ export function ChainManagement() {
   const [customPaymentNetworks, setCustomPaymentNetworks] = useState<{ id: string; name: string; chainId: number }[]>([]);
   const [systemWallet, setSystemWallet] = useState<{ configured: boolean; address: string | null; error?: string } | null>(null);
   const [copiedSysAddr, setCopiedSysAddr] = useState(false);
+  const [chainSelectorOpen, setChainSelectorOpen] = useState(false);
 
   useEffect(() => {
     adminFetch("/api/admin/system-wallet")
@@ -340,6 +343,23 @@ export function ChainManagement() {
     });
   };
 
+  const handleChainLibrarySelect = (chain: MasterChain) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      name: chain.name,
+      symbol: chain.symbol,
+      chainId: chain.chainId != null ? String(chain.chainId) : "",
+      chainType: chain.chainType,
+      logoUrl: chain.logoUrl ?? "",
+      isTestnet: chain.isTestnet,
+      explorerUrl: chain.explorerUrls[0] ?? prev.explorerUrl,
+    }));
+    if (chain.rpcUrls.length > 0) {
+      setRpcUrlsList(chain.rpcUrls);
+      setRpcHealth({});
+    }
+  };
+
   const enabledCurrencies = getEnabledCurrencies();
 
   return (
@@ -541,6 +561,17 @@ export function ChainManagement() {
           )}
 
           <div className="space-y-4 py-2">
+
+            {/* Select from Chain Library */}
+            <button
+              type="button"
+              onClick={() => setChainSelectorOpen(true)}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-mono font-bold transition-colors"
+              style={{ background: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.25)", color: "#a78bfa" }}
+            >
+              <Database className="w-4 h-4" />
+              Select from Chain Library
+            </button>
 
             {/* ── SECTION 1: Identity ── */}
             <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
@@ -1011,6 +1042,13 @@ export function ChainManagement() {
       </Dialog>
 
       {/* Delete Dialog */}
+      <ChainSelector
+        open={chainSelectorOpen}
+        onClose={() => setChainSelectorOpen(false)}
+        onSelect={handleChainLibrarySelect}
+        title="Select from Chain Library"
+      />
+
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <DialogContent className="sm:max-w-md bg-card border-border" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>

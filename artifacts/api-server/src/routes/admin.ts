@@ -845,4 +845,132 @@ router.post("/admin/restore", requireAdmin, async (req, res): Promise<void> => {
   res.json({ success: true, restored: summary });
 });
 
+// ─── Master Chain Library ─────────────────────────────────────────────────────
+
+function parseMasterChainRpcs(raw: string): string[] {
+  try { return JSON.parse(raw); } catch { return []; }
+}
+
+router.get("/admin/master-chains", async (_req, res): Promise<void> => {
+  const chains = await db.select().from(masterChainsTable).orderBy(masterChainsTable.name);
+  res.json(chains.map(c => ({
+    id: c.id,
+    name: c.name,
+    symbol: c.symbol,
+    chainId: c.chainId,
+    chainType: c.chainType,
+    logoUrl: c.logoUrl,
+    rpcUrls: parseMasterChainRpcs(c.rpcUrls),
+    explorerUrls: parseMasterChainRpcs(c.explorerUrls),
+    isTestnet: c.isTestnet,
+    createdAt: c.createdAt.toISOString(),
+  })));
+});
+
+router.post("/admin/master-chains/populate", async (_req, res): Promise<void> => {
+  const existing = await db.select().from(masterChainsTable);
+  const existingKeys = new Set(existing.map(c => `${c.name}::${String(c.chainId ?? "")}`));
+  let added = 0;
+
+  const faucetChains = await db.select().from(chainsTable);
+  for (const c of faucetChains) {
+    const key = `${c.name}::${String(c.chainId ?? "")}`;
+    if (existingKeys.has(key)) continue;
+    const rpcs = parseRpcUrls(c.rpcUrls, c.rpcUrl);
+    const explorers = c.explorerUrl ? [c.explorerUrl] : [];
+    await db.insert(masterChainsTable).values({
+      name: c.name,
+      symbol: c.symbol,
+      chainId: c.chainId ?? null,
+      chainType: c.chainType ?? "evm",
+      logoUrl: c.logoUrl ?? null,
+      rpcUrls: JSON.stringify(rpcs),
+      explorerUrls: JSON.stringify(explorers),
+      isTestnet: c.isTestnet ?? true,
+    });
+    existingKeys.add(key);
+    added++;
+  }
+
+  const pairs = await db.select().from(exchangePairsTable);
+  for (const p of pairs) {
+    for (const side of ["from", "to"] as const) {
+      const name = side === "from" ? p.fromChainName : p.toChainName;
+      const symbol = side === "from" ? p.fromSymbol : p.toSymbol;
+      const chainId = side === "from" ? p.fromChainId : p.toChainId;
+      const rpcUrl = side === "from" ? p.fromRpcUrl : p.toRpcUrl;
+      const rpcUrlsRaw = side === "from" ? p.fromRpcUrls : p.toRpcUrls;
+      const explorerUrl = side === "from" ? p.fromExplorerUrl : p.toExplorerUrl;
+      const logoUrl = side === "from" ? p.fromLogoUrl : p.toLogoUrl;
+      const key = `${name}::${String(chainId)}`;
+      if (existingKeys.has(key)) continue;
+      const rpcs = parseRpcUrls(rpcUrlsRaw ?? null, rpcUrl);
+      await db.insert(masterChainsTable).values({
+        name,
+        symbol,
+        chainId,
+        chainType: "evm",
+        logoUrl: logoUrl ?? null,
+        rpcUrls: JSON.stringify(rpcs),
+        explorerUrls: JSON.stringify(explorerUrl ? [explorerUrl] : []),
+        isTestnet: false,
+      });
+      existingKeys.add(key);
+      added++;
+    }
+  }
+
+  res.json({ ok: true, added });
+});
+
+router.post("/admin/master-chains", async (req, res): Promise<void> => {
+  const { name, symbol, chainId, chainType, logoUrl, rpcUrls, explorerUrls, isTestnet } = req.body as Record<string, unknown>;
+  if (!name || !symbol) { res.status(400).json({ error: "name and symbol are required" }); return; }
+  const [chain] = await db.insert(masterChainsTable).values({
+    name: String(name),
+    symbol: String(symbol),
+    chainId: chainId != null ? Number(chainId) : null,
+    chainType: chainType ? String(chainType) : "evm",
+    logoUrl: logoUrl ? String(logoUrl) : null,
+    rpcUrls: JSON.stringify(Array.isArray(rpcUrls) ? (rpcUrls as string[]).filter(Boolean) : []),
+    explorerUrls: JSON.stringify(Array.isArray(explorerUrls) ? (explorerUrls as string[]).filter(Boolean) : []),
+    isTestnet: Boolean(isTestnet ?? true),
+  }).returning();
+  res.status(201).json({
+    id: chain.id, name: chain.name, symbol: chain.symbol,
+    chainId: chain.chainId, chainType: chain.chainType, logoUrl: chain.logoUrl,
+    rpcUrls: parseMasterChainRpcs(chain.rpcUrls),
+    explorerUrls: parseMasterChainRpcs(chain.explorerUrls),
+    isTestnet: chain.isTestnet, createdAt: chain.createdAt.toISOString(),
+  });
+});
+
+router.patch("/admin/master-chains/:id", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  const { name, symbol, chainId, chainType, logoUrl, rpcUrls, explorerUrls, isTestnet } = req.body as Record<string, unknown>;
+  const upd: Record<string, unknown> = {};
+  if (name !== undefined) upd.name = String(name);
+  if (symbol !== undefined) upd.symbol = String(symbol);
+  if (chainId !== undefined) upd.chainId = chainId != null && chainId !== "" ? Number(chainId) : null;
+  if (chainType !== undefined) upd.chainType = String(chainType);
+  if (logoUrl !== undefined) upd.logoUrl = logoUrl ? String(logoUrl) : null;
+  if (rpcUrls !== undefined) upd.rpcUrls = JSON.stringify(Array.isArray(rpcUrls) ? (rpcUrls as string[]).filter(Boolean) : []);
+  if (explorerUrls !== undefined) upd.explorerUrls = JSON.stringify(Array.isArray(explorerUrls) ? (explorerUrls as string[]).filter(Boolean) : []);
+  if (isTestnet !== undefined) upd.isTestnet = Boolean(isTestnet);
+  const [chain] = await db.update(masterChainsTable).set(upd as any).where(eq(masterChainsTable.id, id)).returning();
+  if (!chain) { res.status(404).json({ error: "Not found" }); return; }
+  res.json({
+    id: chain.id, name: chain.name, symbol: chain.symbol,
+    chainId: chain.chainId, chainType: chain.chainType, logoUrl: chain.logoUrl,
+    rpcUrls: parseMasterChainRpcs(chain.rpcUrls),
+    explorerUrls: parseMasterChainRpcs(chain.explorerUrls),
+    isTestnet: chain.isTestnet, createdAt: chain.createdAt.toISOString(),
+  });
+});
+
+router.delete("/admin/master-chains/:id", async (req, res): Promise<void> => {
+  await db.delete(masterChainsTable).where(eq(masterChainsTable.id, Number(req.params.id)));
+  res.json({ ok: true });
+});
+
 export default router;

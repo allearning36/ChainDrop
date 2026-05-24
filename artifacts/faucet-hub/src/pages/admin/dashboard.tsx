@@ -7,7 +7,7 @@ import {
   LogOut, LayoutDashboard, Link as LinkIcon,
   HeadphonesIcon, ClipboardList, ShieldOff, Wallet,
   FileText, BarChart2, Settings2, Globe, Send, Users, Radio, ArrowLeftRight, Network, GitBranch,
-  Download, Upload, Loader2, Megaphone, ShieldAlert
+  Download, Upload, Loader2, Megaphone, ShieldAlert, Database,
 } from "lucide-react";
 import { StatsOverview } from "@/components/admin/Stats";
 import { ChainManagement } from "@/components/admin/ChainManagement";
@@ -25,6 +25,7 @@ import { LiveMonitor } from "@/components/admin/LiveMonitor";
 import { ExchangeManagement } from "@/components/admin/ExchangeManagement";
 import { PaymentNetworkManagement } from "@/components/admin/PaymentNetworkManagement";
 import { ReferralManagement } from "@/components/admin/ReferralManagement";
+import { ChainLibrary } from "@/components/admin/ChainLibrary";
 import { AdManagement } from "@/components/admin/AdManagement";
 import { AntiAbusePanel } from "@/components/admin/AntiAbusePanel";
 
@@ -156,6 +157,9 @@ export default function AdminDashboard() {
             <TabsTrigger value="audience" className={TAB} title="Audience">
               <Users className="w-3.5 h-3.5" /> Audience
             </TabsTrigger>
+            <TabsTrigger value="chain-library" className={TAB} title="Chain Library">
+              <Database className="w-3.5 h-3.5" /> Chain Library
+            </TabsTrigger>
             <TabsTrigger value="chains" className={TAB} title="Chains">
               <LinkIcon className="w-3.5 h-3.5" /> Chains
             </TabsTrigger>
@@ -211,6 +215,7 @@ export default function AdminDashboard() {
           <TabsContent value="stats" className="mt-0 outline-none"><StatsOverview /></TabsContent>
           <TabsContent value="analytics" className="mt-0 outline-none"><Analytics /></TabsContent>
           <TabsContent value="audience" className="mt-0 outline-none"><Audience /></TabsContent>
+          <TabsContent value="chain-library" className="mt-0 outline-none"><ChainLibrary /></TabsContent>
           <TabsContent value="chains" className="mt-0 outline-none"><ChainManagement /></TabsContent>
           <TabsContent value="wallets" className="mt-0 outline-none"><WalletHealth /></TabsContent>
           <TabsContent value="claims" className="mt-0 outline-none"><ClaimsLog /></TabsContent>
