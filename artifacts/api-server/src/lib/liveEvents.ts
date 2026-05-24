@@ -69,6 +69,17 @@ function classifyError(err: unknown): string {
     if (innerRpcMsg.includes("already known") || innerRpcMsg.includes("already imported")) return "TX_DUPLICATE";
   }
 
+  // SSL / TLS errors (e.g. wss:// handshake failure)
+  if (
+    msg.includes("eproto") ||
+    msg.includes("ssl alert") ||
+    msg.includes("tls alert") ||
+    msg.includes("handshake failure") ||
+    msg.includes("ssl routines") ||
+    msg.includes("ssl3_read_bytes") ||
+    (msg.includes("ssl") && msg.includes("error"))
+  ) return "SSL_TLS_ERROR";
+
   // Node.js / HTTP network errors
   if (msg.includes("econnreset") || msg.includes("socket hang up")) return "RPC_DISCONNECTED";
   if (msg.includes("econnrefused")) return "RPC_REFUSED";
@@ -106,6 +117,7 @@ interface ErrorMeta { detail: string; hint: string }
 
 function getErrorMeta(cause: string): ErrorMeta {
   const map: Record<string, ErrorMeta> = {
+    SSL_TLS_ERROR:           { detail: "RPC-এর সাথে SSL/TLS handshake ব্যর্থ হয়েছে — wss:// endpoint টি সঠিক certificate দিচ্ছে না বা version mismatch", hint: "এই chain-এ wss:// এর বদলে https:// RPC URL ব্যবহার করুন, অথবা ভিন্ন RPC endpoint নির্বাচন করুন" },
     RPC_DISCONNECTED:        { detail: "RPC সংযোগ মাঝপথে বিচ্ছিন্ন হয়েছে (socket hang up / ECONNRESET)",          hint: "Admin → Chain Management থেকে RPC URL পরিবর্তন করুন বা পরে আবার চেষ্টা করুন" },
     RPC_REFUSED:             { detail: "RPC সার্ভার সংযোগ প্রত্যাখ্যান করেছে (ECONNREFUSED) — সম্ভবত port বা host ভুল", hint: "Admin → Chain Management থেকে RPC URL যাচাই করুন" },
     RPC_INVALID_URL:         { detail: "RPC URL-এর domain খোঁজা যাচ্ছে না (ENOTFOUND) — URL ভুল বা typo আছে",        hint: "Admin → Chain Management থেকে RPC URL ঠিক করুন" },

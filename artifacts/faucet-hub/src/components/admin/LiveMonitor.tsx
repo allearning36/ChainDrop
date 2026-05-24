@@ -49,7 +49,7 @@ const LIVE_EVENTS_KEY = "chainDrop_liveEvents";
 
 function loadStoredEvents(): LiveEvent[] {
   try {
-    const raw = sessionStorage.getItem(LIVE_EVENTS_KEY);
+    const raw = localStorage.getItem(LIVE_EVENTS_KEY);
     return raw ? (JSON.parse(raw) as LiveEvent[]) : [];
   } catch { return []; }
 }
@@ -78,7 +78,7 @@ export function LiveMonitor() {
           const liveIds = new Set(live.map(e => e.id));
           const fresh = hist.filter(h => !liveIds.has(h.id));
           const next = [...live, ...fresh].slice(0, 300);
-          try { sessionStorage.setItem(LIVE_EVENTS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+          try { localStorage.setItem(LIVE_EVENTS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
           return next;
         });
         setHistoryLoaded(true);
@@ -126,7 +126,7 @@ export function LiveMonitor() {
             const historical = prev.filter(p => p.historical);
             const live = prev.filter(p => !p.historical);
             const next = [event, ...live, ...historical].slice(0, 300);
-            try { sessionStorage.setItem(LIVE_EVENTS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+            try { localStorage.setItem(LIVE_EVENTS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
             return next;
           });
         } catch { /* ignore */ }
@@ -172,7 +172,7 @@ export function LiveMonitor() {
           <Button size="sm" variant="outline" onClick={togglePause} className="font-mono text-xs h-7 px-2">
             {paused ? <><Activity className="w-3 h-3 mr-1" />Resume</> : <><Zap className="w-3 h-3 mr-1" />Pause</>}
           </Button>
-          <Button size="sm" variant="outline" onClick={() => { setEvents([]); try { sessionStorage.removeItem(LIVE_EVENTS_KEY); } catch { /* ignore */ } }} className="font-mono text-xs h-7 px-2 text-muted-foreground">
+          <Button size="sm" variant="outline" onClick={() => { setEvents([]); try { localStorage.removeItem(LIVE_EVENTS_KEY); } catch { /* ignore */ } }} className="font-mono text-xs h-7 px-2 text-muted-foreground">
             <Trash2 className="w-3 h-3 mr-1" />Clear
           </Button>
         </div>
