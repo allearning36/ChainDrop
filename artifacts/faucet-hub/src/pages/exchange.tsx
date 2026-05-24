@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { WalletSelector } from "@/components/home/WalletSelector";
+import { restoreWalletConnectSession } from "@/lib/walletConnect";
 import {
   ArrowLeftRight, ArrowUpDown, Wallet, Loader2, CheckCircle2, AlertCircle,
   ExternalLink, ChevronDown, X, RefreshCw, ArrowLeft, Search, LogOut, Copy, Check,
@@ -405,7 +406,7 @@ export default function ExchangePage() {
       if (type === "injected" && window.ethereum) {
         (window.ethereum as any).request({ method: "eth_accounts" })
           .then((accounts: string[]) => {
-            const match = accounts.find(a => a.toLowerCase() === address.toLowerCase());
+            const match = accounts.find((a: string) => a.toLowerCase() === address.toLowerCase());
             if (match) {
               setWalletAddress(match);
               setWalletProvider(window.ethereum);
@@ -414,9 +415,19 @@ export default function ExchangePage() {
             }
           })
           .catch(() => localStorage.removeItem(WALLET_STORAGE_KEY));
-      } else {
-        // WalletConnect session — restore address optimistically; tx will fail if actually disconnected
-        setWalletAddress(address);
+      } else if (type === "walletconnect") {
+        // Restore WalletConnect session silently — SDK uses stored session from localStorage
+        restoreWalletConnectSession()
+          .then((result) => {
+            if (result && result.address.toLowerCase() === address.toLowerCase()) {
+              setWalletAddress(result.address);
+              setWalletProvider(result.provider);
+            } else {
+              // Session expired — clear so user knows to reconnect
+              localStorage.removeItem(WALLET_STORAGE_KEY);
+            }
+          })
+          .catch(() => localStorage.removeItem(WALLET_STORAGE_KEY));
       }
     } catch {
       localStorage.removeItem(WALLET_STORAGE_KEY);

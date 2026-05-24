@@ -64,6 +64,42 @@ export async function disconnectWalletConnect(): Promise<void> {
   }
 }
 
+/** Restore an existing WalletConnect session after page refresh (no new QR/pairing needed) */
+export async function restoreWalletConnectSession(): Promise<{
+  provider: EthereumProvider;
+  address: string;
+} | null> {
+  if (!PROJECT_ID) return null;
+  try {
+    const provider = await EthereumProvider.init({
+      projectId: PROJECT_ID,
+      chains: [1],
+      optionalChains: [8453, 42161, 10, 137] as [number, ...number[]],
+      methods: [
+        "eth_sendTransaction",
+        "personal_sign",
+        "eth_signTypedData_v4",
+        "wallet_switchEthereumChain",
+        "wallet_addEthereumChain",
+      ],
+      showQrModal: false,
+      metadata: {
+        name: "ChainDrop Faucet",
+        description: "Multi-chain testnet faucet",
+        url: window.location.origin,
+        icons: [`${window.location.origin}/favicon.ico`],
+      },
+    });
+    if (provider.connected && provider.accounts && provider.accounts.length > 0) {
+      _provider = provider;
+      return { provider, address: provider.accounts[0] };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function hasWalletConnectProjectId(): boolean {
   return !!PROJECT_ID;
 }
