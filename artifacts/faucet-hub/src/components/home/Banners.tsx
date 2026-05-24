@@ -50,15 +50,8 @@ export function Banners() {
               willChange: "transform",
             }}
           >
-            {activeBanners.map((banner, i) => (
-              <a
-                key={banner.id}
-                href={banner.linkUrl || "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="relative block shrink-0"
-                style={{ width: `${100 / activeBanners.length}%` }}
-              >
+            {activeBanners.map((banner, i) => {
+              const inner = (
                 <img
                   src={banner.imageUrl}
                   alt={banner.altText || "Ad banner"}
@@ -66,8 +59,28 @@ export function Banners() {
                   draggable={false}
                   key={i}
                 />
-              </a>
-            ))}
+              );
+              return banner.linkUrl ? (
+                <a
+                  key={banner.id}
+                  href={banner.linkUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="relative block shrink-0"
+                  style={{ width: `${100 / activeBanners.length}%` }}
+                >
+                  {inner}
+                </a>
+              ) : (
+                <div
+                  key={banner.id}
+                  className="relative block shrink-0"
+                  style={{ width: `${100 / activeBanners.length}%` }}
+                >
+                  {inner}
+                </div>
+              );
+            })}
           </div>
 
           {/* Gradient overlay */}
