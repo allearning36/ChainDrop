@@ -90,11 +90,17 @@ export async function restoreWalletConnectSession(): Promise<{
         icons: [`${window.location.origin}/favicon.ico`],
       },
     });
-    if (provider.connected && provider.accounts && provider.accounts.length > 0) {
-      _provider = provider;
-      return { provider, address: provider.accounts[0] };
-    }
-    return null;
+
+    // WalletConnect v2: use provider.session to check for a stored session,
+    // then call enable() to get the accounts — provider.connected alone is
+    // unreliable immediately after init().
+    if (!provider.session) return null;
+
+    const accounts = await provider.enable();
+    if (!accounts || accounts.length === 0) return null;
+
+    _provider = provider;
+    return { provider, address: accounts[0] };
   } catch {
     return null;
   }
