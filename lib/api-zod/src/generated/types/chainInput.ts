@@ -49,5 +49,7 @@ export interface ChainInput {
   adNetworkCode?: string;
   /** Seconds between ad watches per address (0 = no cooldown) */
   adCooldownSeconds?: number;
+  /** Whether reCAPTCHA is required to claim this chain (default: true) */
+  captchaEnabled?: boolean;
   sortOrder?: number;
 }

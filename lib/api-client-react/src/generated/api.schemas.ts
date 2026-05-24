@@ -104,6 +104,8 @@ export interface ChainPublic {
   soonMessage?: string | null;
   adClaimEnabled?: boolean;
   adDurationSeconds?: number;
+  /** Whether reCAPTCHA is required to claim this chain (default: true) */
+  captchaEnabled?: boolean;
   sortOrder: number;
 }
 
@@ -248,6 +250,8 @@ export interface ChainAdmin {
   adNetworkCode?: string | null;
   /** Seconds between ad watches per address (0 = no cooldown) */
   adCooldownSeconds?: number;
+  /** Whether reCAPTCHA is required to claim this chain (default: true) */
+  captchaEnabled?: boolean;
   sortOrder: number;
   createdAt: string;
 }
@@ -305,6 +309,8 @@ export interface ChainInput {
   adNetworkCode?: string;
   /** Seconds between ad watches per address (0 = no cooldown) */
   adCooldownSeconds?: number;
+  /** Whether reCAPTCHA is required to claim this chain (default: true) */
+  captchaEnabled?: boolean;
   sortOrder?: number;
 }
 
@@ -361,6 +367,8 @@ export interface ChainUpdate {
   adNetworkCode?: string;
   /** Seconds between ad watches per address (0 = no cooldown) */
   adCooldownSeconds?: number;
+  /** Whether reCAPTCHA is required to claim this chain (default: true) */
+  captchaEnabled?: boolean;
   sortOrder?: number;
 }
 

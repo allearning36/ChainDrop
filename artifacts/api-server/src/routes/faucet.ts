@@ -45,14 +45,6 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
   const { chainId, address, captchaToken } = parsed.data;
   const clientIp = getClientIp(req);
 
-  // CAPTCHA verification
-  const captchaValid = await verifyCaptcha(captchaToken ?? "");
-  if (!captchaValid) {
-    broadcast({ type: "claim_error", chainId, address, ip: clientIp, error: "CAPTCHA failed", rootCause: "CAPTCHA_FAILED", detail: "reCAPTCHA verification failed" });
-    res.status(400).json({ error: "CAPTCHA verification failed. Please try again." });
-    return;
-  }
-
   // Check maintenance mode
   try {
     const [maintenanceSetting] = await db.select().from(settingsTable).where(eq(settingsTable.key, "maintenanceMode")).limit(1);
@@ -203,6 +195,16 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
   if (!chain) {
     res.status(404).json({ error: "Chain not found or disabled" });
     return;
+  }
+
+  // CAPTCHA verification — only if this chain has captchaEnabled (default: true)
+  if (chain.captchaEnabled !== false) {
+    const captchaValid = await verifyCaptcha(captchaToken ?? "");
+    if (!captchaValid) {
+      broadcast({ type: "claim_error", chainId, address, ip: clientIp, error: "CAPTCHA failed", rootCause: "CAPTCHA_FAILED", detail: "reCAPTCHA verification failed" });
+      res.status(400).json({ error: "CAPTCHA verification failed. Please try again." });
+      return;
+    }
   }
 
   if (chain.availableStatus === "NO") {

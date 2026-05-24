@@ -97,6 +97,7 @@ const DEFAULT_CHAIN = {
   adDurationSeconds: 30,
   adCooldownSeconds: 0,
   adNetworkCode: "",
+  captchaEnabled: true,
   sortOrder: 0
 };
 
@@ -267,6 +268,7 @@ export function ChainManagement() {
       adDurationSeconds: (chain as any).adDurationSeconds ?? 30,
       adCooldownSeconds: (chain as any).adCooldownSeconds ?? 0,
       adNetworkCode: (chain as any).adNetworkCode ?? "",
+      captchaEnabled: (chain as any).captchaEnabled !== false,
     });
     setFormError("");
     setIsFormOpen(true);
@@ -808,6 +810,25 @@ export function ChainManagement() {
                   Enable Buy to let users purchase testnet tokens with real ETH.
                 </div>
               )}
+            </div>
+
+            {/* ── SECTION 5a2: CAPTCHA ── */}
+            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(99,102,241,0.2)" }}>
+              <div className="flex items-center justify-between px-4 py-2.5" style={{ background: "rgba(99,102,241,0.05)", borderBottom: "1px solid rgba(99,102,241,0.15)" }}>
+                <div className="flex items-center gap-2.5">
+                  <Shield className="w-3.5 h-3.5" style={{ color: "#818cf8" }} />
+                  <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: "#818cf8" }}>reCAPTCHA</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-muted-foreground">{formData.captchaEnabled ? "ON" : "OFF"}</span>
+                  <Switch checked={!!formData.captchaEnabled} onCheckedChange={c => setFormData({...formData, captchaEnabled: c})} />
+                </div>
+              </div>
+              <div className="px-4 py-3 text-[11px] font-mono text-muted-foreground">
+                {formData.captchaEnabled
+                  ? "Users must complete a reCAPTCHA challenge before claiming this chain."
+                  : "CAPTCHA is OFF — users can claim without solving a challenge. Faster UX but higher bot risk."}
+              </div>
             </div>
 
             {/* ── SECTION 5b: Ad Claim Feature ── */}

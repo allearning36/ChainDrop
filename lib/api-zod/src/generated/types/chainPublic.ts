@@ -47,5 +47,7 @@ export interface ChainPublic {
   soonMessage?: string | null;
   adClaimEnabled?: boolean;
   adDurationSeconds?: number;
+  /** Whether reCAPTCHA is required to claim this chain (default: true) */
+  captchaEnabled?: boolean;
   sortOrder: number;
 }

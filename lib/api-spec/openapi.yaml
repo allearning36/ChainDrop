@@ -1258,6 +1258,9 @@ components:
           type: boolean
         adDurationSeconds:
           type: integer
+        captchaEnabled:
+          type: boolean
+          description: "Whether reCAPTCHA is required to claim this chain (default: true)"
         sortOrder:
           type: integer
 
@@ -1407,6 +1410,9 @@ components:
         adCooldownSeconds:
           type: integer
           description: "Seconds between ad watches per address (0 = no cooldown)"
+        captchaEnabled:
+          type: boolean
+          description: "Whether reCAPTCHA is required to claim this chain (default: true)"
         sortOrder:
           type: integer
         createdAt:
@@ -1487,6 +1493,9 @@ components:
         adCooldownSeconds:
           type: integer
           description: "Seconds between ad watches per address (0 = no cooldown)"
+        captchaEnabled:
+          type: boolean
+          description: "Whether reCAPTCHA is required to claim this chain (default: true)"
         sortOrder:
           type: integer
 
@@ -1563,6 +1572,9 @@ components:
         adCooldownSeconds:
           type: integer
           description: "Seconds between ad watches per address (0 = no cooldown)"
+        captchaEnabled:
+          type: boolean
+          description: "Whether reCAPTCHA is required to claim this chain (default: true)"
         sortOrder:
           type: integer
 

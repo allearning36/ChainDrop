@@ -37,6 +37,7 @@ export const chainsTable = pgTable("chains", {
   adDurationSeconds: integer("ad_duration_seconds").notNull().default(30),
   adCooldownSeconds: integer("ad_cooldown_seconds").notNull().default(0),
   adNetworkCode: text("ad_network_code"),
+  captchaEnabled: boolean("captcha_enabled").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

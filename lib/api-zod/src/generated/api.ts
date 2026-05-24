@@ -47,6 +47,7 @@ export const GetChainsResponseItem = zod.object({
   "soonMessage": zod.string().nullish(),
   "adClaimEnabled": zod.boolean().optional(),
   "adDurationSeconds": zod.number().optional(),
+  "captchaEnabled": zod.boolean().optional().describe('Whether reCAPTCHA is required to claim this chain (default: true)'),
   "sortOrder": zod.number()
 })
 export const GetChainsResponse = zod.array(GetChainsResponseItem)
@@ -668,6 +669,7 @@ export const GetAdminChainsResponseItem = zod.object({
   "adDurationSeconds": zod.number().optional(),
   "adNetworkCode": zod.string().nullish().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
   "adCooldownSeconds": zod.number().optional().describe('Seconds between ad watches per address (0 = no cooldown)'),
+  "captchaEnabled": zod.boolean().optional().describe('Whether reCAPTCHA is required to claim this chain (default: true)'),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date()
 })
@@ -710,6 +712,7 @@ export const CreateChainBody = zod.object({
   "adDurationSeconds": zod.number().optional(),
   "adNetworkCode": zod.string().optional().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
   "adCooldownSeconds": zod.number().optional().describe('Seconds between ad watches per address (0 = no cooldown)'),
+  "captchaEnabled": zod.boolean().optional().describe('Whether reCAPTCHA is required to claim this chain (default: true)'),
   "sortOrder": zod.number().optional()
 })
 
@@ -770,6 +773,7 @@ export const UpdateChainBody = zod.object({
   "adDurationSeconds": zod.number().optional(),
   "adNetworkCode": zod.string().optional().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
   "adCooldownSeconds": zod.number().optional().describe('Seconds between ad watches per address (0 = no cooldown)'),
+  "captchaEnabled": zod.boolean().optional().describe('Whether reCAPTCHA is required to claim this chain (default: true)'),
   "sortOrder": zod.number().optional()
 })
 
@@ -807,6 +811,7 @@ export const UpdateChainResponse = zod.object({
   "adDurationSeconds": zod.number().optional(),
   "adNetworkCode": zod.string().nullish().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
   "adCooldownSeconds": zod.number().optional().describe('Seconds between ad watches per address (0 = no cooldown)'),
+  "captchaEnabled": zod.boolean().optional().describe('Whether reCAPTCHA is required to claim this chain (default: true)'),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date()
 })

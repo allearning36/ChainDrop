@@ -184,7 +184,8 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   }, [step, adWatchCountdown]);
 
   const handleClaim = useCallback(async () => {
-    if (!chain || !debouncedAddress || !captchaToken) return;
+    const needsCaptcha = (chain as any)?.captchaEnabled !== false;
+    if (!chain || !debouncedAddress || (needsCaptcha && !captchaToken)) return;
     setErrorMsg("");
 
     // Collect fingerprint + timezone silently
@@ -291,7 +292,8 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   // Derived states
   const addressValid = isValidAddressForChain(address, chainType);
   const inCooldown = !!debouncedAddress && !!status && !status.canClaim;
-  const canSubmit = addressValid && !inCooldown && !isStatusLoading && !!captchaToken;
+  const chainCaptchaEnabled = (chain as any).captchaEnabled !== false;
+  const canSubmit = addressValid && !inCooldown && !isStatusLoading && (chainCaptchaEnabled ? !!captchaToken : true);
 
   const explorerUrl = getTxExplorerUrl(chainType, chain.isTestnet, txHash, chain.explorerUrl);
 
@@ -437,8 +439,8 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                   </>
                 )}
 
-                {/* reCAPTCHA — shown when address is valid and not in cooldown */}
-                {addressValid && !inCooldown && (
+                {/* reCAPTCHA — only when chain requires it AND address is valid and not in cooldown */}
+                {chainCaptchaEnabled && addressValid && !inCooldown && (
                   <div className="flex flex-col items-center gap-1.5">
                     {captchaExpired && (
                       <div className="flex items-center gap-1.5 text-xs font-mono px-2.5 py-1.5 rounded-lg w-full" style={{ background: "rgba(251,191,36,0.08)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.2)" }}>
