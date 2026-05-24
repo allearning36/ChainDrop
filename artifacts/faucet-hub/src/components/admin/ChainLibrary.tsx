@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { adminFetch } from "@/lib/auth";
 import {
   Database, Plus, Edit2, Trash2, Search, X, Loader2, AlertCircle,
-  ArrowUp, ArrowDown, Save, Upload,
+  ArrowUp, ArrowDown, Save, Upload, Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +37,26 @@ export function ChainLibrary() {
   const [popResult, setPopResult] = useState("");
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const logoFileRef = useRef<HTMLInputElement>(null);
+  const [rpcHealth, setRpcHealth] = useState<Record<string, { status: "ok" | "error"; latencyMs: number }>>({});
+  const [checkingHealth, setCheckingHealth] = useState(false);
+
+  const handleCheckHealth = async () => {
+    if (!editId) return;
+    setCheckingHealth(true);
+    setRpcHealth({});
+    try {
+      const res = await adminFetch(`/api/admin/master-chains/${editId}/rpc-health`);
+      if (!res.ok) throw new Error();
+      const data = await res.json() as Array<{ url: string; status: "ok" | "error"; latencyMs: number }>;
+      const map: Record<string, { status: "ok" | "error"; latencyMs: number }> = {};
+      for (const d of data) map[d.url] = d;
+      setRpcHealth(map);
+    } catch {
+      setError("RPC health check failed.");
+    } finally {
+      setCheckingHealth(false);
+    }
+  };
 
   const handleLogoUpload = async (file: File) => {
     setUploadingLogo(true);
@@ -380,39 +400,69 @@ export function ChainLibrary() {
                   <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: "#22c55e" }}>
                     RPC Endpoints <span className="text-destructive">*</span>
                   </span>
-                  <button onClick={() => setForm(f => ({ ...f, rpcUrls: [...f.rpcUrls, ""] }))}
-                    className="text-[10px] font-mono flex items-center gap-1" style={{ color: "#22c55e" }}>
-                    <Plus className="w-3 h-3" /> Add RPC
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {editId && (
+                      <button
+                        type="button"
+                        onClick={handleCheckHealth}
+                        disabled={checkingHealth}
+                        className="text-[10px] font-mono flex items-center gap-1 px-2 py-0.5 rounded-md transition-colors"
+                        style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)", color: "#22c55e" }}
+                      >
+                        {checkingHealth
+                          ? <Loader2 className="w-3 h-3 animate-spin" />
+                          : <Activity className="w-3 h-3" />}
+                        {checkingHealth ? "Checking…" : "Check RPC"}
+                      </button>
+                    )}
+                    <button onClick={() => setForm(f => ({ ...f, rpcUrls: [...f.rpcUrls, ""] }))}
+                      className="text-[10px] font-mono flex items-center gap-1" style={{ color: "#22c55e" }}>
+                      <Plus className="w-3 h-3" /> Add RPC
+                    </button>
+                  </div>
                 </div>
                 <div className="p-4 space-y-2">
-                  {form.rpcUrls.map((url, i) => (
-                    <div key={i} className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-mono text-muted-foreground w-14 shrink-0 text-right">
-                        {i === 0 ? "Primary" : `Fallback ${i}`}
-                      </span>
-                      <Input value={url} onChange={e => setRpcUrl(i, e.target.value)}
-                        placeholder="https://rpc.example.com" className="font-mono text-xs h-8 flex-1" />
-                      <div className="flex gap-0.5 shrink-0">
-                        {i > 0 && (
-                          <button onClick={() => moveRpc(i, -1)} className="p-1 rounded hover:bg-white/10">
-                            <ArrowUp className="w-3 h-3 text-muted-foreground" />
-                          </button>
+                  {form.rpcUrls.map((url, i) => {
+                    const h = rpcHealth[url];
+                    return (
+                      <div key={i} className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-mono text-muted-foreground w-14 shrink-0 text-right">
+                          {i === 0 ? "Primary" : `Fallback ${i}`}
+                        </span>
+                        <Input value={url} onChange={e => { setRpcUrl(i, e.target.value); setRpcHealth({}); }}
+                          placeholder="https://rpc.example.com" className="font-mono text-xs h-8 flex-1" />
+                        {h && (
+                          <span
+                            className="text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0"
+                            style={{
+                              background: h.status === "ok" ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
+                              color: h.status === "ok" ? "#22c55e" : "#f87171",
+                            }}
+                          >
+                            {h.status === "ok" ? `✓ ${h.latencyMs}ms` : "✗ Down"}
+                          </span>
                         )}
-                        {i < form.rpcUrls.length - 1 && (
-                          <button onClick={() => moveRpc(i, 1)} className="p-1 rounded hover:bg-white/10">
-                            <ArrowDown className="w-3 h-3 text-muted-foreground" />
-                          </button>
-                        )}
-                        {form.rpcUrls.length > 1 && (
-                          <button onClick={() => setForm(f => ({ ...f, rpcUrls: f.rpcUrls.filter((_, j) => j !== i) }))}
-                            className="p-1 rounded hover:bg-red-500/10">
-                            <X className="w-3 h-3 text-red-400" />
-                          </button>
-                        )}
+                        <div className="flex gap-0.5 shrink-0">
+                          {i > 0 && (
+                            <button onClick={() => moveRpc(i, -1)} className="p-1 rounded hover:bg-white/10">
+                              <ArrowUp className="w-3 h-3 text-muted-foreground" />
+                            </button>
+                          )}
+                          {i < form.rpcUrls.length - 1 && (
+                            <button onClick={() => moveRpc(i, 1)} className="p-1 rounded hover:bg-white/10">
+                              <ArrowDown className="w-3 h-3 text-muted-foreground" />
+                            </button>
+                          )}
+                          {form.rpcUrls.length > 1 && (
+                            <button onClick={() => setForm(f => ({ ...f, rpcUrls: f.rpcUrls.filter((_, j) => j !== i) }))}
+                              className="p-1 rounded hover:bg-red-500/10">
+                              <X className="w-3 h-3 text-red-400" />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

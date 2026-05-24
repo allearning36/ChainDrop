@@ -973,4 +973,15 @@ router.delete("/admin/master-chains/:id", async (req, res): Promise<void> => {
   res.json({ ok: true });
 });
 
+router.get("/admin/master-chains/:id/rpc-health", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) { res.status(400).json({ error: "Invalid id" }); return; }
+  const [chain] = await db.select().from(masterChainsTable).where(eq(masterChainsTable.id, id));
+  if (!chain) { res.status(404).json({ error: "Not found" }); return; }
+  const urls: string[] = Array.isArray(chain.rpcUrls) ? chain.rpcUrls as string[] : [];
+  if (urls.length === 0) { res.json([]); return; }
+  const results = await Promise.all(urls.map((url) => checkRpcHealth(url)));
+  res.json(results);
+});
+
 export default router;
