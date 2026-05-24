@@ -120,7 +120,10 @@ app.use(
   }),
 );
 
-app.use(globalLimiter);
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/admin/") || req.path.startsWith("/api/uploads/")) return next();
+  return globalLimiter(req, res, next);
+});
 // Explicit body size limits to prevent payload-flooding attacks
 app.use(express.json({ limit: "50kb" }));
 app.use(express.urlencoded({ limit: "50kb", extended: true }));
