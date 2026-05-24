@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { adminFetch } from "@/lib/auth";
 import {
   Database, Plus, Edit2, Trash2, Search, X, Loader2, AlertCircle,
-  ArrowUp, ArrowDown, Save,
+  ArrowUp, ArrowDown, Save, Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,24 @@ export function ChainLibrary() {
   const [deleting, setDeleting] = useState<number | null>(null);
   const [populating, setPopulating] = useState(false);
   const [popResult, setPopResult] = useState("");
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoFileRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoUpload = async (file: File) => {
+    setUploadingLogo(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await adminFetch("/api/admin/upload", { method: "POST", body: fd });
+      if (!res.ok) throw new Error("Upload failed");
+      const d = await res.json() as { url: string };
+      setForm(f => ({ ...f, logoUrl: d.url }));
+    } catch {
+      setError("Logo upload failed. Try pasting a URL instead.");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
   const fetchChains = async () => {
     const res = await adminFetch("/api/admin/master-chains");
@@ -318,8 +336,34 @@ export function ChainLibrary() {
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">Logo URL</Label>
-                      <Input value={form.logoUrl} onChange={e => setForm(f => ({ ...f, logoUrl: e.target.value }))}
-                        placeholder="https://…" className="font-mono text-xs h-9" />
+                      <div className="flex items-center gap-2">
+                        <Input value={form.logoUrl} onChange={e => setForm(f => ({ ...f, logoUrl: e.target.value }))}
+                          placeholder="https://…" className="font-mono text-xs h-9 flex-1" />
+                        <button
+                          type="button"
+                          onClick={() => logoFileRef.current?.click()}
+                          disabled={uploadingLogo}
+                          className="flex items-center gap-1 px-2.5 h-9 rounded-lg text-[11px] font-mono shrink-0 transition-colors"
+                          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)" }}
+                        >
+                          {uploadingLogo
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <Upload className="w-3.5 h-3.5" />}
+                          Upload
+                        </button>
+                        {form.logoUrl && (
+                          <img src={form.logoUrl} alt="" className="w-8 h-8 rounded-full object-contain shrink-0"
+                            style={{ background: "rgba(255,255,255,0.08)" }}
+                            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                        )}
+                      </div>
+                      <input
+                        ref={logoFileRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => { if (e.target.files?.[0]) handleLogoUpload(e.target.files[0]); e.target.value = ""; }}
+                      />
                     </div>
                     <div className="flex items-center gap-3 pt-5">
                       <Switch checked={form.isTestnet} onCheckedChange={c => setForm(f => ({ ...f, isTestnet: c }))} />
