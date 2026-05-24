@@ -4,6 +4,7 @@ import { Footer } from "@/components/layout/Footer";
 import { SEOHead } from "@/components/layout/SEOHead";
 import { AdSlot } from "@/components/layout/AdSlot";
 import { HeadlineBanner } from "@/components/home/HeadlineBanner";
+import { HeroSection } from "@/components/home/HeroSection";
 import { Banners } from "@/components/home/Banners";
 import { ChainCard } from "@/components/home/ChainCard";
 import { RecentFeed } from "@/components/home/RecentFeed";
@@ -61,6 +62,7 @@ export default function Home() {
       <SEOHead />
       <Navbar />
       <HeadlineBanner />
+      <HeroSection totalChains={testnetChains.length + mainnetChains.length} />
 
       {/* Premium Search bar */}
       <div className="w-full px-4 py-5 relative" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
