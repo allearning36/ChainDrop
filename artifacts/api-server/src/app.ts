@@ -8,6 +8,21 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { globalLimiter } from "./lib/rateLimiters";
 
+// ── Honeypot: paths that only scanners/bots would hit ─────────────────────────
+const HONEYPOT_PATHS = [
+  "/wp-admin", "/wp-login", "/wordpress", "/.env", "/config.php",
+  "/phpinfo", "/admin.php", "/setup.php", "/install.php", "/xmlrpc.php",
+  "/api/debug", "/api/env", "/actuator", "/.git", "/server-status",
+  "/phpmyadmin", "/mysql", "/administrator", "/.aws", "/.ssh",
+  "/api/v1/debug", "/console", "/jmx-console", "/web-console",
+];
+// In-memory honeypot bans (ip → ban expiry timestamp). Single-process safe.
+const honeypotBans = new Map<string, number>();
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, exp] of honeypotBans) { if (now > exp) honeypotBans.delete(ip); }
+}, 10 * 60 * 1000);
+
 const app: Express = express();
 
 // Trust the first proxy hop (Replit's reverse proxy sets X-Forwarded-For).
@@ -32,14 +47,32 @@ app.use(helmet({
     },
   },
   crossOriginEmbedderPolicy: false,
-  crossOriginResourcePolicy: false,   // allow images/fonts served cross-origin
+  crossOriginResourcePolicy: false,
   crossOriginOpenerPolicy: false,
-  // Strict Transport Security — tell browsers to use HTTPS for 1 year
-  strictTransportSecurity: {
-    maxAge: 31_536_000,
-    includeSubDomains: true,
-  },
+  strictTransportSecurity: { maxAge: 31_536_000, includeSubDomains: true },
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
 }));
+
+// ── Honeypot trap — auto-ban scanners/bots ────────────────────────────────────
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const p = req.path.toLowerCase();
+  const triggered = HONEYPOT_PATHS.some(h => p === h || p.startsWith(h + "/"));
+  if (!triggered) return next();
+  const ip = (req.ip ?? req.socket?.remoteAddress ?? "").replace(/^::ffff:/, "");
+  honeypotBans.set(ip, Date.now() + 24 * 60 * 60 * 1000); // 24h ban
+  logger.warn({ ip, path: req.path }, "Honeypot triggered — IP banned 24h");
+  res.status(404).json({ error: "Not found" });
+});
+
+// ── Reject IPs banned by honeypot before they reach any API route ─────────────
+app.use("/api", (req: Request, res: Response, next: NextFunction) => {
+  const ip = (req.ip ?? req.socket?.remoteAddress ?? "").replace(/^::ffff:/, "");
+  const banExp = honeypotBans.get(ip);
+  if (banExp && Date.now() < banExp) {
+    return res.status(429).json({ error: "Too many requests." });
+  }
+  return next();
+});
 
 // ── CORS — restrict to own Replit domains + any extra origins in production ───
 const replitDomains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);

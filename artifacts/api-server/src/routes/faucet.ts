@@ -4,7 +4,7 @@ import { db, claimsTable, chainsTable, blockedAddressesTable, ipBlocksTable, set
 import { ClaimFaucetBody, GetFaucetStatusParams, RequestAdTokenBody, ClaimFaucetWithAdBody } from "@workspace/api-zod";
 import { sendTokens, isValidAddress, type ChainType } from "../lib/chains/index";
 import { parseRpcUrls } from "../lib/rpcFailover";
-import { claimLimiter } from "../lib/rateLimiters";
+import { claimLimiter, checkWalletRateLimit } from "../lib/rateLimiters";
 import { broadcast, broadcastError, classifyError, getErrorMeta } from "../lib/liveEvents";
 import { resolveChainPrivateKey } from "../lib/encryption";
 import { creditCommissions, getReferralSettings } from "../lib/referral";
@@ -44,6 +44,14 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
 
   const { chainId, address, captchaToken } = parsed.data;
   const clientIp = getClientIp(req);
+
+  // ── Per-wallet rate limit (independent of IP) ─────────────────────────────
+  const walletCheck = checkWalletRateLimit(address);
+  if (!walletCheck.allowed) {
+    const retryMins = Math.ceil(walletCheck.retryAfterMs / 60000);
+    res.status(429).json({ error: `Too many claim attempts for this wallet. Please wait ${retryMins} minute(s).` });
+    return;
+  }
 
   // Check maintenance mode
   try {
