@@ -28,6 +28,7 @@ import { ReferralManagement } from "@/components/admin/ReferralManagement";
 import { ChainLibrary } from "@/components/admin/ChainLibrary";
 import { AdManagement } from "@/components/admin/AdManagement";
 import { AntiAbusePanel } from "@/components/admin/AntiAbusePanel";
+import { AdminTabErrorBoundary } from "@/components/admin/ErrorBoundary";
 
 async function fetchUnreadCount(): Promise<number> {
   try {
@@ -211,27 +212,27 @@ export default function AdminDashboard() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="live" className="mt-0 outline-none"><LiveMonitor /></TabsContent>
-          <TabsContent value="stats" className="mt-0 outline-none"><StatsOverview /></TabsContent>
-          <TabsContent value="analytics" className="mt-0 outline-none"><Analytics /></TabsContent>
-          <TabsContent value="audience" className="mt-0 outline-none"><Audience /></TabsContent>
-          <TabsContent value="chain-library" className="mt-0 outline-none"><ChainLibrary /></TabsContent>
-          <TabsContent value="chains" className="mt-0 outline-none"><ChainManagement /></TabsContent>
-          <TabsContent value="wallets" className="mt-0 outline-none"><WalletHealth /></TabsContent>
-          <TabsContent value="claims" className="mt-0 outline-none"><ClaimsLog /></TabsContent>
-          <TabsContent value="blocked" className="mt-0 outline-none"><BlockedAddresses /></TabsContent>
-          <TabsContent value="ipblocks" className="mt-0 outline-none"><IPBlocking /></TabsContent>
-          <TabsContent value="post" className="mt-0 outline-none"><PostManagement /></TabsContent>
+          <TabsContent value="live" className="mt-0 outline-none"><AdminTabErrorBoundary label="Live Monitor"><LiveMonitor /></AdminTabErrorBoundary></TabsContent>
+          <TabsContent value="stats" className="mt-0 outline-none"><AdminTabErrorBoundary label="Stats"><StatsOverview /></AdminTabErrorBoundary></TabsContent>
+          <TabsContent value="analytics" className="mt-0 outline-none"><AdminTabErrorBoundary label="Analytics"><Analytics /></AdminTabErrorBoundary></TabsContent>
+          <TabsContent value="audience" className="mt-0 outline-none"><AdminTabErrorBoundary label="Audience"><Audience /></AdminTabErrorBoundary></TabsContent>
+          <TabsContent value="chain-library" className="mt-0 outline-none"><AdminTabErrorBoundary label="Chain Library"><ChainLibrary /></AdminTabErrorBoundary></TabsContent>
+          <TabsContent value="chains" className="mt-0 outline-none"><AdminTabErrorBoundary label="Chain Management"><ChainManagement /></AdminTabErrorBoundary></TabsContent>
+          <TabsContent value="wallets" className="mt-0 outline-none"><AdminTabErrorBoundary label="Wallet Health"><WalletHealth /></AdminTabErrorBoundary></TabsContent>
+          <TabsContent value="claims" className="mt-0 outline-none"><AdminTabErrorBoundary label="Claims Log"><ClaimsLog /></AdminTabErrorBoundary></TabsContent>
+          <TabsContent value="blocked" className="mt-0 outline-none"><AdminTabErrorBoundary label="Blocked Addresses"><BlockedAddresses /></AdminTabErrorBoundary></TabsContent>
+          <TabsContent value="ipblocks" className="mt-0 outline-none"><AdminTabErrorBoundary label="IP Blocking"><IPBlocking /></AdminTabErrorBoundary></TabsContent>
+          <TabsContent value="post" className="mt-0 outline-none"><AdminTabErrorBoundary label="Post Management"><PostManagement /></AdminTabErrorBoundary></TabsContent>
           <TabsContent value="support" className="mt-0 outline-none">
-            <SupportManagement onUnreadCount={setSupportUnread} />
+            <AdminTabErrorBoundary label="Support"><SupportManagement onUnreadCount={setSupportUnread} /></AdminTabErrorBoundary>
           </TabsContent>
-          <TabsContent value="pages" className="mt-0 outline-none"><PagesManagement /></TabsContent>
-          <TabsContent value="exchange" className="mt-0 outline-none"><ExchangeManagement /></TabsContent>
-          <TabsContent value="paynetworks" className="mt-0 outline-none"><PaymentNetworkManagement /></TabsContent>
-          <TabsContent value="referral" className="mt-0 outline-none"><ReferralManagement /></TabsContent>
-          <TabsContent value="ads" className="mt-0 outline-none"><AdManagement /></TabsContent>
-          <TabsContent value="antiabuse" className="mt-0 outline-none"><AntiAbusePanel /></TabsContent>
-          <TabsContent value="siteconfig" className="mt-0 outline-none"><SiteConfig /></TabsContent>
+          <TabsContent value="pages" className="mt-0 outline-none"><AdminTabErrorBoundary label="Pages"><PagesManagement /></AdminTabErrorBoundary></TabsContent>
+          <TabsContent value="exchange" className="mt-0 outline-none"><AdminTabErrorBoundary label="Exchange"><ExchangeManagement /></AdminTabErrorBoundary></TabsContent>
+          <TabsContent value="paynetworks" className="mt-0 outline-none"><AdminTabErrorBoundary label="Pay Networks"><PaymentNetworkManagement /></AdminTabErrorBoundary></TabsContent>
+          <TabsContent value="referral" className="mt-0 outline-none"><AdminTabErrorBoundary label="Referral"><ReferralManagement /></AdminTabErrorBoundary></TabsContent>
+          <TabsContent value="ads" className="mt-0 outline-none"><AdminTabErrorBoundary label="Ads"><AdManagement /></AdminTabErrorBoundary></TabsContent>
+          <TabsContent value="antiabuse" className="mt-0 outline-none"><AdminTabErrorBoundary label="Anti-Abuse"><AntiAbusePanel /></AdminTabErrorBoundary></TabsContent>
+          <TabsContent value="siteconfig" className="mt-0 outline-none"><AdminTabErrorBoundary label="Settings"><SiteConfig /></AdminTabErrorBoundary></TabsContent>
         </Tabs>
       </main>
     </div>

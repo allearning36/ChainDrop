@@ -1,6 +1,8 @@
 import { Router, type IRouter } from "express";
+import { desc, gte } from "drizzle-orm";
 import { requireAdmin } from "../lib/adminAuth";
 import { addClient, removeClient, clientCount } from "../lib/liveEvents";
+import { db, liveErrorLogsTable, claimsTable, chainsTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -64,6 +66,60 @@ router.get("/admin/live", (req, res): void => {
     clearInterval(heartbeat);
     removeClient(res);
   });
+});
+
+/** GET /admin/live-history — last 72h of errors + successful claims merged */
+router.get("/admin/live-history", requireAdmin, async (_req, res): Promise<void> => {
+  const since = new Date(Date.now() - 72 * 60 * 60 * 1000);
+
+  const [errors, claims, chains] = await Promise.all([
+    db.select().from(liveErrorLogsTable)
+      .where(gte(liveErrorLogsTable.ts, since))
+      .orderBy(desc(liveErrorLogsTable.ts))
+      .limit(200),
+    db.select().from(claimsTable)
+      .where(gte(claimsTable.claimedAt, since))
+      .orderBy(desc(claimsTable.claimedAt))
+      .limit(200),
+    db.select({ id: chainsTable.id, name: chainsTable.name, symbol: chainsTable.symbol }).from(chainsTable),
+  ]);
+
+  const chainMap = Object.fromEntries(chains.map(c => [c.id, c]));
+
+  const errorEvents = errors.map(e => ({
+    id: `db_err_${e.id}`,
+    type: e.type,
+    ts: e.ts.toISOString(),
+    chainId: e.chainId ?? undefined,
+    chainName: e.chainName ?? undefined,
+    address: e.address ?? undefined,
+    ip: e.ip ?? undefined,
+    error: e.error ?? undefined,
+    rootCause: e.rootCause ?? undefined,
+    detail: e.detail ?? undefined,
+    hint: e.hint ?? undefined,
+    historical: true,
+  }));
+
+  const successEvents = claims.map(c => ({
+    id: `db_claim_${c.id}`,
+    type: "claim_success" as const,
+    ts: c.claimedAt.toISOString(),
+    chainId: c.chainId,
+    chainName: chainMap[c.chainId]?.name,
+    address: c.address,
+    txHash: c.txHash,
+    amount: c.amount,
+    symbol: chainMap[c.chainId]?.symbol,
+    ip: c.ip ?? undefined,
+    historical: true,
+  }));
+
+  const merged = [...errorEvents, ...successEvents]
+    .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+    .slice(0, 300);
+
+  res.json(merged);
 });
 
 export default router;
