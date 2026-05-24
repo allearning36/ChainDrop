@@ -434,6 +434,25 @@ export default function ExchangePage() {
     }
   }, []);
 
+  // Fetch user balance whenever wallet address or from-chain pair changes (covers fresh connect + page restore)
+  useEffect(() => {
+    if (!walletAddress || !pair) { setUserBalance(null); return; }
+    fetch(pair.fromRpcUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getBalance", params: [walletAddress, "latest"] }),
+    })
+      .then(r => r.json())
+      .then((d: any) => {
+        if (d.result) {
+          const wei = BigInt(d.result);
+          const eth = Number(wei) / 1e18;
+          setUserBalance(eth.toFixed(6));
+        }
+      })
+      .catch(() => setUserBalance(null));
+  }, [walletAddress, pair?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleDisconnect = () => {
     setWalletAddress("");
     setWalletProvider(null);
@@ -449,24 +468,6 @@ export default function ExchangePage() {
     setWalletOpen(false);
     setStep("select");
     localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify({ address: addr, type }));
-    // Fetch user balance from fromChain RPC
-    setUserBalance(null);
-    if (pair) {
-      fetch(pair.fromRpcUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getBalance", params: [addr, "latest"] }),
-      })
-        .then(r => r.json())
-        .then((d: any) => {
-          if (d.result) {
-            const wei = BigInt(d.result);
-            const eth = Number(wei) / 1e18;
-            setUserBalance(eth.toFixed(6));
-          }
-        })
-        .catch(() => setUserBalance(null));
-    }
   };
 
   const handleInitiateOrder = async () => {
