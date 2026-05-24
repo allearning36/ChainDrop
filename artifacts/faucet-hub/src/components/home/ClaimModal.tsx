@@ -183,19 +183,24 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
     return () => clearTimeout(timer);
   }, [step, adWatchCountdown]);
 
-  // When modal opens in cooldown → restore last tx from localStorage and show result step
+  // When modal opens in cooldown → always show result step (restore txHash from localStorage if available)
   useEffect(() => {
     if (!chain || !debouncedAddress || !status || status.canClaim || step !== "input") return;
     try {
       const stored = localStorage.getItem(`cd:tx:${chain.id}:${debouncedAddress.toLowerCase()}`);
-      if (!stored) return;
-      const { txHash: storedHash, amount } = JSON.parse(stored);
-      if (storedHash) {
-        setTxHash(storedHash);
-        setClaimedAmount(amount ?? "");
-        setStep("result");
+      if (stored) {
+        const { txHash: storedHash, amount } = JSON.parse(stored);
+        setTxHash(storedHash ?? "");
+        setClaimedAmount(amount ?? chain.claimAmount);
+      } else {
+        setTxHash("");
+        setClaimedAmount(chain.claimAmount);
       }
-    } catch {}
+    } catch {
+      setTxHash("");
+      setClaimedAmount(chain.claimAmount);
+    }
+    setStep("result");
   }, [chain, debouncedAddress, status, step]);
 
   const handleClaim = useCallback(async () => {
