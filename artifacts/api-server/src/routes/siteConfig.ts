@@ -17,6 +17,16 @@ async function setSetting(key: string, value: object) {
     .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(value), updatedAt: new Date() } });
 }
 
+const DEFAULT_HERO = {
+  enabled: true,
+  size: "compact" as "compact" | "medium" | "large",
+  badge: "✦ Multi-Chain Faucet Hub",
+  headline: "Get Free Crypto Tokens",
+  headlineHighlight: "Instantly & For Free",
+  subtext: "Claim testnet & mainnet tokens across multiple chains. No registration, no fees — just your wallet address.",
+  showStats: true,
+};
+
 const DEFAULT_SOCIAL = { twitter: "", telegram: "", discord: "", github: "" };
 const DEFAULT_SEO = { title: "ChainDrop — Multi-Chain Crypto Faucet Hub", description: "Get free testnet crypto tokens from ChainDrop. Supports multiple EVM-compatible chains including Sepolia and more.", ogImage: "" };
 const DEFAULT_MAINTENANCE = { enabled: false, message: "We're currently performing maintenance. Please check back soon." };
@@ -30,11 +40,12 @@ const DEFAULT_INTEGRATIONS = {
 
 // ── Public endpoint (for footer social links, SEO meta, maintenance banner) ────
 router.get("/site-config/public", async (_req, res): Promise<void> => {
-  const [social, seo, maintenance, integrations] = await Promise.all([
+  const [social, seo, maintenance, integrations, heroSection] = await Promise.all([
     getSetting("socialLinks", DEFAULT_SOCIAL),
     getSetting("seoSettings", DEFAULT_SEO),
     getSetting("maintenanceMode", DEFAULT_MAINTENANCE),
     getSetting("integrations", DEFAULT_INTEGRATIONS),
+    getSetting("heroSection", DEFAULT_HERO),
   ]);
   res.json({
     socialLinks: social,
@@ -44,20 +55,22 @@ router.get("/site-config/public", async (_req, res): Promise<void> => {
     maintenanceEnabled: maintenance.enabled,
     maintenanceMessage: maintenance.message,
     integrations,
+    heroSection,
   });
 });
 
 // ── Admin: get all config ─────────────────────────────────────────────────────
 router.get("/admin/site-config", requireAdmin, async (_req, res): Promise<void> => {
-  const [socialLinks, seoSettings, maintenanceMode, rateLimitConfig, ipClaimConfig, integrations] = await Promise.all([
+  const [socialLinks, seoSettings, maintenanceMode, rateLimitConfig, ipClaimConfig, integrations, heroSection] = await Promise.all([
     getSetting("socialLinks", DEFAULT_SOCIAL),
     getSetting("seoSettings", DEFAULT_SEO),
     getSetting("maintenanceMode", DEFAULT_MAINTENANCE),
     getSetting("rateLimitConfig", DEFAULT_RATELIMIT),
     getSetting("ipClaimConfig", DEFAULT_IPCLAIMCONFIG),
     getSetting("integrations", DEFAULT_INTEGRATIONS),
+    getSetting("heroSection", DEFAULT_HERO),
   ]);
-  res.json({ socialLinks, seoSettings, maintenanceMode, rateLimitConfig, ipClaimConfig, integrations });
+  res.json({ socialLinks, seoSettings, maintenanceMode, rateLimitConfig, ipClaimConfig, integrations, heroSection });
 });
 
 // ── Admin: update sections ────────────────────────────────────────────────────
@@ -133,6 +146,21 @@ router.patch("/admin/site-config/integrations", requireAdmin, async (req, res): 
     googleSearchConsole: {
       verificationCode: typeof gsc.verificationCode === "string" ? gsc.verificationCode.trim() : "",
     },
+  });
+  res.json({ ok: true });
+});
+
+router.patch("/admin/site-config/heroSection", requireAdmin, async (req, res): Promise<void> => {
+  const b = req.body as Record<string, unknown>;
+  const validSizes = ["compact", "medium", "large"];
+  await setSetting("heroSection", {
+    enabled:            b.enabled === true,
+    size:               validSizes.includes(b.size as string) ? b.size : "compact",
+    badge:              typeof b.badge             === "string" ? b.badge.trim()             : DEFAULT_HERO.badge,
+    headline:           typeof b.headline          === "string" ? b.headline.trim()          : DEFAULT_HERO.headline,
+    headlineHighlight:  typeof b.headlineHighlight === "string" ? b.headlineHighlight.trim() : DEFAULT_HERO.headlineHighlight,
+    subtext:            typeof b.subtext           === "string" ? b.subtext.trim()           : DEFAULT_HERO.subtext,
+    showStats:          b.showStats !== false,
   });
   res.json({ ok: true });
 });

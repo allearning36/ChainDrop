@@ -5,12 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, Globe, Search, Wrench, Shield, AlertTriangle, Puzzle, Paintbrush, KeyRound, Upload, ImageIcon } from "lucide-react";
+import { Loader2, Save, Globe, Search, Wrench, Shield, AlertTriangle, Puzzle, Paintbrush, KeyRound, Upload, ImageIcon, LayoutTemplate } from "lucide-react";
 import { LogoManagement } from "./LogoManagement";
 import { ChangePassword } from "./ChangePassword";
 
 
-type Tab = "social" | "seo" | "maintenance" | "ratelimit" | "claimlimits" | "integrations" | "logo" | "password";
+type Tab = "social" | "seo" | "maintenance" | "ratelimit" | "claimlimits" | "integrations" | "logo" | "password" | "hero";
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "social", label: "Social Links", icon: Globe },
   { id: "seo", label: "SEO Settings", icon: Search },
@@ -18,6 +18,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "ratelimit", label: "Rate Limit", icon: Shield },
   { id: "claimlimits", label: "Claim Limits", icon: AlertTriangle },
   { id: "integrations", label: "Integrations", icon: Puzzle },
+  { id: "hero", label: "Hero Section", icon: LayoutTemplate },
   { id: "logo", label: "Logo", icon: Paintbrush },
   { id: "password", label: "Password", icon: KeyRound },
 ];
@@ -32,7 +33,16 @@ interface IntegrationsConfig {
   googleAnalytics: { enabled: boolean; measurementId: string };
   googleSearchConsole: { verificationCode: string };
 }
-interface SiteConfigData { socialLinks: SocialLinks; seoSettings: SEOSettings; maintenanceMode: MaintenanceMode; rateLimitConfig: RateLimitConfig; ipClaimConfig: IpClaimConfig; integrations: IntegrationsConfig; }
+interface HeroConfig {
+  enabled: boolean;
+  size: "compact" | "medium" | "large";
+  badge: string;
+  headline: string;
+  headlineHighlight: string;
+  subtext: string;
+  showStats: boolean;
+}
+interface SiteConfigData { socialLinks: SocialLinks; seoSettings: SEOSettings; maintenanceMode: MaintenanceMode; rateLimitConfig: RateLimitConfig; ipClaimConfig: IpClaimConfig; integrations: IntegrationsConfig; heroSection: HeroConfig; }
 
 const DEFAULT: SiteConfigData = {
   socialLinks: { twitter: "", telegram: "", discord: "", github: "" },
@@ -44,6 +54,15 @@ const DEFAULT: SiteConfigData = {
     googleAds: { enabled: false, publisherId: "", slots: { header: "", inContent: "", footer: "" } },
     googleAnalytics: { enabled: false, measurementId: "" },
     googleSearchConsole: { verificationCode: "" },
+  },
+  heroSection: {
+    enabled: true,
+    size: "compact",
+    badge: "✦ Multi-Chain Faucet Hub",
+    headline: "Get Free Crypto Tokens",
+    headlineHighlight: "Instantly & For Free",
+    subtext: "Claim testnet & mainnet tokens across multiple chains. No registration, no fees — just your wallet address.",
+    showStats: true,
   },
 };
 
@@ -401,6 +420,88 @@ function IntegrationsTab({ data, onSave, saving }: { data: IntegrationsConfig; o
   );
 }
 
+function HeroTab({ data, onSave, saving }: { data: HeroConfig; onSave: SaveFn; saving: boolean }) {
+  const [form, setForm] = useState(data);
+  useEffect(() => setForm(data), [data]);
+  const toggle = (k: keyof HeroConfig) => setForm(p => ({ ...p, [k]: !p[k as keyof HeroConfig] }));
+  const txt = (k: keyof HeroConfig) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setForm(p => ({ ...p, [k]: e.target.value }));
+
+  return (
+    <div className="space-y-5 max-w-lg">
+      <p className="text-sm text-muted-foreground">Control the hero banner shown at the top of the homepage.</p>
+
+      {/* On/Off */}
+      <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card">
+        <div className="flex-1">
+          <p className="font-mono font-semibold text-sm">Hero Section Visible</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Show or hide the entire hero banner.</p>
+        </div>
+        <button
+          onClick={() => toggle("enabled")}
+          className={`relative w-12 h-6 rounded-full transition-colors ${form.enabled ? "bg-primary" : "bg-muted"}`}
+        >
+          <span className={`absolute top-1 left-0 w-4 h-4 rounded-full bg-white transition-transform ${form.enabled ? "translate-x-7" : "translate-x-1"}`} />
+        </button>
+      </div>
+
+      {/* Show Stats */}
+      <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card">
+        <div className="flex-1">
+          <p className="font-mono font-semibold text-sm">Show Stats Row</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Active Chains, Free, Instant, 24/7 badges.</p>
+        </div>
+        <button
+          onClick={() => toggle("showStats")}
+          className={`relative w-12 h-6 rounded-full transition-colors ${form.showStats ? "bg-primary" : "bg-muted"}`}
+        >
+          <span className={`absolute top-1 left-0 w-4 h-4 rounded-full bg-white transition-transform ${form.showStats ? "translate-x-7" : "translate-x-1"}`} />
+        </button>
+      </div>
+
+      {/* Size */}
+      <div className="space-y-1.5">
+        <Label className="font-mono text-xs">Size</Label>
+        <div className="flex gap-2">
+          {(["compact", "medium", "large"] as const).map(s => (
+            <button key={s} onClick={() => setForm(p => ({ ...p, size: s }))}
+              className={`flex-1 py-2 rounded-lg text-xs font-mono border transition-colors capitalize ${form.size === s ? "bg-primary/20 border-primary text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}>
+              {s}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">Compact = least space, Large = most space.</p>
+      </div>
+
+      {/* Badge */}
+      <div className="space-y-1.5">
+        <Label className="font-mono text-xs">Badge Text</Label>
+        <Input value={form.badge} onChange={txt("badge")} className="font-mono bg-card border-border" placeholder="✦ Multi-Chain Faucet Hub" />
+      </div>
+
+      {/* Headline */}
+      <div className="space-y-1.5">
+        <Label className="font-mono text-xs">Headline (white)</Label>
+        <Input value={form.headline} onChange={txt("headline")} className="font-mono bg-card border-border" />
+      </div>
+
+      {/* Headline Highlight */}
+      <div className="space-y-1.5">
+        <Label className="font-mono text-xs">Headline Highlight (green) — leave blank to hide</Label>
+        <Input value={form.headlineHighlight} onChange={txt("headlineHighlight")} className="font-mono bg-card border-border" />
+      </div>
+
+      {/* Subtext */}
+      <div className="space-y-1.5">
+        <Label className="font-mono text-xs">Subtext — leave blank to hide</Label>
+        <Textarea value={form.subtext} onChange={txt("subtext")} rows={3} className="font-mono bg-card border-border resize-none" />
+      </div>
+
+      <SaveBtn onClick={() => onSave("heroSection", form)} saving={saving} />
+    </div>
+  );
+}
+
 export function SiteConfig() {
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>("social");
@@ -418,6 +519,7 @@ export function SiteConfig() {
         rateLimitConfig:   { ...DEFAULT.rateLimitConfig,   ...(d.rateLimitConfig   ?? {}) },
         ipClaimConfig:     { ...DEFAULT.ipClaimConfig,     ...(d.ipClaimConfig     ?? {}) },
         integrations:      { ...prev.integrations,         ...(d.integrations      ?? {}) },
+        heroSection:       { ...DEFAULT.heroSection,       ...(d.heroSection       ?? {}) },
       })))
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -459,6 +561,7 @@ export function SiteConfig() {
       {tab === "ratelimit" && <RateLimitTab data={cfg.rateLimitConfig} onSave={save} saving={saving} />}
       {tab === "claimlimits" && <IpClaimConfigTab data={cfg.ipClaimConfig} onSave={save} saving={saving} />}
       {tab === "integrations" && <IntegrationsTab data={cfg.integrations} onSave={save} saving={saving} />}
+      {tab === "hero" && <HeroTab data={cfg.heroSection} onSave={save} saving={saving} />}
       {tab === "logo" && <LogoManagement />}
       {tab === "password" && <ChangePassword />}
     </div>
