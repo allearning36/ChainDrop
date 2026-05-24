@@ -21,7 +21,7 @@ const DEFAULT_SOCIAL = { twitter: "", telegram: "", discord: "", github: "" };
 const DEFAULT_SEO = { title: "ChainDrop — Multi-Chain Crypto Faucet Hub", description: "Get free testnet crypto tokens from ChainDrop. Supports multiple EVM-compatible chains including Sepolia and more.", ogImage: "" };
 const DEFAULT_MAINTENANCE = { enabled: false, message: "We're currently performing maintenance. Please check back soon." };
 const DEFAULT_RATELIMIT = { maxAttempts: 5, lockoutMinutes: 15 };
-const DEFAULT_IPCLAIMCONFIG = { windowHours: 24, maxClaimsPerWindow: 2 };
+const DEFAULT_IPCLAIMCONFIG = { enabled: false, windowHours: 24, maxClaimsPerWindow: 2 };
 const DEFAULT_INTEGRATIONS = {
   googleAds: { enabled: false, publisherId: "", slots: { header: "", inContent: "", footer: "" } },
   googleAnalytics: { enabled: false, measurementId: "" },
@@ -101,8 +101,9 @@ router.patch("/admin/site-config/rateLimitConfig", requireAdmin, async (req, res
 });
 
 router.patch("/admin/site-config/ipClaimConfig", requireAdmin, async (req, res): Promise<void> => {
-  const { windowHours, maxClaimsPerWindow } = req.body as Record<string, unknown>;
+  const { enabled, windowHours, maxClaimsPerWindow } = req.body as Record<string, unknown>;
   await setSetting("ipClaimConfig", {
+    enabled:            enabled === true,
     windowHours:        Math.max(1, Math.min(168, Number(windowHours)        || 24)),
     maxClaimsPerWindow: Math.max(1, Math.min(200, Number(maxClaimsPerWindow) || 2)),
   });

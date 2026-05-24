@@ -89,42 +89,44 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
     const [configRow] = await db
       .select().from(settingsTable).where(eq(settingsTable.key, "ipClaimConfig")).limit(1);
     const config = configRow?.value
-      ? (JSON.parse(configRow.value) as { windowHours?: number; maxClaimsPerWindow?: number })
+      ? (JSON.parse(configRow.value) as { enabled?: boolean; windowHours?: number; maxClaimsPerWindow?: number })
       : {};
-    const windowHours       = typeof config.windowHours        === "number" ? config.windowHours        : 24;
-    const maxClaimsPerWindow = typeof config.maxClaimsPerWindow === "number" ? config.maxClaimsPerWindow : 2;
 
-    const windowStart = new Date(Date.now() - windowHours * 3600 * 1000);
-    const [ipCountResult] = await db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(claimsTable)
-      .where(and(eq(claimsTable.ip, clientIp), gte(claimsTable.claimedAt, windowStart)));
-    const ipCount = ipCountResult?.n ?? 0;
+    if (config.enabled) {
+      const windowHours        = typeof config.windowHours        === "number" ? config.windowHours        : 24;
+      const maxClaimsPerWindow = typeof config.maxClaimsPerWindow === "number" ? config.maxClaimsPerWindow : 2;
 
-    if (ipCount >= maxClaimsPerWindow) {
-      // Tell the user when the oldest claim in this window expires so they know when to retry.
-      const [oldestInWindow] = await db
-        .select({ claimedAt: claimsTable.claimedAt })
+      const windowStart = new Date(Date.now() - windowHours * 3600 * 1000);
+      const [ipCountResult] = await db
+        .select({ n: sql<number>`count(*)::int` })
         .from(claimsTable)
-        .where(and(eq(claimsTable.ip, clientIp), gte(claimsTable.claimedAt, windowStart)))
-        .orderBy(claimsTable.claimedAt)
-        .limit(1);
-      const nextFreeAt  = oldestInWindow
-        ? new Date(oldestInWindow.claimedAt.getTime() + windowHours * 3600 * 1000)
-        : new Date(Date.now() + windowHours * 3600 * 1000);
-      const remainMs    = nextFreeAt.getTime() - Date.now();
-      const remainH     = Math.floor(remainMs / 3600000);
-      const remainM     = Math.floor((remainMs % 3600000) / 60000);
-      const timeStr     = remainH > 0 ? `${remainH}h ${remainM}m` : `${remainM}m`;
-      const windowLabel = windowHours < 24
-        ? `${windowHours}h window`
-        : windowHours === 24 ? "day" : `${windowHours / 24}-day window`;
-      res.status(429).json({
-        error: `IP limit reached: ${maxClaimsPerWindow} claim${maxClaimsPerWindow !== 1 ? "s" : ""} per ${windowLabel}. Next free slot in ${timeStr}. Watch an ad to keep claiming.`,
-        ipLimitReached: true,
-        nextFreeAt: nextFreeAt.toISOString(),
-      });
-      return;
+        .where(and(eq(claimsTable.ip, clientIp), gte(claimsTable.claimedAt, windowStart)));
+      const ipCount = ipCountResult?.n ?? 0;
+
+      if (ipCount >= maxClaimsPerWindow) {
+        const [oldestInWindow] = await db
+          .select({ claimedAt: claimsTable.claimedAt })
+          .from(claimsTable)
+          .where(and(eq(claimsTable.ip, clientIp), gte(claimsTable.claimedAt, windowStart)))
+          .orderBy(claimsTable.claimedAt)
+          .limit(1);
+        const nextFreeAt  = oldestInWindow
+          ? new Date(oldestInWindow.claimedAt.getTime() + windowHours * 3600 * 1000)
+          : new Date(Date.now() + windowHours * 3600 * 1000);
+        const remainMs    = nextFreeAt.getTime() - Date.now();
+        const remainH     = Math.floor(remainMs / 3600000);
+        const remainM     = Math.floor((remainMs % 3600000) / 60000);
+        const timeStr     = remainH > 0 ? `${remainH}h ${remainM}m` : `${remainM}m`;
+        const windowLabel = windowHours < 24
+          ? `${windowHours}h window`
+          : windowHours === 24 ? "day" : `${windowHours / 24}-day window`;
+        res.status(429).json({
+          error: `IP limit reached: ${maxClaimsPerWindow} claim${maxClaimsPerWindow !== 1 ? "s" : ""} per ${windowLabel}. Next free slot in ${timeStr}. Watch an ad to keep claiming.`,
+          ipLimitReached: true,
+          nextFreeAt: nextFreeAt.toISOString(),
+        });
+        return;
+      }
     }
   } catch (err) {
     req.log.warn({ err }, "IP window limit check failed — continuing");

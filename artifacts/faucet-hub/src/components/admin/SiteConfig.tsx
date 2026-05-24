@@ -26,7 +26,7 @@ interface SocialLinks { twitter: string; telegram: string; discord: string; gith
 interface SEOSettings { title: string; description: string; ogImage: string; }
 interface MaintenanceMode { enabled: boolean; message: string; }
 interface RateLimitConfig { maxAttempts: number; lockoutMinutes: number; }
-interface IpClaimConfig { windowHours: number; maxClaimsPerWindow: number; }
+interface IpClaimConfig { enabled: boolean; windowHours: number; maxClaimsPerWindow: number; }
 interface IntegrationsConfig {
   googleAds: { enabled: boolean; publisherId: string; slots: { header: string; inContent: string; footer: string } };
   googleAnalytics: { enabled: boolean; measurementId: string };
@@ -39,7 +39,7 @@ const DEFAULT: SiteConfigData = {
   seoSettings: { title: "ChainDrop — Multi-Chain Crypto Faucet Hub", description: "Get free testnet crypto tokens from ChainDrop.", ogImage: "" },
   maintenanceMode: { enabled: false, message: "We're currently performing maintenance. Please check back soon." },
   rateLimitConfig: { maxAttempts: 5, lockoutMinutes: 15 },
-  ipClaimConfig: { windowHours: 24, maxClaimsPerWindow: 2 },
+  ipClaimConfig: { enabled: false, windowHours: 24, maxClaimsPerWindow: 2 },
   integrations: {
     googleAds: { enabled: false, publisherId: "", slots: { header: "", inContent: "", footer: "" } },
     googleAnalytics: { enabled: false, measurementId: "" },
@@ -215,43 +215,84 @@ function RateLimitTab({ data, onSave, saving }: { data: RateLimitConfig; onSave:
 
 function IpClaimConfigTab({ data, onSave, saving }: { data: IpClaimConfig; onSave: SaveFn; saving: boolean }) {
   const [form, setForm] = useState(data);
-  useEffect(() => setForm(data), [data]);
+  const [windowStr, setWindowStr] = useState(String(data.windowHours));
+  const [maxStr, setMaxStr]       = useState(String(data.maxClaimsPerWindow));
+  useEffect(() => {
+    setForm(data);
+    setWindowStr(String(data.windowHours));
+    setMaxStr(String(data.maxClaimsPerWindow));
+  }, [data]);
+
+  const handleSave = () => {
+    const parsed = {
+      ...form,
+      windowHours:        Math.max(1, Math.min(168, parseInt(windowStr) || 24)),
+      maxClaimsPerWindow: Math.max(1, Math.min(200, parseInt(maxStr)    || 2)),
+    };
+    setWindowStr(String(parsed.windowHours));
+    setMaxStr(String(parsed.maxClaimsPerWindow));
+    onSave("ipClaimConfig", parsed);
+  };
+
   return (
     <div className="space-y-6 max-w-lg">
-      <p className="text-sm text-muted-foreground">
-        Set how many chains a user can claim for free within a rolling time window.
-        Once the limit is hit, users must wait for the window to slide forward — or watch an ad to keep claiming.
-      </p>
-      <div className="rounded-xl border border-border bg-card p-5 space-y-5">
-        <div className="space-y-1.5">
-          <Label className="font-mono text-xs">Time Window (hours)</Label>
-          <Input
-            type="number" min={1} max={168}
-            value={form.windowHours}
-            onChange={e => setForm(p => ({ ...p, windowHours: parseInt(e.target.value) || 24 }))}
-            className="font-mono bg-background border-border"
-          />
-          <p className="text-xs text-muted-foreground">
-            Rolling window length in hours. Default: <strong>24</strong> (= per day).
-            Set to <strong>1</strong> for per-hour limits, <strong>168</strong> for per-week.
-          </p>
-        </div>
-        <div className="space-y-1.5">
-          <Label className="font-mono text-xs">Max Claims Per Window (per IP)</Label>
-          <Input
-            type="number" min={1} max={200}
-            value={form.maxClaimsPerWindow}
-            onChange={e => setForm(p => ({ ...p, maxClaimsPerWindow: parseInt(e.target.value) || 2 }))}
-            className="font-mono bg-background border-border"
-          />
-          <p className="text-xs text-muted-foreground">
-            How many chains one IP can claim within the time window above. Default: <strong>2</strong>.
-            Example: window = 1h, max = 2 → user can claim 2 chains per hour, then must wait.
-            Set to a high number (e.g. 200) to effectively disable this limit.
-          </p>
+      {/* Master toggle */}
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="font-mono font-semibold text-sm">IP Claim Limit</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {form.enabled
+                ? "Limit is active — users have a max number of free claims per time window."
+                : "Limit is off — users can claim all listed chains freely."}
+            </p>
+          </div>
+          <Toggle enabled={form.enabled} onToggle={() => setForm(p => ({ ...p, enabled: !p.enabled }))} />
         </div>
       </div>
-      <SaveBtn onClick={() => onSave("ipClaimConfig", form)} saving={saving} />
+
+      {/* Settings — only visible when enabled */}
+      {form.enabled && (
+        <div className="rounded-xl border border-border bg-card p-5 space-y-5">
+          <div className="space-y-1.5">
+            <Label className="font-mono text-xs">Time Window (hours)</Label>
+            <Input
+              type="number" min={1} max={168}
+              value={windowStr}
+              onChange={e => setWindowStr(e.target.value)}
+              onBlur={() => {
+                const v = Math.max(1, Math.min(168, parseInt(windowStr) || 24));
+                setWindowStr(String(v));
+                setForm(p => ({ ...p, windowHours: v }));
+              }}
+              className="font-mono bg-background border-border"
+            />
+            <p className="text-xs text-muted-foreground">
+              Rolling window in hours. Example: <strong>1</strong> = per hour, <strong>24</strong> = per day, <strong>168</strong> = per week.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="font-mono text-xs">Max Claims Per Window (per IP)</Label>
+            <Input
+              type="number" min={1} max={200}
+              value={maxStr}
+              onChange={e => setMaxStr(e.target.value)}
+              onBlur={() => {
+                const v = Math.max(1, Math.min(200, parseInt(maxStr) || 2));
+                setMaxStr(String(v));
+                setForm(p => ({ ...p, maxClaimsPerWindow: v }));
+              }}
+              className="font-mono bg-background border-border"
+            />
+            <p className="text-xs text-muted-foreground">
+              How many chains one IP can claim within the window above.
+              Example: window = <strong>12h</strong>, max = <strong>3</strong> → user can claim 3 chains every 12 hours.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <SaveBtn onClick={handleSave} saving={saving} />
     </div>
   );
 }
