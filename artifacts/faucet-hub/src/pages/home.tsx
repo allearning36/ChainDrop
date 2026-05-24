@@ -138,14 +138,7 @@ export default function Home() {
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
-                ) : (
-                  <span
-                    className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase tracking-widest"
-                    style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)", color: "rgba(34,197,94,0.45)" }}
-                  >
-                    Filter
-                  </span>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
