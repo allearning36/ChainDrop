@@ -183,6 +183,21 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
     return () => clearTimeout(timer);
   }, [step, adWatchCountdown]);
 
+  // When modal opens in cooldown → restore last tx from localStorage and show result step
+  useEffect(() => {
+    if (!chain || !debouncedAddress || !status || status.canClaim || step !== "input") return;
+    try {
+      const stored = localStorage.getItem(`cd:tx:${chain.id}:${debouncedAddress.toLowerCase()}`);
+      if (!stored) return;
+      const { txHash: storedHash, amount } = JSON.parse(stored);
+      if (storedHash) {
+        setTxHash(storedHash);
+        setClaimedAmount(amount ?? "");
+        setStep("result");
+      }
+    } catch {}
+  }, [chain, debouncedAddress, status, step]);
+
   const handleClaim = useCallback(async () => {
     const needsCaptcha = (chain as any)?.captchaEnabled !== false;
     if (!chain || !debouncedAddress || (needsCaptcha && !captchaToken)) return;
@@ -216,6 +231,13 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
         recaptchaRef.current?.reset();
         setAdCountdown(5);
         setStep("ad");
+        // Persist so cooldown re-open shows result step
+        try {
+          localStorage.setItem(
+            `cd:tx:${chain.id}:${debouncedAddress.toLowerCase()}`,
+            JSON.stringify({ txHash: res.txHash, amount: res.amount })
+          );
+        } catch {}
         queryClient.invalidateQueries({ queryKey: getGetChainQueryKey(chain.id) });
       },
       onError: (err: any) => {
