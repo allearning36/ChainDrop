@@ -69,11 +69,15 @@ router.get("/chains/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const walletBalanceEth = await getWalletBalance(
-    chain.chainType as ChainType,
-    parseRpcUrls(chain.rpcUrls, chain.rpcUrl),
-    resolveChainWalletAddress(chain.walletAddress)
-  );
+  const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
+  const walletBalanceEth = await Promise.race([
+    getWalletBalance(
+      chain.chainType as ChainType,
+      parseRpcUrls(chain.rpcUrls, chain.rpcUrl),
+      resolveChainWalletAddress(chain.walletAddress)
+    ),
+    timeout,
+  ]);
 
   res.json({
     id: chain.id,
