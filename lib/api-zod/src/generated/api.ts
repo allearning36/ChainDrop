@@ -245,6 +245,7 @@ export const GetAnnouncementsResponseItem = zod.object({
   "id": zod.number(),
   "title": zod.string(),
   "content": zod.string(),
+  "imageUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
@@ -909,6 +910,7 @@ export const GetAdminAnnouncementsResponseItem = zod.object({
   "id": zod.number(),
   "title": zod.string(),
   "content": zod.string(),
+  "imageUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
@@ -921,6 +923,7 @@ export const GetAdminAnnouncementsResponse = zod.array(GetAdminAnnouncementsResp
 export const CreateAnnouncementBody = zod.object({
   "title": zod.string(),
   "content": zod.string(),
+  "imageUrl": zod.string().nullish(),
   "isActive": zod.boolean().optional()
 })
 
@@ -935,6 +938,7 @@ export const UpdateAnnouncementParams = zod.object({
 export const UpdateAnnouncementBody = zod.object({
   "title": zod.string().optional(),
   "content": zod.string().optional(),
+  "imageUrl": zod.string().nullish(),
   "isActive": zod.boolean().optional()
 })
 
@@ -942,6 +946,7 @@ export const UpdateAnnouncementResponse = zod.object({
   "id": zod.number(),
   "title": zod.string(),
   "content": zod.string(),
+  "imageUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "createdAt": zod.coerce.date()
 })

@@ -483,6 +483,7 @@ export interface Announcement {
   id: number;
   title: string;
   content: string;
+  imageUrl?: string | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -490,12 +491,14 @@ export interface Announcement {
 export interface AnnouncementInput {
   title: string;
   content: string;
+  imageUrl?: string | null;
   isActive?: boolean;
 }
 
 export interface AnnouncementUpdate {
   title?: string;
   content?: string;
+  imageUrl?: string | null;
   isActive?: boolean;
 }
 

@@ -9,5 +9,6 @@
 export interface AnnouncementUpdate {
   title?: string;
   content?: string;
+  imageUrl?: string | null;
   isActive?: boolean;
 }

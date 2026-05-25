@@ -135,6 +135,43 @@ router.post("/support/conversations/:id/messages", async (req, res): Promise<voi
   res.status(201).json(formatMsg(msg, false));
 });
 
+// ── User: check unread admin replies ─────────────────────────────────────────
+router.get("/support/conversations/:id/unread", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const token = req.headers["x-user-token"] as string | undefined;
+  if (!await validateUserToken(id, token)) {
+    res.status(403).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const [row] = await db
+    .select({ cnt: count() })
+    .from(supportMessagesTable)
+    .where(and(
+      eq(supportMessagesTable.conversationId, id),
+      eq(supportMessagesTable.isAdmin, true),
+      eq(supportMessagesTable.userSeen, false),
+    ));
+  res.json({ count: Number(row?.cnt ?? 0) });
+});
+
+// ── User: restore conversation by token ───────────────────────────────────────
+router.get("/support/restore", async (req, res): Promise<void> => {
+  const rawConvId = req.query.convId;
+  const token = req.query.token as string | undefined;
+  const id = parseInt(String(rawConvId ?? ""));
+  if (isNaN(id) || !token) { res.status(400).json({ error: "convId and token required" }); return; }
+  if (!await validateUserToken(id, token)) {
+    res.status(403).json({ error: "Invalid recovery key" });
+    return;
+  }
+  const [conv] = await db.select().from(supportConversationsTable).where(eq(supportConversationsTable.id, id)).limit(1);
+  if (!conv) { res.status(404).json({ error: "Conversation not found" }); return; }
+  res.json({ id: conv.id, userName: conv.userName, userEmail: conv.userEmail, status: conv.status });
+});
+
 // ── Admin: unread conversation count ─────────────────────────────────────────
 router.get("/admin/support/unread-count", requireAdmin, async (_req, res): Promise<void> => {
   const rows = await db

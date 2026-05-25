@@ -9,5 +9,6 @@
 export interface AnnouncementInput {
   title: string;
   content: string;
+  imageUrl?: string | null;
   isActive?: boolean;
 }

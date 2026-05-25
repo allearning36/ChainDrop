@@ -16,6 +16,9 @@ const GLOW_FILTER: Record<string, string> = {
   bright: "drop-shadow(0 0 18px rgba(34,197,94,1))",
 };
 const SIZE_PX: Record<string, number> = { small: 32, medium: 40, large: 52 };
+const SEEN_KEY = "chainDrop_seenAnnouncements";
+const SUPPORT_CONV_KEY = "chainDrop_supportConvId";
+const SUPPORT_TOKEN_KEY = "chainDrop_supportToken";
 
 async function loadLogoSettings(): Promise<LogoSettings> {
   try {
@@ -24,6 +27,24 @@ async function loadLogoSettings(): Promise<LogoSettings> {
   } catch {
     return { logoUrl: "/logo.svg", logoGlow: "medium", logoSize: "medium" };
   }
+}
+
+function getSeenIds(): Set<number> {
+  try {
+    const raw = localStorage.getItem(SEEN_KEY);
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw) as number[]);
+  } catch {
+    return new Set();
+  }
+}
+
+function markAllSeen(ids: number[]) {
+  try {
+    const existing = getSeenIds();
+    ids.forEach(id => existing.add(id));
+    localStorage.setItem(SEEN_KEY, JSON.stringify([...existing]));
+  } catch { /* ignore */ }
 }
 
 export function Navbar() {
@@ -40,7 +61,10 @@ export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [referralOpen, setReferralOpen] = useState(false);
   const [logo, setLogo] = useState<LogoSettings>({ logoUrl: "/logo.svg", logoGlow: "medium", logoSize: "medium" });
+  const [seenIds, setSeenIds] = useState<Set<number>>(getSeenIds);
+  const [supportUnread, setSupportUnread] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
+  const supportPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     loadLogoSettings().then(setLogo);
@@ -60,9 +84,48 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [menuOpen]);
 
+  // Poll for unread admin replies in support
+  useEffect(() => {
+    async function fetchUnread() {
+      const storedId = localStorage.getItem(SUPPORT_CONV_KEY);
+      const storedToken = localStorage.getItem(SUPPORT_TOKEN_KEY);
+      if (!storedId || !storedToken) { setSupportUnread(0); return; }
+      const id = parseInt(storedId);
+      if (isNaN(id)) return;
+      try {
+        const res = await fetch(`/api/support/conversations/${id}/unread`, {
+          headers: { "x-user-token": storedToken },
+        });
+        if (!res.ok) { setSupportUnread(0); return; }
+        const data = await res.json() as { count: number };
+        setSupportUnread(data.count);
+      } catch { /* ignore */ }
+    }
+
+    void fetchUnread();
+    supportPollRef.current = setInterval(() => void fetchUnread(), 30000);
+    return () => { if (supportPollRef.current) clearInterval(supportPollRef.current); };
+  }, []);
+
+  // Clear support unread when modal opens
+  function handleSupportOpen() {
+    setSupportOpen(true);
+    setSupportUnread(0);
+  }
+
   const activeAnnouncements = announcements.filter(a => a.isActive);
-  const hasUnread = activeAnnouncements.length > 0;
+  const unseenCount = activeAnnouncements.filter(a => !seenIds.has(a.id)).length;
   const px = SIZE_PX[logo.logoSize] ?? 40;
+
+  function handleBellOpen(o: boolean) {
+    setOpen(o);
+    if (o) {
+      const ids = activeAnnouncements.map(a => a.id);
+      markAllSeen(ids);
+      setSeenIds(getSeenIds());
+    }
+    if (!o) setExpandedId(null);
+  }
 
   return (
     <nav className="sticky top-0 z-50 w-full backdrop-blur-xl" style={{ background: "rgba(8,10,14,0.92)", borderBottom: "1px solid rgba(255,255,255,0.07)", boxShadow: "0 1px 20px rgba(0,0,0,0.4)" }}>
@@ -130,7 +193,7 @@ export function Navbar() {
           )}
         </div>
 
-        {/* ── Logo + Name (right after hamburger) ── */}
+        {/* ── Logo + Name ── */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
           <img
             src={logo.logoUrl}
@@ -164,28 +227,56 @@ export function Navbar() {
 
         {/* ── FAR RIGHT: Support + Bell ── */}
         <div className="flex items-center gap-1 shrink-0">
+          {/* Support button with unread badge */}
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setSupportOpen(true)}
+            onClick={handleSupportOpen}
             className="h-9 gap-1.5 text-xs font-mono font-semibold text-muted-foreground hover:text-foreground flex items-center"
           >
             <span className="relative flex items-center shrink-0">
               <MessageCircle className="h-4 w-4" />
-              <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-              </span>
+              {supportUnread > 0 ? (
+                <span
+                  className="absolute -top-1.5 -right-1.5 flex items-center justify-center rounded-full text-[9px] font-bold text-white font-mono leading-none"
+                  style={{
+                    minWidth: 14,
+                    height: 14,
+                    padding: "0 3px",
+                    background: "linear-gradient(135deg,#dc2626,#ef4444)",
+                    boxShadow: "0 0 6px rgba(239,68,68,0.6)",
+                  }}
+                >
+                  {supportUnread > 9 ? "9+" : supportUnread}
+                </span>
+              ) : (
+                <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                </span>
+              )}
             </span>
             Support
           </Button>
 
-          <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setExpandedId(null); }}>
+          {/* Bell with unseen announcement count */}
+          <Popover open={open} onOpenChange={handleBellOpen}>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-5 w-5" />
-                {hasUnread && (
-                  <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary animate-pulse" />
+                {unseenCount > 0 && (
+                  <span
+                    className="absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full text-[9px] font-bold text-white font-mono leading-none"
+                    style={{
+                      minWidth: 15,
+                      height: 15,
+                      padding: "0 3px",
+                      background: "linear-gradient(135deg,#7c3aed,#a78bfa)",
+                      boxShadow: "0 0 6px rgba(167,139,250,0.6)",
+                    }}
+                  >
+                    {unseenCount > 9 ? "9+" : unseenCount}
+                  </span>
                 )}
               </Button>
             </PopoverTrigger>
@@ -202,7 +293,7 @@ export function Navbar() {
                 </div>
               </div>
 
-              <div className="max-h-[360px] overflow-y-auto divide-y divide-border">
+              <div className="max-h-[420px] overflow-y-auto divide-y divide-border">
                 {activeAnnouncements.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
                     <Bell className="w-7 h-7 opacity-30" />
@@ -210,24 +301,35 @@ export function Navbar() {
                   </div>
                 ) : (
                   activeAnnouncements.map((a) => {
-                    const isOpen = expandedId === a.id;
+                    const isExpanded = expandedId === a.id;
                     return (
                       <div key={a.id} className="bg-background hover:bg-card/60 transition-colors">
                         <button
                           className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left"
-                          onClick={() => setExpandedId(isOpen ? null : a.id)}
+                          onClick={() => setExpandedId(isExpanded ? null : a.id)}
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-primary mt-px" />
                             <span className="text-sm font-semibold font-mono truncate leading-snug">{a.title}</span>
                           </div>
-                          {isOpen
+                          {isExpanded
                             ? <ChevronDown className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
                             : <ChevronRight className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
                           }
                         </button>
-                        {isOpen && (
-                          <div className="px-4 pb-4 pt-0">
+                        {isExpanded && (
+                          <div className="px-4 pb-4 pt-0 space-y-2">
+                            {(a as any).imageUrl && (
+                              <div className="rounded-lg overflow-hidden border border-border">
+                                <img
+                                  src={(a as any).imageUrl}
+                                  alt={a.title}
+                                  className="w-full object-cover"
+                                  style={{ maxHeight: 140 }}
+                                  onError={(e) => (e.currentTarget.style.display = "none")}
+                                />
+                              </div>
+                            )}
                             <div
                               className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap rounded-lg p-3"
                               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}

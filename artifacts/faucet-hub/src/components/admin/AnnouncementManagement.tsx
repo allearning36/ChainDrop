@@ -16,13 +16,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Plus, Trash2, Loader2 } from "lucide-react";
+import { Edit2, Plus, Trash2, Loader2, Image as ImageIcon, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 
 const DEFAULT_ANNOUNCEMENT = {
   title: "",
   content: "",
+  imageUrl: "",
   isActive: true
 };
 
@@ -53,14 +54,17 @@ export function AnnouncementManagement() {
 
   const handleOpenEdit = (item: Announcement) => {
     setEditingItem(item);
-    setFormData(item);
+    setFormData({ ...item, imageUrl: item.imageUrl ?? "" });
     setIsFormOpen(true);
   };
 
   const handleSave = () => {
     if (!formData.title || !formData.content) return;
 
-    const payload = formData;
+    const payload = {
+      ...formData,
+      imageUrl: formData.imageUrl?.trim() || null,
+    };
     const mutation = editingItem ? updateMutation : createMutation;
     const mutateArgs = editingItem 
       ? { id: editingItem.id, data: payload }
@@ -103,29 +107,37 @@ export function AnnouncementManagement() {
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow>
-              <TableHead className="w-[80px]">ID</TableHead>
+              <TableHead className="w-[60px]">ID</TableHead>
               <TableHead>Message</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="w-[70px]">Image</TableHead>
+              <TableHead className="w-[80px]">Status</TableHead>
+              <TableHead className="w-[120px]">Created</TableHead>
+              <TableHead className="text-right w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></TableCell>
+                <TableCell colSpan={6} className="h-24 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></TableCell>
               </TableRow>
             ) : announcements.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground font-mono">No active broadcasts.</TableCell>
+                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground font-mono">No active broadcasts.</TableCell>
               </TableRow>
             ) : (
               announcements.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-mono text-xs">{item.id}</TableCell>
                   <TableCell>
-                    <div className="font-bold">{item.title}</div>
-                    <div className="text-xs text-muted-foreground line-clamp-1 max-w-[300px]">{item.content}</div>
+                    <div className="font-bold text-sm">{item.title}</div>
+                    <div className="text-xs text-muted-foreground line-clamp-1 max-w-[260px]">{item.content}</div>
+                  </TableCell>
+                  <TableCell>
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt="" className="w-10 h-7 object-cover rounded border border-border" />
+                    ) : (
+                      <span className="text-xs text-muted-foreground font-mono">—</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge variant={item.isActive ? "default" : "secondary"} className="text-[10px]">
@@ -153,7 +165,7 @@ export function AnnouncementManagement() {
       </div>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[500px] bg-card border-border">
+        <DialogContent className="sm:max-w-[520px] bg-card border-border">
           <DialogHeader>
             <DialogTitle className="font-mono uppercase tracking-tight">
               {editingItem ? "Update Broadcast" : "Transmit New Broadcast"}
@@ -171,8 +183,42 @@ export function AnnouncementManagement() {
               <Textarea 
                 value={formData.content} 
                 onChange={e => setFormData({...formData, content: e.target.value})} 
-                className="font-mono min-h-[120px]" 
+                className="font-mono min-h-[100px]" 
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5" />
+                Banner Image URL <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <div className="relative">
+                <Input
+                  placeholder="https://example.com/banner.png"
+                  value={formData.imageUrl ?? ""}
+                  onChange={e => setFormData({...formData, imageUrl: e.target.value})}
+                  className="font-mono text-xs pr-8"
+                />
+                {formData.imageUrl && (
+                  <button
+                    onClick={() => setFormData({...formData, imageUrl: ""})}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              {formData.imageUrl && (
+                <div className="rounded-md overflow-hidden border border-border" style={{ maxHeight: 120 }}>
+                  <img
+                    src={formData.imageUrl}
+                    alt="Preview"
+                    className="w-full object-cover"
+                    style={{ maxHeight: 120 }}
+                    onError={(e) => (e.currentTarget.style.display = "none")}
+                  />
+                </div>
+              )}
             </div>
             
             <div className="flex items-center justify-between p-3 border border-border rounded-md bg-muted/20">
