@@ -12,11 +12,11 @@ import { broadcast } from "../lib/liveEvents";
 
 const router: IRouter = Router();
 
-async function getAllPaymentNetworks(): Promise<Record<string, { name: string; symbol: string; chainId: number; rpcUrl: string }>> {
+async function getAllPaymentNetworks(): Promise<Record<string, { name: string; symbol: string; chainId: number; rpcUrl: string; logoUrl: string | null }>> {
   const networks = await db.select().from(paymentNetworksTable).where(eq(paymentNetworksTable.isEnabled, true));
-  const result: Record<string, { name: string; symbol: string; chainId: number; rpcUrl: string }> = {};
+  const result: Record<string, { name: string; symbol: string; chainId: number; rpcUrl: string; logoUrl: string | null }> = {};
   for (const n of networks) {
-    result[n.networkId] = { name: n.name, symbol: n.symbol, chainId: n.chainId, rpcUrl: n.rpcUrl };
+    result[n.networkId] = { name: n.name, symbol: n.symbol, chainId: n.chainId, rpcUrl: n.rpcUrl, logoUrl: n.logoUrl ?? null };
   }
   return result;
 }

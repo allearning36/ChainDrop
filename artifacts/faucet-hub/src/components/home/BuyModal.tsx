@@ -218,7 +218,9 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
   const amountValid = ethAmountNum >= minAmount;
 
   const netColor = selectedNetwork ? (NETWORK_COLORS[selectedNetwork.id] || "#818cf8") : "#818cf8";
-  const netLogo = selectedNetwork ? (NETWORK_LOGOS[selectedNetwork.id] || "") : "";
+  const netLogo = selectedNetwork
+    ? (NETWORK_LOGOS[selectedNetwork.id] || (selectedNetwork as any).logoUrl || "")
+    : "";
   const dots = ".".repeat(confirmDots);
 
   // Called when WalletSelector successfully connects
@@ -473,7 +475,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
                       {networkDropdown && (
                         <div className="absolute top-12 left-0 right-0 rounded-xl z-50 overflow-hidden" style={{ background: "#13131f", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
                           {buyInfo.networks.map((net) => {
-                            const logo = NETWORK_LOGOS[net.id] || "";
+                            const logo = NETWORK_LOGOS[net.id] || (net as any).logoUrl || "";
                             const color = NETWORK_COLORS[net.id] || "#818cf8";
                             return (
                               <button key={net.id} onClick={() => { setSelectedNetwork(net); setNetworkDropdown(false); }}
