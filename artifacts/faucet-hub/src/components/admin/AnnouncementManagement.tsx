@@ -53,8 +53,8 @@ export function AnnouncementManagement() {
     setUploadingImage(true);
     try {
       const fd = new FormData();
-      fd.append("file", file);
-      const res = await adminFetch("/api/admin/upload", { method: "POST", body: fd });
+      fd.append("image", file);
+      const res = await adminFetch("/api/uploads/banner", { method: "POST", body: fd });
       if (!res.ok) throw new Error("Upload failed");
       const d = await res.json() as { url: string };
       setFormData((prev: any) => ({ ...prev, imageUrl: d.url }));
