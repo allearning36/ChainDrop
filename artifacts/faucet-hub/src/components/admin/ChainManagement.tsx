@@ -792,25 +792,10 @@ export function ChainManagement() {
               </div>
               {formData.buyEnabled ? (
                 <div className="p-4 space-y-3">
-                  {/* Global Default Min / Max + Receive Address */}
-                  <div className="rounded-xl p-3 space-y-3" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                    <p className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-widest">Global Defaults <span className="normal-case font-normal">(used when no per-network limit is set)</span></p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Default Minimum Amount</Label>
-                        <Input type="number" step="any" min="0" value={formData.buyMinAmount} onChange={e => setFormData({...formData, buyMinAmount: e.target.value})} className="font-mono text-sm h-9" placeholder="0.0005" />
-                        <p className="text-[10px] text-muted-foreground font-mono">Fallback for any network without its own min</p>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Default Maximum Amount <span className="text-muted-foreground font-normal">(blank = unlimited)</span></Label>
-                        <Input type="number" step="any" min="0" value={formData.buyMaxAmount} onChange={e => setFormData({...formData, buyMaxAmount: e.target.value})} className="font-mono text-sm h-9" placeholder="unlimited" />
-                        <p className="text-[10px] text-muted-foreground font-mono">Fallback for any network without its own max</p>
-                      </div>
-                      <div className="space-y-1.5 sm:col-span-2">
-                        <Label className="text-xs">Receive Address <span className="text-muted-foreground font-normal">(mainnet payment address — blank = faucet wallet)</span></Label>
-                        <Input value={formData.receiveAddress} onChange={e => setFormData({...formData, receiveAddress: e.target.value})} placeholder="0x... (optional)" className="font-mono text-sm h-9" />
-                      </div>
-                    </div>
+                  {/* Receive Address */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Receive Address <span className="text-muted-foreground font-normal">(mainnet payment address — blank = faucet wallet)</span></Label>
+                    <Input value={formData.receiveAddress} onChange={e => setFormData({...formData, receiveAddress: e.target.value})} placeholder="0x... (optional)" className="font-mono text-sm h-9" />
                   </div>
 
                   {/* Per-network rate configuration */}
