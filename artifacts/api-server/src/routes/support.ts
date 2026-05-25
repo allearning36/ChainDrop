@@ -10,6 +10,16 @@ import { supportLimiter } from "../lib/rateLimiters";
 
 const router: IRouter = Router();
 
+// ── SSE registry: convId → Set of send callbacks ──────────────────────────────
+const sseClients = new Map<number, Set<(payload: string) => void>>();
+
+function notifyConvUser(convId: number, data: object) {
+  const listeners = sseClients.get(convId);
+  if (!listeners || listeners.size === 0) return;
+  const payload = `data: ${JSON.stringify(data)}\n\n`;
+  listeners.forEach(send => send(payload));
+}
+
 const StartSchema = StartSupportConversationBody;
 const MessageSchema = SendSupportMessageBody;
 
@@ -135,6 +145,39 @@ router.post("/support/conversations/:id/messages", async (req, res): Promise<voi
   res.status(201).json(formatMsg(msg, false));
 });
 
+// ── User: SSE stream for instant admin-reply notifications ───────────────────
+router.get("/support/conversations/:id/stream", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).end(); return; }
+
+  const token = req.query.token as string | undefined;
+  if (!await validateUserToken(id, token)) {
+    res.status(403).end();
+    return;
+  }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  res.write(": connected\n\n");
+
+  const send = (payload: string) => { try { res.write(payload); } catch { /* client gone */ } };
+
+  if (!sseClients.has(id)) sseClients.set(id, new Set());
+  sseClients.get(id)!.add(send);
+
+  const heartbeat = setInterval(() => { try { res.write(": ping\n\n"); } catch { /* ignore */ } }, 25000);
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    sseClients.get(id)?.delete(send);
+    if (sseClients.get(id)?.size === 0) sseClients.delete(id);
+  });
+});
+
 // ── User: check unread admin replies ─────────────────────────────────────────
 router.get("/support/conversations/:id/unread", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id as string);
@@ -251,6 +294,9 @@ router.post("/admin/support/:id/reply", requireAdmin, async (req, res): Promise<
     adminSeen: true,
     userSeen: false,
   }).returning();
+
+  // Push instant notification to user if they have an open SSE stream
+  notifyConvUser(id, { type: "new_reply", messageId: msg.id });
 
   res.status(201).json(formatMsg(msg, true));
 });

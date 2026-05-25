@@ -64,7 +64,7 @@ export function Navbar() {
   const [seenIds, setSeenIds] = useState<Set<number>>(getSeenIds);
   const [supportUnread, setSupportUnread] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
-  const supportPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sseRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
     loadLogoSettings().then(setLogo);
@@ -84,27 +84,35 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [menuOpen]);
 
-  // Poll for unread admin replies in support
+  // SSE: instant notification when admin replies in support
   useEffect(() => {
-    async function fetchUnread() {
-      const storedId = localStorage.getItem(SUPPORT_CONV_KEY);
-      const storedToken = localStorage.getItem(SUPPORT_TOKEN_KEY);
-      if (!storedId || !storedToken) { setSupportUnread(0); return; }
-      const id = parseInt(storedId);
-      if (isNaN(id)) return;
-      try {
-        const res = await fetch(`/api/support/conversations/${id}/unread`, {
-          headers: { "x-user-token": storedToken },
-        });
-        if (!res.ok) { setSupportUnread(0); return; }
-        const data = await res.json() as { count: number };
-        setSupportUnread(data.count);
-      } catch { /* ignore */ }
-    }
+    const storedId = localStorage.getItem(SUPPORT_CONV_KEY);
+    const storedToken = localStorage.getItem(SUPPORT_TOKEN_KEY);
+    if (!storedId || !storedToken) return;
+    const id = parseInt(storedId);
+    if (isNaN(id)) return;
 
-    void fetchUnread();
-    supportPollRef.current = setInterval(() => void fetchUnread(), 10000);
-    return () => { if (supportPollRef.current) clearInterval(supportPollRef.current); };
+    // Fetch current unread count on mount
+    fetch(`/api/support/conversations/${id}/unread`, {
+      headers: { "x-user-token": storedToken },
+    })
+      .then(r => (r.ok ? r.json() : null))
+      .then((d: { count: number } | null) => { if (d) setSupportUnread(d.count); })
+      .catch(() => {});
+
+    // Open SSE stream — admin reply pushes event instantly
+    const es = new EventSource(
+      `/api/support/conversations/${id}/stream?token=${encodeURIComponent(storedToken)}`
+    );
+    es.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data) as { type: string };
+        if (data.type === "new_reply") setSupportUnread(prev => prev + 1);
+      } catch { /* ignore */ }
+    };
+    // On error, EventSource auto-reconnects — no manual retry needed
+    sseRef.current = es;
+    return () => { es.close(); sseRef.current = null; };
   }, []);
 
   // Clear support unread when modal opens
