@@ -12,23 +12,13 @@ import { broadcast } from "../lib/liveEvents";
 
 const router: IRouter = Router();
 
-export const PAYMENT_NETWORKS: Record<string, { name: string; symbol: string; chainId: number; rpcUrl: string }> = {
-  eth:       { name: "Ethereum Mainnet", symbol: "ETH",   chainId: 1,     rpcUrl: process.env.MAINNET_RPC_URL || "https://eth.llamarpc.com" },
-  base:      { name: "Base",            symbol: "ETH",   chainId: 8453,  rpcUrl: "https://mainnet.base.org" },
-  arbitrum:  { name: "Arbitrum One",    symbol: "ETH",   chainId: 42161, rpcUrl: "https://arb1.arbitrum.io/rpc" },
-  optimism:  { name: "OP Mainnet",      symbol: "ETH",   chainId: 10,    rpcUrl: "https://mainnet.optimism.io" },
-  polygon:   { name: "Polygon",         symbol: "POL",   chainId: 137,   rpcUrl: "https://polygon-rpc.com" },
-};
-
 async function getAllPaymentNetworks(): Promise<Record<string, { name: string; symbol: string; chainId: number; rpcUrl: string }>> {
-  const customNetworks = await db.select().from(paymentNetworksTable).where(eq(paymentNetworksTable.isEnabled, true));
-  const merged = { ...PAYMENT_NETWORKS };
-  for (const n of customNetworks) {
-    if (!merged[n.networkId]) {
-      merged[n.networkId] = { name: n.name, symbol: n.symbol, chainId: n.chainId, rpcUrl: n.rpcUrl };
-    }
+  const networks = await db.select().from(paymentNetworksTable).where(eq(paymentNetworksTable.isEnabled, true));
+  const result: Record<string, { name: string; symbol: string; chainId: number; rpcUrl: string }> = {};
+  for (const n of networks) {
+    result[n.networkId] = { name: n.name, symbol: n.symbol, chainId: n.chainId, rpcUrl: n.rpcUrl };
   }
-  return merged;
+  return result;
 }
 
 router.get("/faucet/buy/info/:chainId", async (req, res): Promise<void> => {

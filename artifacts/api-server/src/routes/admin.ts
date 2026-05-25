@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { eq, desc, count, gte, and } from "drizzle-orm";
 import { encryptPrivateKey, resolveChainWalletAddress } from "../lib/encryption";
 import { ethers } from "ethers";
-import { db, chainsTable, claimsTable, bannersTable, announcementsTable, settingsTable, paymentNetworksTable, abuseLogsTable, masterChainsTable, exchangePairsTable, liveErrorLogsTable } from "@workspace/db";
+import { db, chainsTable, claimsTable, bannersTable, announcementsTable, settingsTable, paymentNetworksTable, abuseLogsTable, masterChainsTable, masterChainTokensTable, exchangePairsTable, liveErrorLogsTable } from "@workspace/db";
 import {
   referralsTable,
   referralCommissionsTable,
@@ -1021,6 +1021,62 @@ router.get("/admin/master-chains/:id/rpc-health", async (req, res): Promise<void
   if (urls.length === 0) { res.json([]); return; }
   const results = await Promise.all(urls.map((url) => checkRpcHealth(url)));
   res.json(results);
+});
+
+// ── Chain Library: Token Management ──────────────────────────────────────────
+
+router.get("/admin/master-chains/:id/tokens", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) { res.status(400).json({ error: "Invalid id" }); return; }
+  const tokens = await db.select().from(masterChainTokensTable)
+    .where(eq(masterChainTokensTable.masterChainId, id))
+    .orderBy(masterChainTokensTable.id);
+  res.json(tokens);
+});
+
+router.post("/admin/master-chains/:id/tokens", async (req, res): Promise<void> => {
+  const masterChainId = Number(req.params.id);
+  if (!Number.isInteger(masterChainId) || masterChainId < 1) { res.status(400).json({ error: "Invalid id" }); return; }
+  const { name, symbol, contractAddress, decimals, logoUrl } = req.body as Record<string, unknown>;
+  if (!name || !symbol || !contractAddress) {
+    res.status(400).json({ error: "name, symbol, and contractAddress are required" }); return;
+  }
+  const [token] = await db.insert(masterChainTokensTable).values({
+    masterChainId,
+    name: String(name),
+    symbol: String(symbol).toUpperCase(),
+    contractAddress: String(contractAddress),
+    decimals: decimals != null ? Number(decimals) : 18,
+    logoUrl: logoUrl ? String(logoUrl) : null,
+  }).returning();
+  res.status(201).json(token);
+});
+
+router.patch("/admin/master-chains/:id/tokens/:tokenId", async (req, res): Promise<void> => {
+  const masterChainId = Number(req.params.id);
+  const tokenId = Number(req.params.tokenId);
+  if (!Number.isInteger(tokenId) || tokenId < 1) { res.status(400).json({ error: "Invalid tokenId" }); return; }
+  const { name, symbol, contractAddress, decimals, logoUrl } = req.body as Record<string, unknown>;
+  const upd: Record<string, unknown> = {};
+  if (name !== undefined) upd.name = String(name);
+  if (symbol !== undefined) upd.symbol = String(symbol).toUpperCase();
+  if (contractAddress !== undefined) upd.contractAddress = String(contractAddress);
+  if (decimals !== undefined) upd.decimals = Number(decimals);
+  if (logoUrl !== undefined) upd.logoUrl = logoUrl ? String(logoUrl) : null;
+  const [token] = await db.update(masterChainTokensTable).set(upd as any)
+    .where(and(eq(masterChainTokensTable.id, tokenId), eq(masterChainTokensTable.masterChainId, masterChainId)))
+    .returning();
+  if (!token) { res.status(404).json({ error: "Not found" }); return; }
+  res.json(token);
+});
+
+router.delete("/admin/master-chains/:id/tokens/:tokenId", async (req, res): Promise<void> => {
+  const masterChainId = Number(req.params.id);
+  const tokenId = Number(req.params.tokenId);
+  if (!Number.isInteger(tokenId) || tokenId < 1) { res.status(400).json({ error: "Invalid tokenId" }); return; }
+  await db.delete(masterChainTokensTable)
+    .where(and(eq(masterChainTokensTable.id, tokenId), eq(masterChainTokensTable.masterChainId, masterChainId)));
+  res.json({ ok: true });
 });
 
 export default router;

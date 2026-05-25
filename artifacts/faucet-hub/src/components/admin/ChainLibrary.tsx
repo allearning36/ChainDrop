@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { adminFetch } from "@/lib/auth";
 import {
   Database, Plus, Edit2, Trash2, Search, X, Loader2, AlertCircle,
-  ArrowUp, ArrowDown, Save, Upload, Activity,
+  ArrowUp, ArrowDown, Save, Upload, Activity, Coins, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,9 +10,24 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { MasterChain } from "./ChainSelector";
 
+interface MasterChainToken {
+  id: number;
+  masterChainId: number;
+  name: string;
+  symbol: string;
+  contractAddress: string;
+  decimals: number;
+  logoUrl: string | null;
+  createdAt: string;
+}
+
 const DEFAULT_FORM = {
   name: "", symbol: "", chainId: "", chainType: "evm",
   logoUrl: "", rpcUrls: [""], explorerUrls: [""], isTestnet: true,
+};
+
+const DEFAULT_TOKEN_FORM = {
+  name: "", symbol: "", contractAddress: "", decimals: "18", logoUrl: "",
 };
 
 const CHAIN_TYPE_OPTIONS = [
@@ -39,6 +54,16 @@ export function ChainLibrary() {
   const logoFileRef = useRef<HTMLInputElement>(null);
   const [rpcHealth, setRpcHealth] = useState<Record<string, { status: "ok" | "error"; latencyMs: number }>>({});
   const [checkingHealth, setCheckingHealth] = useState(false);
+
+  // Token management state
+  const [tokenChainId, setTokenChainId] = useState<number | null>(null);
+  const [tokensByChain, setTokensByChain] = useState<Record<number, MasterChainToken[]>>({});
+  const [tokenForm, setTokenForm] = useState({ ...DEFAULT_TOKEN_FORM });
+  const [editTokenId, setEditTokenId] = useState<number | null>(null);
+  const [tokenFormOpen, setTokenFormOpen] = useState(false);
+  const [savingToken, setSavingToken] = useState(false);
+  const [deletingToken, setDeletingToken] = useState<number | null>(null);
+  const [tokenError, setTokenError] = useState("");
 
   const handleCheckHealth = async () => {
     const urls = form.rpcUrls.filter(u => u.trim());
@@ -82,6 +107,14 @@ export function ChainLibrary() {
   const fetchChains = async () => {
     const res = await adminFetch("/api/admin/master-chains");
     if (res.ok) setChains(await res.json());
+  };
+
+  const fetchTokens = async (chainId: number) => {
+    const res = await adminFetch(`/api/admin/master-chains/${chainId}/tokens`);
+    if (res.ok) {
+      const data = await res.json() as MasterChainToken[];
+      setTokensByChain(t => ({ ...t, [chainId]: data }));
+    }
   };
 
   useEffect(() => { fetchChains().finally(() => setLoading(false)); }, []);
@@ -167,6 +200,86 @@ export function ChainLibrary() {
     }
   };
 
+  // Token management handlers
+  const toggleTokenPanel = (chainId: number) => {
+    if (tokenChainId === chainId) {
+      setTokenChainId(null);
+    } else {
+      setTokenChainId(chainId);
+      if (!tokensByChain[chainId]) fetchTokens(chainId);
+    }
+    setTokenFormOpen(false);
+    setTokenForm({ ...DEFAULT_TOKEN_FORM });
+    setEditTokenId(null);
+    setTokenError("");
+  };
+
+  const openAddToken = (chainId: number) => {
+    setTokenChainId(chainId);
+    setEditTokenId(null);
+    setTokenForm({ ...DEFAULT_TOKEN_FORM });
+    setTokenError("");
+    setTokenFormOpen(true);
+  };
+
+  const openEditToken = (token: MasterChainToken) => {
+    setEditTokenId(token.id);
+    setTokenForm({
+      name: token.name,
+      symbol: token.symbol,
+      contractAddress: token.contractAddress,
+      decimals: String(token.decimals),
+      logoUrl: token.logoUrl ?? "",
+    });
+    setTokenError("");
+    setTokenFormOpen(true);
+  };
+
+  const handleSaveToken = async () => {
+    if (!tokenChainId) return;
+    const { name, symbol, contractAddress, decimals, logoUrl } = tokenForm;
+    if (!name.trim() || !symbol.trim() || !contractAddress.trim()) {
+      setTokenError("Name, symbol, and contract address are required.");
+      return;
+    }
+    setSavingToken(true);
+    setTokenError("");
+    try {
+      const body = {
+        name: name.trim(),
+        symbol: symbol.trim().toUpperCase(),
+        contractAddress: contractAddress.trim(),
+        decimals: Number(decimals) || 18,
+        logoUrl: logoUrl.trim() || null,
+      };
+      const url = editTokenId
+        ? `/api/admin/master-chains/${tokenChainId}/tokens/${editTokenId}`
+        : `/api/admin/master-chains/${tokenChainId}/tokens`;
+      const method = editTokenId ? "PATCH" : "POST";
+      const res = await adminFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) { const d = await res.json() as { error?: string }; throw new Error(d.error || "Save failed"); }
+      await fetchTokens(tokenChainId);
+      setTokenFormOpen(false);
+      setEditTokenId(null);
+      setTokenForm({ ...DEFAULT_TOKEN_FORM });
+    } catch (e: unknown) {
+      setTokenError(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSavingToken(false);
+    }
+  };
+
+  const handleDeleteToken = async (chainId: number, tokenId: number) => {
+    if (!confirm("Delete this token from the chain?")) return;
+    setDeletingToken(tokenId);
+    try {
+      await adminFetch(`/api/admin/master-chains/${chainId}/tokens/${tokenId}`, { method: "DELETE" });
+      await fetchTokens(chainId);
+    } finally {
+      setDeletingToken(null);
+    }
+  };
+
   const setRpcUrl = (i: number, val: string) => {
     const n = [...form.rpcUrls]; n[i] = val; setForm(f => ({ ...f, rpcUrls: n }));
   };
@@ -199,7 +312,7 @@ export function ChainLibrary() {
             <Database className="w-5 h-5" style={{ color: "#a78bfa" }} /> Chain Library
           </h2>
           <p className="text-xs text-muted-foreground font-mono mt-0.5">
-            Master chain list — select from here when adding faucet chains or exchange pairs
+            Master chain list with token registry — select from here when adding pay networks, faucet chains or exchange pairs
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -244,56 +357,205 @@ export function ChainLibrary() {
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map(c => (
-            <div key={c.id} className="flex items-center gap-3 px-4 py-3 rounded-xl"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
-              {c.logoUrl ? (
-                <img src={c.logoUrl} alt={c.name} className="w-8 h-8 rounded-full object-contain shrink-0"
-                  style={{ background: "rgba(255,255,255,0.08)" }}
-                  onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-              ) : (
-                <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-bold"
-                  style={{ background: "rgba(167,139,250,0.15)", color: "#a78bfa" }}>
-                  {c.symbol.slice(0, 2).toUpperCase()}
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-sm text-white">{c.name}</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full"
-                    style={{
-                      background: c.isTestnet ? "rgba(250,204,21,0.12)" : "rgba(34,197,94,0.12)",
-                      color: c.isTestnet ? "#facc15" : "#22c55e",
-                    }}>
-                    {c.isTestnet ? "Testnet" : "Mainnet"}
-                  </span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full"
-                    style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>
-                    {c.chainType.toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 mt-0.5 text-xs font-mono text-muted-foreground flex-wrap">
-                  <span>{c.symbol}</span>
-                  {c.chainId != null && <span>ID: {c.chainId}</span>}
-                  <span>{c.rpcUrls.length} RPC{c.rpcUrls.length !== 1 ? "s" : ""}</span>
-                  {c.explorerUrls.length > 0 && (
-                    <span>{c.explorerUrls.length} Explorer{c.explorerUrls.length !== 1 ? "s" : ""}</span>
+          {filtered.map(c => {
+            const tokens = tokensByChain[c.id];
+            const showTokenPanel = tokenChainId === c.id;
+            return (
+              <div key={c.id} className="rounded-xl overflow-hidden"
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                {/* Chain row */}
+                <div className="flex items-center gap-3 px-4 py-3">
+                  {c.logoUrl ? (
+                    <img src={c.logoUrl} alt={c.name} className="w-8 h-8 rounded-full object-contain shrink-0"
+                      style={{ background: "rgba(255,255,255,0.08)" }}
+                      onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-bold"
+                      style={{ background: "rgba(167,139,250,0.15)", color: "#a78bfa" }}>
+                      {c.symbol.slice(0, 2).toUpperCase()}
+                    </div>
                   )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm text-white">{c.name}</span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full"
+                        style={{
+                          background: c.isTestnet ? "rgba(250,204,21,0.12)" : "rgba(34,197,94,0.12)",
+                          color: c.isTestnet ? "#facc15" : "#22c55e",
+                        }}>
+                        {c.isTestnet ? "Testnet" : "Mainnet"}
+                      </span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full"
+                        style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>
+                        {c.chainType.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5 text-xs font-mono text-muted-foreground flex-wrap">
+                      <span>{c.symbol}</span>
+                      {c.chainId != null && <span>ID: {c.chainId}</span>}
+                      <span>{c.rpcUrls.length} RPC{c.rpcUrls.length !== 1 ? "s" : ""}</span>
+                      {c.explorerUrls.length > 0 && (
+                        <span>{c.explorerUrls.length} Explorer{c.explorerUrls.length !== 1 ? "s" : ""}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => toggleTokenPanel(c.id)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-mono transition-colors"
+                      style={{
+                        background: showTokenPanel ? "rgba(234,179,8,0.15)" : "rgba(255,255,255,0.05)",
+                        color: showTokenPanel ? "#eab308" : "rgba(255,255,255,0.45)",
+                        border: showTokenPanel ? "1px solid rgba(234,179,8,0.3)" : "1px solid rgba(255,255,255,0.08)",
+                      }}
+                    >
+                      <Coins className="w-3 h-3" />
+                      {tokens ? `${tokens.length} Token${tokens.length !== 1 ? "s" : ""}` : "Tokens"}
+                      {showTokenPanel ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    </button>
+                    <button onClick={() => openEdit(c)} className="p-1.5 rounded-lg hover:bg-white/10">
+                      <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
+                    </button>
+                    <button onClick={() => handleDelete(c.id, c.name)} disabled={deleting === c.id}
+                      className="p-1.5 rounded-lg hover:bg-red-500/10">
+                      {deleting === c.id
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin text-red-400" />
+                        : <Trash2 className="w-3.5 h-3.5 text-red-400" />}
+                    </button>
+                  </div>
                 </div>
+
+                {/* Token panel */}
+                {showTokenPanel && (
+                  <div className="px-4 pb-4" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div className="pt-3 space-y-3">
+                      {/* Token list */}
+                      {!tokens ? (
+                        <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground py-2">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading tokens…
+                        </div>
+                      ) : tokens.length === 0 && !tokenFormOpen ? (
+                        <p className="text-xs font-mono text-muted-foreground py-1">
+                          No tokens added yet. Add contract addresses for USDT, USDC, etc. on this chain.
+                        </p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {tokens.map(tok => (
+                            <div key={tok.id} className="flex items-center gap-3 px-3 py-2 rounded-lg"
+                              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                              {tok.logoUrl ? (
+                                <img src={tok.logoUrl} alt={tok.symbol} className="w-6 h-6 rounded-full object-contain shrink-0"
+                                  onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                              ) : (
+                                <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[9px] font-bold"
+                                  style={{ background: "rgba(234,179,8,0.15)", color: "#eab308" }}>
+                                  {tok.symbol.slice(0, 2)}
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-mono font-semibold text-white">{tok.symbol}</span>
+                                  <span className="text-[10px] font-mono text-muted-foreground">{tok.name}</span>
+                                  <span className="text-[10px] font-mono px-1 py-0.5 rounded"
+                                    style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" }}>
+                                    {tok.decimals} dec
+                                  </span>
+                                </div>
+                                <p className="text-[10px] font-mono text-muted-foreground truncate mt-0.5">
+                                  {tok.contractAddress}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button onClick={() => openEditToken(tok)} className="p-1 rounded hover:bg-white/10">
+                                  <Edit2 className="w-3 h-3 text-muted-foreground" />
+                                </button>
+                                <button onClick={() => handleDeleteToken(c.id, tok.id)} disabled={deletingToken === tok.id}
+                                  className="p-1 rounded hover:bg-red-500/10">
+                                  {deletingToken === tok.id
+                                    ? <Loader2 className="w-3 h-3 animate-spin text-red-400" />
+                                    : <Trash2 className="w-3 h-3 text-red-400" />}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Token form */}
+                      {tokenFormOpen && tokenChainId === c.id && (
+                        <div className="rounded-xl overflow-hidden"
+                          style={{ border: "1px solid rgba(234,179,8,0.25)", background: "rgba(234,179,8,0.04)" }}>
+                          <div className="flex items-center justify-between px-3 py-2"
+                            style={{ borderBottom: "1px solid rgba(234,179,8,0.15)" }}>
+                            <span className="text-[10px] font-mono font-bold uppercase tracking-widest" style={{ color: "#eab308" }}>
+                              {editTokenId ? "Edit Token" : "Add Token"}
+                            </span>
+                            <button onClick={() => { setTokenFormOpen(false); setEditTokenId(null); setTokenForm({ ...DEFAULT_TOKEN_FORM }); }}>
+                              <X className="w-3.5 h-3.5 text-muted-foreground" />
+                            </button>
+                          </div>
+                          <div className="p-3 space-y-3">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Token Name</Label>
+                                <Input value={tokenForm.name} onChange={e => setTokenForm(f => ({ ...f, name: e.target.value }))}
+                                  className="h-8 text-xs font-mono" placeholder="Tether USD" />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Symbol</Label>
+                                <Input value={tokenForm.symbol} onChange={e => setTokenForm(f => ({ ...f, symbol: e.target.value.toUpperCase() }))}
+                                  className="h-8 text-xs font-mono" placeholder="USDT" />
+                              </div>
+                              <div className="space-y-1 col-span-2">
+                                <Label className="text-[10px]">Contract Address <span className="text-red-400">*</span></Label>
+                                <Input value={tokenForm.contractAddress} onChange={e => setTokenForm(f => ({ ...f, contractAddress: e.target.value }))}
+                                  className="h-8 text-xs font-mono" placeholder="0x55d398326f99059fF775485246999027B3197955" />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Decimals</Label>
+                                <Input type="number" value={tokenForm.decimals} onChange={e => setTokenForm(f => ({ ...f, decimals: e.target.value }))}
+                                  className="h-8 text-xs font-mono" placeholder="18" />
+                                <p className="text-[9px] text-muted-foreground font-mono">USDT/USDC=6, most=18</p>
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Logo URL <span className="text-muted-foreground">(optional)</span></Label>
+                                <Input value={tokenForm.logoUrl} onChange={e => setTokenForm(f => ({ ...f, logoUrl: e.target.value }))}
+                                  className="h-8 text-xs font-mono" placeholder="https://…" />
+                              </div>
+                            </div>
+                            {tokenError && (
+                              <div className="flex items-center gap-2 text-[10px] font-mono px-2 py-1.5 rounded-lg"
+                                style={{ background: "rgba(239,68,68,0.08)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
+                                <AlertCircle className="w-3 h-3 shrink-0" /> {tokenError}
+                              </div>
+                            )}
+                            <div className="flex gap-2">
+                              <Button onClick={handleSaveToken} disabled={savingToken} size="sm" className="gap-1 font-mono text-xs h-7 px-3">
+                                {savingToken ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                                {savingToken ? "Saving…" : "Save Token"}
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => { setTokenFormOpen(false); setEditTokenId(null); setTokenForm({ ...DEFAULT_TOKEN_FORM }); }}
+                                className="font-mono text-xs h-7 px-3">
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {!tokenFormOpen && (
+                        <button onClick={() => openAddToken(c.id)}
+                          className="flex items-center gap-1.5 text-[10px] font-mono transition-colors"
+                          style={{ color: "#eab308" }}>
+                          <Plus className="w-3 h-3" /> Add Token
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button onClick={() => openEdit(c)} className="p-1.5 rounded-lg hover:bg-white/10">
-                  <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
-                </button>
-                <button onClick={() => handleDelete(c.id, c.name)} disabled={deleting === c.id}
-                  className="p-1.5 rounded-lg hover:bg-red-500/10">
-                  {deleting === c.id
-                    ? <Loader2 className="w-3.5 h-3.5 animate-spin text-red-400" />
-                    : <Trash2 className="w-3.5 h-3.5 text-red-400" />}
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
           {filtered.length === 0 && search && (
             <p className="text-center text-sm font-mono text-muted-foreground py-8">No chains match your search.</p>
           )}

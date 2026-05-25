@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { adminFetch } from "@/lib/auth";
-import { Plus, Trash2, Edit2, Loader2, AlertCircle, CheckCircle2, X, Network, Upload, RefreshCw, ExternalLink, Coins, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Trash2, Edit2, Loader2, AlertCircle, CheckCircle2, X, Network, Upload, RefreshCw, ExternalLink, Coins, ChevronDown, ChevronUp, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { ChainSelector, type MasterChain } from "./ChainSelector";
 
 interface PaymentNetwork {
   id: number;
@@ -26,8 +27,6 @@ interface PaymentNetwork {
 }
 
 interface RpcHealth { url: string; status: "ok" | "error"; latencyMs: number; error?: string | null; }
-
-const BUILTIN_NETWORKS = ["eth", "base", "arbitrum", "optimism", "polygon"];
 
 function parseRpcUrls(json: string): string[] {
   try { return JSON.parse(json || "[]"); } catch { return []; }
@@ -63,6 +62,7 @@ export function PaymentNetworkManagement() {
   const [uploading, setUploading] = useState(false);
   const [healthResults, setHealthResults] = useState<Record<number, RpcHealth[] | "loading">>({});
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [librarySelectorOpen, setLibrarySelectorOpen] = useState(false);
 
   async function load() {
     setLoading(true); setError(null);
@@ -79,6 +79,32 @@ export function PaymentNetworkManagement() {
   function openAdd() {
     setEditingId(null);
     setForm({ ...emptyForm });
+    setFormError("");
+    setFormOpen(true);
+  }
+
+  function openAddFromLibrary() {
+    setLibrarySelectorOpen(true);
+  }
+
+  function handleLibrarySelect(chain: MasterChain) {
+    setLibrarySelectorOpen(false);
+    setEditingId(null);
+    const suggestedId = chain.symbol.toLowerCase().replace(/[^a-z0-9_]/g, "");
+    setForm({
+      networkId: suggestedId,
+      name: chain.name,
+      symbol: chain.symbol,
+      chainId: chain.chainId != null ? String(chain.chainId) : "",
+      rpcUrl: chain.rpcUrls[0] ?? "",
+      rpcUrls: chain.rpcUrls.slice(1),
+      blockExplorerUrl: chain.explorerUrls[0] ?? "",
+      isToken: false,
+      contractAddress: "",
+      tokenDecimals: "18",
+      logoUrl: chain.logoUrl ?? "",
+      isEnabled: true,
+    });
     setFormError("");
     setFormOpen(true);
   }
@@ -197,27 +223,30 @@ export function PaymentNetworkManagement() {
     <div className="space-y-6">
       <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleUpload} />
 
-      <div className="flex items-center justify-between">
+      <ChainSelector
+        open={librarySelectorOpen}
+        onClose={() => setLibrarySelectorOpen(false)}
+        onSelect={handleLibrarySelect}
+        title="Import Chain as Payment Network"
+      />
+
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="text-lg font-bold font-mono text-foreground flex items-center gap-2">
             <Network className="w-4 h-4 text-primary" /> Buy Payment Networks
           </h2>
           <p className="text-xs font-mono text-muted-foreground mt-0.5">
-            Add custom chains or tokens (BNB, AVAX, USDT, USDC, etc.) for accepting payments.
+            Networks users can pay from to receive testnet tokens (ETH, BNB, AVAX, USDT, USDC, etc.)
           </p>
         </div>
-        <Button size="sm" onClick={openAdd} className="gap-1 font-mono text-xs h-8">
-          <Plus className="w-3.5 h-3.5" /> Add Network
-        </Button>
-      </div>
-
-      {/* Built-in */}
-      <div className="rounded-xl px-4 py-3 text-xs font-mono" style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)" }}>
-        <p className="text-primary font-semibold mb-1.5">Built-in networks (always available)</p>
-        <div className="flex flex-wrap gap-1.5">
-          {BUILTIN_NETWORKS.map(id => <Badge key={id} variant="outline" className="font-mono text-[10px] uppercase">{id}</Badge>)}
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={openAddFromLibrary} className="gap-1 font-mono text-xs h-8">
+            <Library className="w-3.5 h-3.5" /> Import from Library
+          </Button>
+          <Button size="sm" onClick={openAdd} className="gap-1 font-mono text-xs h-8">
+            <Plus className="w-3.5 h-3.5" /> Add Network
+          </Button>
         </div>
-        <p className="text-muted-foreground mt-2">These are enabled per-chain in Chains → Edit → Buy Settings → Payment Networks.</p>
       </div>
 
       {/* Form */}
@@ -336,7 +365,7 @@ export function PaymentNetworkManagement() {
                     <img src={form.logoUrl} alt="logo" className="w-9 h-9 rounded-full object-cover shrink-0 border border-border" />
                   )}
                   <Input value={form.logoUrl} onChange={e => setForm(f => ({ ...f, logoUrl: e.target.value }))}
-                    className="font-mono text-sm h-9" placeholder="https://... or upload from gallery" />
+                    className="font-mono text-sm h-9" placeholder="https://... or upload" />
                   <Button type="button" variant="outline" size="sm" className="shrink-0 h-9 gap-1" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
                     {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                     <span className="text-xs">Upload</span>
@@ -382,8 +411,10 @@ export function PaymentNetworkManagement() {
           <AlertCircle className="w-4 h-4 shrink-0" /> {error}
         </div>
       ) : networks.length === 0 ? (
-        <div className="text-center py-12 text-xs font-mono text-muted-foreground">
-          No custom networks yet. Add one to accept BNB, AVAX, USDT, USDC, etc.
+        <div className="text-center py-12 space-y-3 text-xs font-mono text-muted-foreground">
+          <Network className="w-10 h-10 mx-auto opacity-20" />
+          <p>No payment networks yet.</p>
+          <p className="opacity-60">Click <span className="text-primary">"Import from Library"</span> to add ETH, BASE, BNB, etc. from your Chain Library,<br />or use <span className="text-primary">"Add Network"</span> to configure manually.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -483,12 +514,12 @@ export function PaymentNetworkManagement() {
       <div className="rounded-xl px-4 py-3 text-xs font-mono space-y-1" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
         <p className="text-foreground font-semibold">How to use:</p>
         <ol className="text-muted-foreground space-y-0.5 list-decimal list-inside">
-          <li>Add a network here (e.g. networkId: "bnb") — chain mode for native coins, token mode for ERC-20/BEP-20</li>
+          <li>Add a chain/network here — use <strong>"Import from Library"</strong> to auto-fill from Chain Library, or add manually</li>
           <li>Go to Chains → Edit a chain → Buy Settings → Payment Networks</li>
-          <li>The new network ID will appear as a checkbox — enable it and save</li>
+          <li>The network ID will appear as a checkbox — enable it and save</li>
         </ol>
         <p className="text-muted-foreground mt-1 pt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-          Token mode (ERC-20/BEP-20): requires Contract Address + Decimals. RPC is used to read the token contract. For USDT use decimals=6, for most tokens use 18.
+          Token mode (ERC-20/BEP-20): requires Contract Address + Decimals. For USDT use decimals=6, for most tokens use 18.
         </p>
       </div>
     </div>
