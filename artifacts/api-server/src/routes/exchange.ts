@@ -2,7 +2,7 @@ import { Router } from "express";
 import { ethers } from "ethers";
 import { db } from "@workspace/db";
 import { exchangePairsTable, exchangeOrdersTable, settingsTable } from "@workspace/db/schema";
-import { eq, desc, and, isNotNull, lt } from "drizzle-orm";
+import { eq, desc, and, isNotNull, isNull, lt } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendTokens } from "../lib/faucet";
 import { requireAdmin } from "../lib/adminAuth";
@@ -612,76 +612,77 @@ export default router;
 // (meaning the user DID send funds but /confirm never completed) and re-triggers
 // the full processing flow. This is chain-agnostic: works for any pair.
 // ─────────────────────────────────────────────────────────────────────────────
-async function runOrderRecovery(): Promise<void> {
-  const MIN_AGE_MS = 3 * 60 * 1000; // only touch orders older than 3 minutes
-  const cutoff = new Date(Date.now() - MIN_AGE_MS);
+// Shared helper: send destination tokens and mark order completed/failed
+async function sendAndComplete(orderId: string, order: { userAddress: string; toAmount: string; fromTxHash: string | null }, pair: typeof import("@workspace/db/schema").exchangePairsTable.$inferSelect, label: string): Promise<void> {
+  try {
+    const privateKey = await resolvePrivateKey(pair);
+    if (!privateKey) {
+      await db.update(exchangeOrdersTable).set({ status: "failed", failReason: `Exchange wallet not configured (${label})` }).where(eq(exchangeOrdersTable.id, orderId));
+      return;
+    }
+    const toRpcs = getPairRpcs(pair, "to");
+    const { txHash: toTxHash } = await sendTokensWithFallback(toRpcs, privateKey, order.userAddress, order.toAmount, pair.gasLimit);
+    await db.update(exchangeOrdersTable).set({ status: "completed", toTxHash, completedAt: new Date() }).where(eq(exchangeOrdersTable.id, orderId));
+    logger.info({ orderId, toTxHash }, `${label}: order completed`);
+  } catch (err: any) {
+    logger.error({ err, orderId }, `${label}: send failed`);
+    await db.update(exchangeOrdersTable).set({ status: "failed", failReason: `${label}: ${err?.message ?? "Unexpected error"}` }).where(eq(exchangeOrdersTable.id, orderId));
+  }
+}
 
-  const stuckOrders = await db
+async function runOrderRecovery(): Promise<void> {
+  // ── 1. Pending orders with fromTxHash saved — verify from-chain then send ──
+  const pendingCutoff = new Date(Date.now() - 3 * 60 * 1000);
+  const pendingStuck = await db
     .select()
     .from(exchangeOrdersTable)
-    .where(
-      and(
-        eq(exchangeOrdersTable.status, "pending"),
-        isNotNull(exchangeOrdersTable.fromTxHash),
-        lt(exchangeOrdersTable.createdAt, cutoff),
-      )
-    )
+    .where(and(eq(exchangeOrdersTable.status, "pending"), isNotNull(exchangeOrdersTable.fromTxHash), lt(exchangeOrdersTable.createdAt, pendingCutoff)))
     .limit(10);
 
-  for (const order of stuckOrders) {
+  for (const order of pendingStuck) {
     if (!order.fromTxHash) continue;
     const [pair] = await db.select().from(exchangePairsTable).where(eq(exchangePairsTable.id, order.pairId)).limit(1);
     if (!pair) continue;
-
     logger.info({ orderId: order.id }, "Recovery: resuming stuck pending order");
-    await db.update(exchangeOrdersTable)
-      .set({ status: "confirming" })
-      .where(eq(exchangeOrdersTable.id, order.id));
+    await db.update(exchangeOrdersTable).set({ status: "confirming" }).where(eq(exchangeOrdersTable.id, order.id));
 
     void (async () => {
       const orderId = order.id;
       try {
         const receipt = await waitForTxReceipt(getPairRpcs(pair, "from"), order.fromTxHash!);
         if (!receipt || !receipt.success) {
-          await db.update(exchangeOrdersTable).set({
-            status: "failed",
-            failReason: "From-chain TX failed or not found (auto-recovery)",
-          }).where(eq(exchangeOrdersTable.id, orderId));
+          await db.update(exchangeOrdersTable).set({ status: "failed", failReason: "From-chain TX failed or not found (auto-recovery)" }).where(eq(exchangeOrdersTable.id, orderId));
           return;
         }
         const expectedWei = ethers.parseEther(order.fromAmount);
         const tolerance = (expectedWei * 5n) / 1000n;
         if (receipt.value < expectedWei - tolerance) {
-          await db.update(exchangeOrdersTable).set({
-            status: "failed",
-            failReason: `Insufficient amount received (auto-recovery). Expected ~${order.fromAmount}`,
-          }).where(eq(exchangeOrdersTable.id, orderId));
+          await db.update(exchangeOrdersTable).set({ status: "failed", failReason: `Insufficient amount received (auto-recovery). Expected ~${order.fromAmount}` }).where(eq(exchangeOrdersTable.id, orderId));
           return;
         }
-        const privateKey = await resolvePrivateKey(pair);
-        if (!privateKey) {
-          await db.update(exchangeOrdersTable).set({
-            status: "failed",
-            failReason: "Exchange wallet not configured (auto-recovery)",
-          }).where(eq(exchangeOrdersTable.id, orderId));
-          return;
-        }
-        const toRpcs = getPairRpcs(pair, "to");
-        const { txHash: toTxHash } = await sendTokensWithFallback(toRpcs, privateKey, order.userAddress, order.toAmount, pair.gasLimit);
-        await db.update(exchangeOrdersTable).set({
-          status: "completed",
-          toTxHash,
-          completedAt: new Date(),
-        }).where(eq(exchangeOrdersTable.id, orderId));
-        logger.info({ orderId, toTxHash }, "Recovery: order completed");
+        await sendAndComplete(orderId, order, pair, "auto-recovery");
       } catch (err: any) {
-        logger.error({ err, orderId }, "Recovery: order processing failed");
-        await db.update(exchangeOrdersTable).set({
-          status: "failed",
-          failReason: `Auto-recovery failed: ${err?.message ?? "Unexpected error"}`,
-        }).where(eq(exchangeOrdersTable.id, orderId));
+        logger.error({ err, orderId }, "Recovery: pending order failed");
+        await db.update(exchangeOrdersTable).set({ status: "failed", failReason: `Auto-recovery failed: ${err?.message ?? "Unexpected error"}` }).where(eq(exchangeOrdersTable.id, orderId));
       }
     })();
+  }
+
+  // ── 2. Confirming orders with no toTxHash — destination send was lost/hung ──
+  // These are orders where the async send task hung (e.g. slow RPC, Railway restart).
+  // Safe to retry: toTxHash is null means no tokens were ever sent to the user.
+  const confirmingCutoff = new Date(Date.now() - 10 * 60 * 1000); // 10 min grace period
+  const confirmingStuck = await db
+    .select()
+    .from(exchangeOrdersTable)
+    .where(and(eq(exchangeOrdersTable.status, "confirming"), isNull(exchangeOrdersTable.toTxHash), lt(exchangeOrdersTable.createdAt, confirmingCutoff)))
+    .limit(10);
+
+  for (const order of confirmingStuck) {
+    const [pair] = await db.select().from(exchangePairsTable).where(eq(exchangePairsTable.id, order.pairId)).limit(1);
+    if (!pair) continue;
+    logger.info({ orderId: order.id }, "Recovery: retrying stuck confirming order (no toTxHash)");
+    void sendAndComplete(order.id, order, pair, "confirming-recovery");
   }
 }
 

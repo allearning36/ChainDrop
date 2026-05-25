@@ -14,6 +14,16 @@ export class InsufficientBalanceError extends Error {
   }
 }
 
+// Wrap a promise with a hard timeout — rejects with Error if it takes too long.
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 export async function sendTokens(
   rpcUrl: string,
   privateKey: string,
@@ -24,11 +34,16 @@ export async function sendTokens(
   const provider = new ethers.JsonRpcProvider(rpcUrl);
   const wallet = new ethers.Wallet(privateKey, provider);
   const amountWei = ethers.parseEther(amountEth);
+  const RPC_TIMEOUT = 25_000; // 25 seconds per RPC call
 
-  logger.info({ toAddress, amount: amountEth }, "Sending faucet tokens");
+  logger.info({ rpcUrl, toAddress, amount: amountEth }, "Sending tokens");
 
   // Pre-flight: check wallet balance before attempting to send
-  const balanceWei = await provider.getBalance(wallet.address);
+  const balanceWei = await withTimeout(
+    provider.getBalance(wallet.address),
+    RPC_TIMEOUT,
+    `getBalance on ${rpcUrl}`,
+  );
   // Require at least 1.05× the claim amount to also cover gas
   const minRequired = (amountWei * 105n) / 100n;
   if (balanceWei < minRequired) {
@@ -38,19 +53,29 @@ export async function sendTokens(
   }
 
   // Get fee data and bump priority fee to ensure inclusion on fast networks (Polygon etc.)
-  const feeData = await provider.getFeeData();
+  const feeData = await withTimeout(
+    provider.getFeeData(),
+    RPC_TIMEOUT,
+    `getFeeData on ${rpcUrl}`,
+  );
+
   // Determine gas limit: admin override → use it; otherwise ask the network
   let resolvedGasLimit: bigint;
   if (gasLimit != null) {
     resolvedGasLimit = BigInt(gasLimit);
   } else {
     try {
-      const estimated = await provider.estimateGas({ to: toAddress, value: amountWei, from: wallet.address });
+      const estimated = await withTimeout(
+        provider.estimateGas({ to: toAddress, value: amountWei, from: wallet.address }),
+        RPC_TIMEOUT,
+        `estimateGas on ${rpcUrl}`,
+      );
       resolvedGasLimit = (estimated * 130n) / 100n;
     } catch {
       resolvedGasLimit = 100_000n;
     }
   }
+
   const txOverrides: Record<string, unknown> = { to: toAddress, value: amountWei, gasLimit: resolvedGasLimit };
   if (feeData.maxFeePerGas != null && feeData.maxPriorityFeePerGas != null) {
     // EIP-1559 path (includes Arbitrum where maxPriorityFeePerGas == 0n)
@@ -63,7 +88,11 @@ export async function sendTokens(
     txOverrides.gasPrice = (feeData.gasPrice * 130n) / 100n;
   }
 
-  const tx = await wallet.sendTransaction(txOverrides);
+  const tx = await withTimeout(
+    wallet.sendTransaction(txOverrides),
+    RPC_TIMEOUT,
+    `sendTransaction on ${rpcUrl}`,
+  );
 
   logger.info({ txHash: tx.hash, toAddress }, "Transaction submitted");
 
