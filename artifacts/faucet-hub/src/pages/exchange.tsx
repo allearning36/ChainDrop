@@ -501,6 +501,14 @@ export default function ExchangePage() {
         params: [{ from: walletAddress, to: orderData.depositAddress, value: parseEtherToHex(fromAmount) }],
       }) as string;
 
+      // Save txHash early — if the confirm call fails (network/browser crash),
+      // the background recovery worker will pick it up and resume automatically.
+      void fetch(`/api/exchange/orders/${orderData.orderId}/txhash`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromTxHash: txHash }),
+      });
+
       await fetch(`/api/exchange/orders/${orderData.orderId}/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

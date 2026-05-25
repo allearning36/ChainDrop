@@ -2,7 +2,7 @@ import { Router } from "express";
 import { ethers } from "ethers";
 import { db } from "@workspace/db";
 import { exchangePairsTable, exchangeOrdersTable, settingsTable } from "@workspace/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, isNotNull, lt } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendTokens } from "../lib/faucet";
 import { requireAdmin } from "../lib/adminAuth";
@@ -342,6 +342,26 @@ router.post("/exchange/orders/:id/confirm", async (req, res): Promise<void> => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PUBLIC: PATCH /exchange/orders/:id/txhash — save fromTxHash early (fire-and-forget)
+// Frontend calls this right after MetaMask signs, BEFORE calling /confirm.
+// Ensures the txHash is persisted even if the /confirm call never reaches us.
+// ─────────────────────────────────────────────────────────────────────────────
+router.patch("/exchange/orders/:id/txhash", async (req, res): Promise<void> => {
+  const { fromTxHash } = req.body ?? {};
+  if (!fromTxHash || typeof fromTxHash !== "string") {
+    res.status(400).json({ error: "fromTxHash required" }); return;
+  }
+  const orderId = req.params.id;
+  const [order] = await db.select().from(exchangeOrdersTable).where(eq(exchangeOrdersTable.id, orderId)).limit(1);
+  if (!order) { res.status(404).json({ error: "Order not found" }); return; }
+  // Only update if still pending — don't overwrite if already confirming/completed
+  if (order.status === "pending") {
+    await db.update(exchangeOrdersTable).set({ fromTxHash }).where(eq(exchangeOrdersTable.id, orderId));
+  }
+  res.json({ ok: true });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC: GET /exchange/orders/history?wallet= — user swap history
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/exchange/orders/history", async (req, res): Promise<void> => {
@@ -518,15 +538,20 @@ router.get("/admin/exchange/orders", requireAdmin, async (_req, res): Promise<vo
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/admin/exchange/orders/:id/retry", requireAdmin, async (req, res): Promise<void> => {
   const orderId = String(req.params.id);
+  const bodyTxHash = typeof req.body?.fromTxHash === "string" ? req.body.fromTxHash.trim() : null;
+
   const [order] = await db.select().from(exchangeOrdersTable).where(eq(exchangeOrdersTable.id, orderId)).limit(1);
   if (!order) { res.status(404).json({ error: "Order not found" }); return; }
 
-  if (order.status !== "failed") {
-    res.status(400).json({ error: `Cannot retry order with status "${order.status}". Only failed orders can be retried.` });
+  if (!["failed", "pending"].includes(order.status)) {
+    res.status(400).json({ error: `Cannot retry order with status "${order.status}".` });
     return;
   }
-  if (!order.fromTxHash) {
-    res.status(400).json({ error: "Order has no fromTxHash — user may not have sent funds." });
+
+  // Use provided txHash (admin force-process) or stored one
+  const resolvedTxHash = bodyTxHash || order.fromTxHash;
+  if (!resolvedTxHash) {
+    res.status(400).json({ error: "Order has no fromTxHash — provide it in the request body to force-process." });
     return;
   }
 
@@ -540,10 +565,10 @@ router.post("/admin/exchange/orders/:id/retry", requireAdmin, async (req, res): 
   }
 
   await db.update(exchangeOrdersTable)
-    .set({ status: "confirming", failReason: null })
+    .set({ status: "confirming", failReason: null, fromTxHash: resolvedTxHash })
     .where(eq(exchangeOrdersTable.id, orderId));
 
-  res.json({ status: "retrying", message: "Retry started — sending toToken now." });
+  res.json({ status: "retrying", message: "Processing started — sending destination tokens now." });
 
   void (async () => {
     try {
@@ -580,3 +605,88 @@ router.get("/admin/exchange/pairs/:id/rpc-health", requireAdmin, async (req, res
 });
 
 export default router;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BACKGROUND: Recovery worker — auto-resume stuck pending orders
+// Runs every 2 minutes. Finds pending orders that have a fromTxHash saved
+// (meaning the user DID send funds but /confirm never completed) and re-triggers
+// the full processing flow. This is chain-agnostic: works for any pair.
+// ─────────────────────────────────────────────────────────────────────────────
+async function runOrderRecovery(): Promise<void> {
+  const MIN_AGE_MS = 3 * 60 * 1000; // only touch orders older than 3 minutes
+  const cutoff = new Date(Date.now() - MIN_AGE_MS);
+
+  const stuckOrders = await db
+    .select()
+    .from(exchangeOrdersTable)
+    .where(
+      and(
+        eq(exchangeOrdersTable.status, "pending"),
+        isNotNull(exchangeOrdersTable.fromTxHash),
+        lt(exchangeOrdersTable.createdAt, cutoff),
+      )
+    )
+    .limit(10);
+
+  for (const order of stuckOrders) {
+    if (!order.fromTxHash) continue;
+    const [pair] = await db.select().from(exchangePairsTable).where(eq(exchangePairsTable.id, order.pairId)).limit(1);
+    if (!pair) continue;
+
+    logger.info({ orderId: order.id }, "Recovery: resuming stuck pending order");
+    await db.update(exchangeOrdersTable)
+      .set({ status: "confirming" })
+      .where(eq(exchangeOrdersTable.id, order.id));
+
+    void (async () => {
+      const orderId = order.id;
+      try {
+        const receipt = await waitForTxReceipt(getPairRpcs(pair, "from"), order.fromTxHash!);
+        if (!receipt || !receipt.success) {
+          await db.update(exchangeOrdersTable).set({
+            status: "failed",
+            failReason: "From-chain TX failed or not found (auto-recovery)",
+          }).where(eq(exchangeOrdersTable.id, orderId));
+          return;
+        }
+        const expectedWei = ethers.parseEther(order.fromAmount);
+        const tolerance = (expectedWei * 5n) / 1000n;
+        if (receipt.value < expectedWei - tolerance) {
+          await db.update(exchangeOrdersTable).set({
+            status: "failed",
+            failReason: `Insufficient amount received (auto-recovery). Expected ~${order.fromAmount}`,
+          }).where(eq(exchangeOrdersTable.id, orderId));
+          return;
+        }
+        const privateKey = await resolvePrivateKey(pair);
+        if (!privateKey) {
+          await db.update(exchangeOrdersTable).set({
+            status: "failed",
+            failReason: "Exchange wallet not configured (auto-recovery)",
+          }).where(eq(exchangeOrdersTable.id, orderId));
+          return;
+        }
+        const toRpcs = getPairRpcs(pair, "to");
+        const { txHash: toTxHash } = await sendTokensWithFallback(toRpcs, privateKey, order.userAddress, order.toAmount, pair.gasLimit);
+        await db.update(exchangeOrdersTable).set({
+          status: "completed",
+          toTxHash,
+          completedAt: new Date(),
+        }).where(eq(exchangeOrdersTable.id, orderId));
+        logger.info({ orderId, toTxHash }, "Recovery: order completed");
+      } catch (err: any) {
+        logger.error({ err, orderId }, "Recovery: order processing failed");
+        await db.update(exchangeOrdersTable).set({
+          status: "failed",
+          failReason: `Auto-recovery failed: ${err?.message ?? "Unexpected error"}`,
+        }).where(eq(exchangeOrdersTable.id, orderId));
+      }
+    })();
+  }
+}
+
+export function startOrderRecoveryWorker(): void {
+  void runOrderRecovery();
+  setInterval(() => void runOrderRecovery(), 2 * 60 * 1000);
+  logger.info("Exchange order recovery worker started (interval: 2 min)");
+}

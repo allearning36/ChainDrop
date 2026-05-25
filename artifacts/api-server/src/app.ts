@@ -6,6 +6,7 @@ import path from "path";
 import fs from "fs";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { startOrderRecoveryWorker } from "./routes/exchange";
 import { globalLimiter } from "./lib/rateLimiters";
 
 // ── Honeypot: paths that only scanners/bots would hit ─────────────────────────
@@ -161,5 +162,8 @@ if (fs.existsSync(frontendDist)) {
   });
   logger.info({ frontendDist }, "Serving frontend static files");
 }
+
+// Start background workers
+startOrderRecoveryWorker();
 
 export default app;

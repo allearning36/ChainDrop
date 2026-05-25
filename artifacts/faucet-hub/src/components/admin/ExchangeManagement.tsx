@@ -284,6 +284,8 @@ export function ExchangeManagement() {
   const [success, setSuccess] = useState("");
   const [deleting, setDeleting] = useState<number | null>(null);
   const [retrying, setRetrying] = useState<string | null>(null);
+  const [forceProcessId, setForceProcessId] = useState<string | null>(null);
+  const [forceTxHash, setForceTxHash] = useState("");
 
   // Settings state
   const [settingsKey, setSettingsKey] = useState("");
@@ -408,13 +410,19 @@ export function ExchangeManagement() {
     setDeleting(null);
   };
 
-  const handleRetry = async (orderId: string) => {
+  const handleRetry = async (orderId: string, txHash?: string) => {
     setRetrying(orderId);
     try {
-      const res = await adminFetch(`/api/admin/exchange/orders/${orderId}/retry`, { method: "POST" });
+      const res = await adminFetch(`/api/admin/exchange/orders/${orderId}/retry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: txHash ? JSON.stringify({ fromTxHash: txHash }) : undefined,
+      });
       const d = await res.json() as any;
       if (!res.ok) throw new Error(d.error || "Retry failed");
-      setSuccess("Retry started — check order status in a few seconds.");
+      setSuccess("Processing started — destination tokens will be sent shortly.");
+      setForceProcessId(null);
+      setForceTxHash("");
       setTimeout(() => fetchOrders(), 4000);
       setTimeout(() => fetchOrders(), 10000);
     } catch (e: any) { setSuccess(""); setError(e.message); }
@@ -635,7 +643,11 @@ export function ExchangeManagement() {
             <div key={o.id} className="rounded-xl px-4 py-3 space-y-2"
               style={{
                 background: "rgba(255,255,255,0.03)",
-                border: `1px solid ${o.status === "failed" && o.fromTxHash ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.07)"}`,
+                border: `1px solid ${
+                  (o.status === "failed" || o.status === "pending") && o.fromTxHash
+                    ? "rgba(239,68,68,0.2)"
+                    : o.status === "pending" ? "rgba(250,204,21,0.15)" : "rgba(255,255,255,0.07)"
+                }`,
               }}>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2 min-w-0">
@@ -644,12 +656,22 @@ export function ExchangeManagement() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-mono text-muted-foreground">{new Date(o.createdAt).toLocaleString()}</span>
-                  {o.status === "failed" && o.fromTxHash && (
+                  {/* Retry: failed or pending orders that already have a fromTxHash */}
+                  {(o.status === "failed" || o.status === "pending") && o.fromTxHash && (
                     <button onClick={() => handleRetry(o.id)} disabled={retrying === o.id}
                       className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold transition-colors"
                       style={{ background: "rgba(167,139,250,0.12)", border: "1px solid rgba(167,139,250,0.25)", color: "#a78bfa" }}>
                       {retrying === o.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
                       Retry
+                    </button>
+                  )}
+                  {/* Force Process: pending orders with no fromTxHash — admin enters txHash manually */}
+                  {o.status === "pending" && !o.fromTxHash && (
+                    <button onClick={() => { setForceProcessId(o.id); setForceTxHash(""); }}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold transition-colors"
+                      style={{ background: "rgba(250,204,21,0.1)", border: "1px solid rgba(250,204,21,0.25)", color: "#facc15" }}>
+                      <Database className="w-3 h-3" />
+                      Force Process
                     </button>
                   )}
                 </div>
@@ -662,9 +684,39 @@ export function ExchangeManagement() {
                 <div className="text-[11px] font-mono px-2 py-1.5 rounded-lg"
                   style={{ background: "rgba(239,68,68,0.07)", color: "#f87171" }}>
                   {o.failReason}
-                  {o.status === "failed" && o.fromTxHash && (
+                  {(o.status === "failed" || o.status === "pending") && o.fromTxHash && (
                     <span className="ml-2 opacity-60">— User funds received, toToken not sent yet</span>
                   )}
+                </div>
+              )}
+              {/* Force Process inline form */}
+              {forceProcessId === o.id && (
+                <div className="rounded-lg px-3 py-2.5 space-y-2"
+                  style={{ background: "rgba(250,204,21,0.06)", border: "1px solid rgba(250,204,21,0.2)" }}>
+                  <p className="text-[10px] font-mono" style={{ color: "#facc15" }}>
+                    Enter the from-chain TX hash from the user's wallet to force-send their destination tokens.
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      value={forceTxHash}
+                      onChange={e => setForceTxHash(e.target.value)}
+                      placeholder="0x…"
+                      className="font-mono text-xs h-7 flex-1"
+                    />
+                    <button
+                      onClick={() => handleRetry(o.id, forceTxHash.trim())}
+                      disabled={!forceTxHash.trim() || retrying === o.id}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-mono font-bold shrink-0"
+                      style={{ background: "rgba(250,204,21,0.15)", border: "1px solid rgba(250,204,21,0.3)", color: "#facc15" }}>
+                      {retrying === o.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                      Send
+                    </button>
+                    <button onClick={() => setForceProcessId(null)}
+                      className="p-1 rounded-lg"
+                      style={{ color: "rgba(255,255,255,0.3)" }}>
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
