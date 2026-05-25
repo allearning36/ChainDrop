@@ -51,6 +51,9 @@ router.get("/faucet/buy/info/:chainId", async (req, res): Promise<void> => {
     .filter((id) => allNetworks[id])
     .map((id) => ({ id, ...allNetworks[id] }));
 
+  let buyRatesMap: Record<string, string> = {};
+  try { buyRatesMap = JSON.parse(chain.buyRates || "{}"); } catch { /* keep empty */ }
+
   res.json({
     chainId: chain.id,
     chainName: chain.name,
@@ -59,7 +62,7 @@ router.get("/faucet/buy/info/:chainId", async (req, res): Promise<void> => {
     buyRate: chain.buyRate,
     minAmount: chain.buyMinAmount,
     maxAmount: chain.buyMaxAmount ?? null,
-    networks,
+    networks: networks.map(n => ({ ...n, rate: buyRatesMap[n.id] || chain.buyRate })),
   });
 });
 
@@ -159,8 +162,10 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
     return;
   }
 
-  // Calculate testnet amount: rate = testnet tokens per 1 mainnet ETH
-  const rate = parseFloat(chain.buyRate);
+  // Calculate testnet amount: use per-network rate if set, else fall back to global buyRate
+  let buyRatesMap: Record<string, string> = {};
+  try { buyRatesMap = JSON.parse(chain.buyRates || "{}"); } catch { /* keep empty */ }
+  const rate = parseFloat(buyRatesMap[networkId] || chain.buyRate);
   const paid = parseFloat(mainnetAmountPaid);
   const testnetAmount = (paid * rate).toFixed(8);
 

@@ -85,6 +85,7 @@ const DEFAULT_CHAIN = {
   buyEnabled: false,
   buyUrl: "",
   buyRate: "1000",
+  buyRates: {} as Record<string, string>,
   buyMinAmount: "0.0005",
   buyMaxAmount: "",
   buyCurrencies: '["eth"]',
@@ -118,7 +119,7 @@ export function ChainManagement() {
   const [formData, setFormData] = useState<any>(DEFAULT_CHAIN);
   const [formError, setFormError] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [customPaymentNetworks, setCustomPaymentNetworks] = useState<{ id: string; name: string; chainId: number }[]>([]);
+  const [customPaymentNetworks, setCustomPaymentNetworks] = useState<{ id: string; name: string; symbol: string; chainId: number }[]>([]);
   const [systemWallet, setSystemWallet] = useState<{ configured: boolean; address: string | null; error?: string } | null>(null);
   const [copiedSysAddr, setCopiedSysAddr] = useState(false);
   const [chainSelectorOpen, setChainSelectorOpen] = useState(false);
@@ -134,7 +135,7 @@ export function ChainManagement() {
     adminFetch("/api/admin/payment-networks")
       .then(r => r.ok ? r.json() : [])
       .then((nets: any[]) => {
-        setCustomPaymentNetworks(nets.filter((n: any) => n.isEnabled).map((n: any) => ({ id: n.networkId, name: n.name, chainId: n.chainId })));
+        setCustomPaymentNetworks(nets.filter((n: any) => n.isEnabled).map((n: any) => ({ id: n.networkId, name: n.name, symbol: n.symbol, chainId: n.chainId })));
       })
       .catch(() => {});
   }, []);
@@ -263,6 +264,7 @@ export function ChainManagement() {
       gasLimit: chain.gasLimit != null ? String(chain.gasLimit) : "",
       receiveAddress: chain.receiveAddress ?? "",
       buyRate: chain.buyRate || "1000",
+      buyRates: (() => { try { return JSON.parse((chain as any).buyRates || "{}"); } catch { return {}; } })(),
       buyMinAmount: chain.buyMinAmount || "0.0005",
       buyMaxAmount: (chain as any).buyMaxAmount ?? "",
       buyCurrencies: chain.buyCurrencies || '["eth"]',
@@ -303,6 +305,7 @@ export function ChainManagement() {
       cooldownSeconds: hmsToSeconds(Number(cdH), Number(cdM), Number(cdS)),
       sortOrder: Number(formData.sortOrder),
       buyRate: formData.buyRate || "1000",
+      buyRates: JSON.stringify(formData.buyRates || {}),
       buyMinAmount: formData.buyMinAmount || "0.0005",
     };
 
@@ -785,56 +788,116 @@ export function ChainManagement() {
                 </div>
               </div>
               {formData.buyEnabled ? (
-                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Exchange Rate</Label>
-                    <div className="relative">
-                      <Input type="number" step="1" min="1" value={formData.buyRate} onChange={e => setFormData({...formData, buyRate: e.target.value})} className="font-mono text-sm h-9 pr-20" placeholder="1000" />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground">{formData.symbol || "TKN"}/ETH</span>
+                <div className="p-4 space-y-3">
+                  {/* Min / Max purchase amounts */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Minimum Purchase Amount</Label>
+                      <Input type="number" step="0.0001" min="0.0001" value={formData.buyMinAmount} onChange={e => setFormData({...formData, buyMinAmount: e.target.value})} className="font-mono text-sm h-9" placeholder="0.0005" />
+                      <p className="text-[10px] text-muted-foreground font-mono">In payment currency (ETH, BNB, USDT, etc.)</p>
                     </div>
-                    <p className="text-[10px] text-muted-foreground font-mono">1 ETH → {parseFloat(formData.buyRate || "1000").toLocaleString()} {formData.symbol || "tokens"}</p>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Maximum Purchase Amount <span className="text-muted-foreground font-normal">(blank = unlimited)</span></Label>
+                      <Input type="number" step="0.0001" min="0.0001" value={formData.buyMaxAmount} onChange={e => setFormData({...formData, buyMaxAmount: e.target.value})} className="font-mono text-sm h-9" placeholder="unlimited" />
+                      <p className="text-[10px] text-muted-foreground font-mono">In payment currency (ETH, BNB, USDT, etc.)</p>
+                    </div>
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label className="text-xs">Receive Address <span className="text-muted-foreground font-normal">(mainnet payment address — blank = faucet wallet)</span></Label>
+                      <Input value={formData.receiveAddress} onChange={e => setFormData({...formData, receiveAddress: e.target.value})} placeholder="0x... (optional)" className="font-mono text-sm h-9" />
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Minimum Purchase (ETH)</Label>
-                    <Input type="number" step="0.0001" min="0.0001" value={formData.buyMinAmount} onChange={e => setFormData({...formData, buyMinAmount: e.target.value})} className="font-mono text-sm h-9" placeholder="0.0005" />
-                    <p className="text-[10px] text-muted-foreground font-mono">
-                      Min {formData.buyMinAmount || "0.0005"} ETH = {((parseFloat(formData.buyMinAmount || "0.0005") || 0) * parseFloat(formData.buyRate || "1000")).toFixed(4)} {formData.symbol || "tokens"}
-                    </p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Maximum Purchase (ETH) <span className="text-muted-foreground font-normal">(blank = unlimited)</span></Label>
-                    <Input type="number" step="0.0001" min="0.0001" value={formData.buyMaxAmount} onChange={e => setFormData({...formData, buyMaxAmount: e.target.value})} className="font-mono text-sm h-9" placeholder="unlimited" />
-                    {formData.buyMaxAmount && parseFloat(formData.buyMaxAmount) > 0 && (
-                      <p className="text-[10px] text-muted-foreground font-mono">
-                        Max {formData.buyMaxAmount} ETH = {((parseFloat(formData.buyMaxAmount) || 0) * parseFloat(formData.buyRate || "1000")).toFixed(4)} {formData.symbol || "tokens"}
-                      </p>
+
+                  {/* Per-network rate configuration */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Payment Networks &amp; Exchange Rates</Label>
+                      <span className="text-[10px] font-mono text-muted-foreground">
+                        {enabledCurrencies.length} network{enabledCurrencies.length !== 1 ? "s" : ""} enabled
+                      </span>
+                    </div>
+                    {customPaymentNetworks.length === 0 ? (
+                      <div className="px-4 py-3 rounded-xl text-[11px] font-mono text-muted-foreground text-center"
+                        style={{ border: "1px dashed rgba(255,255,255,0.1)" }}>
+                        No payment networks configured yet.{" "}
+                        <span className="text-primary">Go to Pay Networks tab to add ETH, BNB, USDT, etc.</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {customPaymentNetworks.map((net) => {
+                          const isOn = enabledCurrencies.includes(net.id);
+                          const currentRate = (formData.buyRates as Record<string, string>)?.[net.id] ?? "";
+                          return (
+                            <div key={net.id} className="rounded-xl overflow-hidden transition-all"
+                              style={{
+                                border: `1px solid ${isOn ? "rgba(129,140,248,0.35)" : "rgba(255,255,255,0.07)"}`,
+                                background: isOn ? "rgba(129,140,248,0.05)" : "rgba(255,255,255,0.02)",
+                              }}>
+                              <div className="flex items-center gap-3 px-3 py-2.5">
+                                {/* Enable toggle */}
+                                <button type="button" onClick={() => toggleCurrency(net.id)}
+                                  className="w-5 h-5 rounded flex items-center justify-center shrink-0 transition-all"
+                                  style={{
+                                    background: isOn ? "#818cf8" : "rgba(255,255,255,0.07)",
+                                    border: isOn ? "none" : "1px solid rgba(255,255,255,0.2)",
+                                  }}>
+                                  {isOn && <span className="text-white text-[10px] font-bold">✓</span>}
+                                </button>
+                                {/* Network info */}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[12px] font-mono font-semibold leading-tight" style={{ color: isOn ? "#e2e8f0" : "rgba(255,255,255,0.35)" }}>
+                                    {net.name}
+                                  </p>
+                                  <p className="text-[9px] font-mono" style={{ color: isOn ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.2)" }}>
+                                    {net.symbol} · Chain {net.chainId}
+                                  </p>
+                                </div>
+                                {/* Rate input — only meaningful when enabled */}
+                                {isOn && (
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">Rate:</span>
+                                    <div className="relative">
+                                      <Input
+                                        type="number" step="1" min="1"
+                                        value={currentRate}
+                                        onChange={e => {
+                                          const val = e.target.value;
+                                          setFormData((p: any) => ({
+                                            ...p,
+                                            buyRates: { ...((p.buyRates as Record<string, string>) || {}), [net.id]: val },
+                                          }));
+                                        }}
+                                        className="font-mono text-xs h-8 w-28 pr-14 text-right"
+                                        placeholder="e.g. 3000"
+                                      />
+                                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-mono text-muted-foreground whitespace-nowrap pointer-events-none">
+                                        {formData.symbol || "TKN"}/{net.symbol}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                              {/* Rate preview when enabled */}
+                              {isOn && currentRate && parseFloat(currentRate) > 0 && (
+                                <div className="px-3 pb-2 text-[10px] font-mono" style={{ color: "rgba(129,140,248,0.8)" }}>
+                                  1 {net.symbol} → {parseFloat(currentRate).toLocaleString()} {formData.symbol || "tokens"}
+                                  {formData.buyMinAmount && <span className="ml-3 text-muted-foreground">
+                                    Min {formData.buyMinAmount} {net.symbol} = {((parseFloat(formData.buyMinAmount) || 0) * parseFloat(currentRate)).toFixed(4)} {formData.symbol || "tokens"}
+                                  </span>}
+                                </div>
+                              )}
+                              {isOn && !currentRate && (
+                                <div className="px-3 pb-2 text-[10px] font-mono text-yellow-400/70">
+                                  ⚠ No rate set — enter tokens per 1 {net.symbol} above
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
-                  </div>
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label className="text-xs">Receive Address <span className="text-muted-foreground font-normal">(mainnet payment address — blank = faucet wallet)</span></Label>
-                    <Input value={formData.receiveAddress} onChange={e => setFormData({...formData, receiveAddress: e.target.value})} placeholder="0x... (optional)" className="font-mono text-sm h-9" />
-                  </div>
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label className="text-xs">Accepted Payment Networks</Label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {[...ALL_PAYMENT_NETWORKS, ...customPaymentNetworks.filter(c => !ALL_PAYMENT_NETWORKS.find(b => b.id === c.id))].map((net) => {
-                        const isOn = enabledCurrencies.includes(net.id);
-                        return (
-                          <button key={net.id} type="button" onClick={() => toggleCurrency(net.id)}
-                            className="flex items-center gap-2 p-2.5 rounded-lg transition-all text-left"
-                            style={{ background: isOn ? "rgba(129,140,248,0.1)" : "rgba(255,255,255,0.03)", border: `1px solid ${isOn ? "rgba(129,140,248,0.4)" : "rgba(255,255,255,0.08)"}` }}
-                          >
-                            <div className="w-4 h-4 rounded flex items-center justify-center shrink-0" style={{ background: isOn ? "#818cf8" : "rgba(255,255,255,0.08)", border: isOn ? "none" : "1px solid rgba(255,255,255,0.18)" }}>
-                              {isOn && <span className="text-white text-[9px] font-bold">✓</span>}
-                            </div>
-                            <div>
-                              <p className="text-[11px] font-mono font-semibold text-foreground leading-tight">{net.name}</p>
-                              <p className="text-[9px] font-mono text-muted-foreground">ID: {net.chainId}</p>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <p className="text-[10px] font-mono text-muted-foreground px-1">
+                      Each currency needs its own rate. Example: ETH = 15,000 tokens/ETH · BNB = 3,500 tokens/BNB · USDT = 5 tokens/USDT
+                    </p>
                   </div>
                 </div>
               ) : (
