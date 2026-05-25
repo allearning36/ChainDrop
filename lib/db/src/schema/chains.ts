@@ -22,6 +22,7 @@ export const chainsTable = pgTable("chains", {
   buyUrl: text("buy_url"),
   buyRate: numeric("buy_rate", { precision: 18, scale: 4 }).notNull().default("1000"),
   buyRates: text("buy_rates").notNull().default("{}"),
+  buyLimits: text("buy_limits").notNull().default("{}"),
   buyMinAmount: numeric("buy_min_amount", { precision: 18, scale: 8 }).notNull().default("0.0005"),
   buyMaxAmount: numeric("buy_max_amount", { precision: 18, scale: 8 }),
   buyCurrencies: text("buy_currencies").notNull().default('["eth"]'),

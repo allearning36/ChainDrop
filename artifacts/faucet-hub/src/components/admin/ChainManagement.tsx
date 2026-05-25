@@ -86,6 +86,7 @@ const DEFAULT_CHAIN = {
   buyUrl: "",
   buyRate: "1000",
   buyRates: {} as Record<string, string>,
+  buyLimits: {} as Record<string, { min: string; max: string }>,
   buyMinAmount: "0.0005",
   buyMaxAmount: "",
   buyCurrencies: '["eth"]',
@@ -265,6 +266,7 @@ export function ChainManagement() {
       receiveAddress: chain.receiveAddress ?? "",
       buyRate: chain.buyRate || "1000",
       buyRates: (() => { try { return JSON.parse((chain as any).buyRates || "{}"); } catch { return {}; } })(),
+      buyLimits: (() => { try { return JSON.parse((chain as any).buyLimits || "{}"); } catch { return {}; } })(),
       buyMinAmount: chain.buyMinAmount || "0.0005",
       buyMaxAmount: (chain as any).buyMaxAmount ?? "",
       buyCurrencies: chain.buyCurrencies || '["eth"]',
@@ -306,6 +308,7 @@ export function ChainManagement() {
       sortOrder: Number(formData.sortOrder),
       buyRate: formData.buyRate || "1000",
       buyRates: JSON.stringify(formData.buyRates || {}),
+      buyLimits: JSON.stringify(formData.buyLimits || {}),
       buyMinAmount: formData.buyMinAmount || "0.0005",
     };
 
@@ -789,21 +792,24 @@ export function ChainManagement() {
               </div>
               {formData.buyEnabled ? (
                 <div className="p-4 space-y-3">
-                  {/* Min / Max purchase amounts */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Minimum Purchase Amount</Label>
-                      <Input type="number" step="0.0001" min="0.0001" value={formData.buyMinAmount} onChange={e => setFormData({...formData, buyMinAmount: e.target.value})} className="font-mono text-sm h-9" placeholder="0.0005" />
-                      <p className="text-[10px] text-muted-foreground font-mono">In payment currency (ETH, BNB, USDT, etc.)</p>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Maximum Purchase Amount <span className="text-muted-foreground font-normal">(blank = unlimited)</span></Label>
-                      <Input type="number" step="0.0001" min="0.0001" value={formData.buyMaxAmount} onChange={e => setFormData({...formData, buyMaxAmount: e.target.value})} className="font-mono text-sm h-9" placeholder="unlimited" />
-                      <p className="text-[10px] text-muted-foreground font-mono">In payment currency (ETH, BNB, USDT, etc.)</p>
-                    </div>
-                    <div className="space-y-1.5 sm:col-span-2">
-                      <Label className="text-xs">Receive Address <span className="text-muted-foreground font-normal">(mainnet payment address — blank = faucet wallet)</span></Label>
-                      <Input value={formData.receiveAddress} onChange={e => setFormData({...formData, receiveAddress: e.target.value})} placeholder="0x... (optional)" className="font-mono text-sm h-9" />
+                  {/* Global Default Min / Max + Receive Address */}
+                  <div className="rounded-xl p-3 space-y-3" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <p className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-widest">Global Defaults <span className="normal-case font-normal">(used when no per-network limit is set)</span></p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Default Minimum Amount</Label>
+                        <Input type="number" step="any" min="0" value={formData.buyMinAmount} onChange={e => setFormData({...formData, buyMinAmount: e.target.value})} className="font-mono text-sm h-9" placeholder="0.0005" />
+                        <p className="text-[10px] text-muted-foreground font-mono">Fallback for any network without its own min</p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Default Maximum Amount <span className="text-muted-foreground font-normal">(blank = unlimited)</span></Label>
+                        <Input type="number" step="any" min="0" value={formData.buyMaxAmount} onChange={e => setFormData({...formData, buyMaxAmount: e.target.value})} className="font-mono text-sm h-9" placeholder="unlimited" />
+                        <p className="text-[10px] text-muted-foreground font-mono">Fallback for any network without its own max</p>
+                      </div>
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <Label className="text-xs">Receive Address <span className="text-muted-foreground font-normal">(mainnet payment address — blank = faucet wallet)</span></Label>
+                        <Input value={formData.receiveAddress} onChange={e => setFormData({...formData, receiveAddress: e.target.value})} placeholder="0x... (optional)" className="font-mono text-sm h-9" />
+                      </div>
                     </div>
                   </div>
 
@@ -852,8 +858,10 @@ export function ChainManagement() {
                                   </p>
                                 </div>
                               </div>
-                              {/* Rate input — full-width row when enabled */}
-                              {isOn && (
+                              {/* Rate + per-network min/max — shown when enabled */}
+                              {isOn && (() => {
+                                const netLimits = ((formData.buyLimits as Record<string, { min: string; max: string }>) || {})[net.id] || { min: "", max: "" };
+                                return (
                                 <div className="px-3 pb-3 space-y-1.5">
                                   <div className="flex items-center gap-2">
                                     <label className="text-[10px] font-mono text-muted-foreground shrink-0 w-20">
@@ -892,8 +900,41 @@ export function ChainManagement() {
                                       ⚠ Enter how many {formData.symbol || "tokens"} per 1 {net.symbol}
                                     </p>
                                   )}
+                                  {/* Per-network min / max override */}
+                                  <div className="flex items-center gap-2">
+                                    <label className="text-[10px] font-mono text-muted-foreground shrink-0 w-20">Min / Max:</label>
+                                    <Input
+                                      type="number" step="any" min="0"
+                                      value={netLimits.min}
+                                      onChange={e => {
+                                        const val = e.target.value;
+                                        setFormData((p: any) => ({
+                                          ...p,
+                                          buyLimits: { ...(p.buyLimits || {}), [net.id]: { ...(p.buyLimits?.[net.id] || {}), min: val } },
+                                        }));
+                                      }}
+                                      className="font-mono text-xs h-7 flex-1"
+                                      placeholder={`min (def: ${formData.buyMinAmount || "0.0005"})`}
+                                    />
+                                    <span className="text-[10px] font-mono text-muted-foreground">–</span>
+                                    <Input
+                                      type="number" step="any" min="0"
+                                      value={netLimits.max}
+                                      onChange={e => {
+                                        const val = e.target.value;
+                                        setFormData((p: any) => ({
+                                          ...p,
+                                          buyLimits: { ...(p.buyLimits || {}), [net.id]: { ...(p.buyLimits?.[net.id] || {}), max: val } },
+                                        }));
+                                      }}
+                                      className="font-mono text-xs h-7 flex-1"
+                                      placeholder="max (blank = unlimited)"
+                                    />
+                                  </div>
+                                  <p className="text-[10px] font-mono pl-[88px] text-muted-foreground">Per-network override — blank uses global default</p>
                                 </div>
-                              )}
+                                );
+                              })()}
                             </div>
                           );
                         })}

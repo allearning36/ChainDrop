@@ -317,6 +317,7 @@ router.get("/admin/chains", async (_req, res): Promise<void> => {
       buyUrl: c.buyUrl,
       buyRate: c.buyRate,
       buyRates: c.buyRates,
+      buyLimits: c.buyLimits,
       buyMinAmount: c.buyMinAmount,
       buyMaxAmount: c.buyMaxAmount ?? null,
       buyCurrencies: c.buyCurrencies,
@@ -353,6 +354,11 @@ router.post("/admin/chains", async (req, res): Promise<void> => {
     buyRatesForDb = typeof body.buyRates === "string" ? body.buyRates : JSON.stringify(body.buyRates || {});
     delete body.buyRates;
   }
+  let buyLimitsForDb: string = "{}";
+  if (body.buyLimits !== undefined) {
+    buyLimitsForDb = typeof body.buyLimits === "string" ? body.buyLimits : JSON.stringify(body.buyLimits || {});
+    delete body.buyLimits;
+  }
 
   // Extract and serialize rpcUrls before Zod validation (DB column is text, not array)
   let rpcUrlsForDb: string = '[]';
@@ -370,7 +376,7 @@ router.post("/admin/chains", async (req, res): Promise<void> => {
     return;
   }
 
-  const insertData: Record<string, unknown> = { ...parsed.data, rpcUrls: rpcUrlsForDb, buyRates: buyRatesForDb };
+  const insertData: Record<string, unknown> = { ...parsed.data, rpcUrls: rpcUrlsForDb, buyRates: buyRatesForDb, buyLimits: buyLimitsForDb };
   const rawPk = (insertData.privateKey as string | undefined)?.trim();
   if (rawPk) {
     // Auto-derive wallet address from private key if not supplied (EVM only)
@@ -407,6 +413,7 @@ router.post("/admin/chains", async (req, res): Promise<void> => {
     buyUrl: chain.buyUrl,
     buyRate: chain.buyRate,
     buyRates: chain.buyRates,
+    buyLimits: chain.buyLimits,
     buyMinAmount: chain.buyMinAmount,
     buyMaxAmount: chain.buyMaxAmount ?? null,
     buyCurrencies: chain.buyCurrencies,
@@ -435,11 +442,16 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
 
   const body = stripNulls(req.body) as Record<string, unknown>;
 
-  // Extract buyRates before Zod validation (not in OpenAPI schema — handled separately)
+  // Extract buyRates / buyLimits before Zod validation (not in OpenAPI schema — handled separately)
   let buyRatesForDbPatch: string | undefined;
   if (body.buyRates !== undefined) {
     buyRatesForDbPatch = typeof body.buyRates === "string" ? body.buyRates : JSON.stringify(body.buyRates || {});
     delete body.buyRates;
+  }
+  let buyLimitsForDbPatch: string | undefined;
+  if (body.buyLimits !== undefined) {
+    buyLimitsForDbPatch = typeof body.buyLimits === "string" ? body.buyLimits : JSON.stringify(body.buyLimits || {});
+    delete body.buyLimits;
   }
 
   // Extract and serialize rpcUrls before Zod validation (DB column is text, not array)
@@ -462,6 +474,7 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     ? { ...parsed.data, rpcUrls: rpcUrlsForDb }
     : { ...parsed.data };
   if (buyRatesForDbPatch !== undefined) updateData.buyRates = buyRatesForDbPatch;
+  if (buyLimitsForDbPatch !== undefined) updateData.buyLimits = buyLimitsForDbPatch;
   const rawUpdatePk = (updateData.privateKey as string | undefined)?.trim();
   if (rawUpdatePk) {
     // Auto-derive wallet address from private key if not supplied (EVM only)
@@ -507,6 +520,7 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     buyUrl: chain.buyUrl,
     buyRate: chain.buyRate,
     buyRates: chain.buyRates,
+    buyLimits: chain.buyLimits,
     buyMinAmount: chain.buyMinAmount,
     buyMaxAmount: chain.buyMaxAmount ?? null,
     buyCurrencies: chain.buyCurrencies,

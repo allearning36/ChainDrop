@@ -53,6 +53,8 @@ router.get("/faucet/buy/info/:chainId", async (req, res): Promise<void> => {
 
   let buyRatesMap: Record<string, string> = {};
   try { buyRatesMap = JSON.parse(chain.buyRates || "{}"); } catch { /* keep empty */ }
+  let buyLimitsMap: Record<string, { min?: string; max?: string }> = {};
+  try { buyLimitsMap = JSON.parse((chain as any).buyLimits || "{}"); } catch { /* keep empty */ }
 
   res.json({
     chainId: chain.id,
@@ -62,7 +64,12 @@ router.get("/faucet/buy/info/:chainId", async (req, res): Promise<void> => {
     buyRate: chain.buyRate,
     minAmount: chain.buyMinAmount,
     maxAmount: chain.buyMaxAmount ?? null,
-    networks: networks.map(n => ({ ...n, rate: buyRatesMap[n.id] || chain.buyRate })),
+    networks: networks.map(n => ({
+      ...n,
+      rate: buyRatesMap[n.id] || chain.buyRate,
+      minAmount: buyLimitsMap[n.id]?.min ?? chain.buyMinAmount,
+      maxAmount: buyLimitsMap[n.id]?.max ?? chain.buyMaxAmount ?? null,
+    })),
   });
 });
 
@@ -142,17 +149,20 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
     }
 
     const amountEth = parseFloat(ethers.formatEther(tx.value));
-    const minAmount = parseFloat(chain.buyMinAmount);
-    if (amountEth < minAmount) {
-      res.status(400).json({ error: `Minimum amount is ${chain.buyMinAmount} ETH` });
+    // Use per-network min/max if set, otherwise fall back to global chain limits
+    let buyLimitsMapPost: Record<string, { min?: string; max?: string }> = {};
+    try { buyLimitsMapPost = JSON.parse((chain as any).buyLimits || "{}"); } catch { /* ignore */ }
+    const perNetMin = buyLimitsMapPost[networkId]?.min;
+    const perNetMax = buyLimitsMapPost[networkId]?.max;
+    const effectiveMin = parseFloat(perNetMin ?? chain.buyMinAmount);
+    const effectiveMax = perNetMax ? parseFloat(perNetMax) : (chain.buyMaxAmount ? parseFloat(chain.buyMaxAmount) : null);
+    if (amountEth < effectiveMin) {
+      res.status(400).json({ error: `Minimum amount for ${networkId} is ${effectiveMin}` });
       return;
     }
-    if (chain.buyMaxAmount) {
-      const maxAmount = parseFloat(chain.buyMaxAmount);
-      if (amountEth > maxAmount) {
-        res.status(400).json({ error: `Maximum amount is ${chain.buyMaxAmount} ETH` });
-        return;
-      }
+    if (effectiveMax !== null && amountEth > effectiveMax) {
+      res.status(400).json({ error: `Maximum amount for ${networkId} is ${effectiveMax}` });
+      return;
     }
 
     mainnetAmountPaid = ethers.formatEther(tx.value);
