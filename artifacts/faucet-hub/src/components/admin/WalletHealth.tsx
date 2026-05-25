@@ -129,7 +129,7 @@ export function WalletHealth() {
                 <div className="flex items-center gap-2">
                   {w.logoUrl
                     ? <img src={w.logoUrl} alt={w.name} className="w-7 h-7 rounded-full object-cover" />
-                    : <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">{w.symbol.slice(0, 2)}</div>
+                    : <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">{(w.symbol ?? "??").slice(0, 2)}</div>
                   }
                   <div>
                     <div className="flex items-center gap-1.5">
@@ -174,7 +174,7 @@ export function WalletHealth() {
               <a href={explorerUrl} target="_blank" rel="noreferrer"
                 className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground hover:text-primary transition-colors">
                 <ExternalLink className="w-2.5 h-2.5" />
-                {`${w.walletAddress.slice(0, 10)}…${w.walletAddress.slice(-6)}`}
+                {w.walletAddress ? `${w.walletAddress.slice(0, 10)}…${w.walletAddress.slice(-6)}` : "No address"}
               </a>
             </div>
           );
