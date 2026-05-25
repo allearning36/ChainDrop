@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { WalletSelector } from "@/components/home/WalletSelector";
+import { HistoryModal } from "@/components/home/HistoryModal";
 import { restoreWalletConnectSession } from "@/lib/walletConnect";
 import {
   ArrowLeftRight, ArrowUpDown, Wallet, Loader2, CheckCircle2, AlertCircle,
-  ExternalLink, ChevronDown, X, RefreshCw, ArrowLeft, Search, LogOut, Copy, Check,
+  ExternalLink, ChevronDown, X, RefreshCw, ArrowLeft, Search, LogOut, Copy, Check, History,
 } from "lucide-react";
 
 const WALLET_STORAGE_KEY = "chaindrop_exchange_wallet";
@@ -256,6 +257,7 @@ export default function ExchangePage() {
   const [step, setStep] = useState<Step>("select");
   const [walletOpen, setWalletOpen] = useState(false);
   const [walletAddress, setWalletAddress] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [walletProvider, setWalletProvider] = useState<any>(null);
   const [order, setOrder] = useState<OrderResult | null>(null);
   const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
@@ -941,7 +943,22 @@ export default function ExchangePage() {
 
         {/* Title */}
         <div className="w-full max-w-[460px] mb-6">
-          <h1 className="text-2xl font-bold text-white">Cross-Chain Swap</h1>
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="text-2xl font-bold text-white">Cross-Chain Swap</h1>
+            {walletAddress && (
+              <button
+                onClick={() => setHistoryOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-mono text-xs transition-all shrink-0"
+                style={{ background: "rgba(129,140,248,0.08)", color: "rgba(129,140,248,0.7)", border: "1px solid rgba(129,140,248,0.18)" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(129,140,248,0.15)"; e.currentTarget.style.color = "#818cf8"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "rgba(129,140,248,0.08)"; e.currentTarget.style.color = "rgba(129,140,248,0.7)"; }}
+                title="View transaction history"
+              >
+                <History className="w-3.5 h-3.5" />
+                History
+              </button>
+            )}
+          </div>
           <p className="text-sm font-mono mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>
             Swap tokens across chains instantly
           </p>
@@ -975,6 +992,13 @@ export default function ExchangePage() {
         open={walletOpen}
         onClose={() => setWalletOpen(false)}
         onConnected={handleWalletConnected}
+      />
+
+      <HistoryModal
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        walletAddress={walletAddress}
+        defaultTab="swap"
       />
 
       <Footer />

@@ -6,9 +6,10 @@ import {
 } from "@workspace/api-client-react";
 import {
   Loader2, X, Wallet, CheckCircle2, Copy, Check,
-  AlertCircle, ExternalLink, ArrowLeftRight, Zap, ChevronDown, Radio, ArrowRight,
+  AlertCircle, ExternalLink, ArrowLeftRight, Zap, ChevronDown, Radio, ArrowRight, History,
 } from "lucide-react";
 import { WalletSelector } from "./WalletSelector";
+import { HistoryModal } from "./HistoryModal";
 
 interface BuyModalProps {
   chain: ChainPublic | null;
@@ -98,6 +99,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
   const [errorMsg, setErrorMsg] = useState("");
   const [copied, setCopied] = useState<"addr" | "tx" | null>(null);
   const [walletSelectorOpen, setWalletSelectorOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [confirmDots, setConfirmDots] = useState(0);
   const [sendingSeconds, setSendingSeconds] = useState(0);
   const [recoveryHash, setRecoveryHash] = useState("");
@@ -375,9 +377,23 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
                 </p>
               </div>
             </div>
-            <button onClick={() => { abortRef.current?.abort(); onClose(); }} style={{ color: "rgba(255,255,255,0.35)" }}>
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              {walletAddress && (
+                <button
+                  onClick={() => setHistoryOpen(true)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg transition-all"
+                  style={{ color: "rgba(129,140,248,0.6)", background: "rgba(129,140,248,0.07)", border: "1px solid rgba(129,140,248,0.15)" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(129,140,248,0.15)"; e.currentTarget.style.color = "#818cf8"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(129,140,248,0.07)"; e.currentTarget.style.color = "rgba(129,140,248,0.6)"; }}
+                  title="View transaction history"
+                >
+                  <History className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <button onClick={() => { abortRef.current?.abort(); onClose(); }} style={{ color: "rgba(255,255,255,0.35)" }}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Content */}
@@ -723,6 +739,14 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
         onClose={() => setWalletSelectorOpen(false)}
         onConnected={handleWalletConnected}
         targetChainId={selectedNetwork?.chainId}
+      />
+
+      {/* History Modal */}
+      <HistoryModal
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        walletAddress={walletAddress}
+        defaultTab="buy"
       />
     </>
   );

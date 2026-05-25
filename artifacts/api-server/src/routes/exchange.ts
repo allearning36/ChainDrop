@@ -2,7 +2,7 @@ import { Router } from "express";
 import { ethers } from "ethers";
 import { db } from "@workspace/db";
 import { exchangePairsTable, exchangeOrdersTable, settingsTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendTokens } from "../lib/faucet";
 import { requireAdmin } from "../lib/adminAuth";
@@ -339,6 +339,50 @@ router.post("/exchange/orders/:id/confirm", async (req, res): Promise<void> => {
       await db.update(exchangeOrdersTable).set({ status: "failed", failReason: err?.message ?? "Unexpected error" }).where(eq(exchangeOrdersTable.id, orderId));
     }
   })();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PUBLIC: GET /exchange/orders/history?wallet= — user swap history
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/exchange/orders/history", async (req, res): Promise<void> => {
+  const wallet = (req.query.wallet as string | undefined)?.toLowerCase();
+  if (!wallet || !ethers.isAddress(wallet)) {
+    res.status(400).json({ error: "wallet query param with valid EVM address required" });
+    return;
+  }
+  const rows = await db
+    .select({
+      id: exchangeOrdersTable.id,
+      fromAmount: exchangeOrdersTable.fromAmount,
+      toAmount: exchangeOrdersTable.toAmount,
+      feeAmount: exchangeOrdersTable.feeAmount,
+      status: exchangeOrdersTable.status,
+      fromTxHash: exchangeOrdersTable.fromTxHash,
+      toTxHash: exchangeOrdersTable.toTxHash,
+      createdAt: exchangeOrdersTable.createdAt,
+      completedAt: exchangeOrdersTable.completedAt,
+      fromSymbol: exchangePairsTable.fromSymbol,
+      fromChainName: exchangePairsTable.fromChainName,
+      fromChainId: exchangePairsTable.fromChainId,
+      fromLogoUrl: exchangePairsTable.fromLogoUrl,
+      fromExplorerUrl: exchangePairsTable.fromExplorerUrl,
+      toSymbol: exchangePairsTable.toSymbol,
+      toChainName: exchangePairsTable.toChainName,
+      toChainId: exchangePairsTable.toChainId,
+      toLogoUrl: exchangePairsTable.toLogoUrl,
+      toExplorerUrl: exchangePairsTable.toExplorerUrl,
+    })
+    .from(exchangeOrdersTable)
+    .leftJoin(exchangePairsTable, eq(exchangeOrdersTable.pairId, exchangePairsTable.id))
+    .where(eq(exchangeOrdersTable.userAddress, wallet))
+    .orderBy(desc(exchangeOrdersTable.createdAt))
+    .limit(50);
+
+  res.json(rows.map(r => ({
+    ...r,
+    createdAt: r.createdAt.toISOString(),
+    completedAt: r.completedAt?.toISOString() ?? null,
+  })));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

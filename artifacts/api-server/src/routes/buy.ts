@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { ethers } from "ethers";
 import { db, chainsTable, purchasesTable, paymentNetworksTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { GetBuyInfoParams, SubmitBuyBody } from "@workspace/api-zod";
 import { sendTokens as sendChainTokens, isValidAddress, type ChainType } from "../lib/chains/index";
 import { parseRpcUrls } from "../lib/rpcFailover";
@@ -221,6 +221,41 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
     symbol: chain.symbol,
     chainName: chain.name,
   });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PUBLIC: GET /faucet/buy/history/user?wallet= — user buy history
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/faucet/buy/history/user", async (req, res): Promise<void> => {
+  const wallet = (req.query.wallet as string | undefined)?.toLowerCase();
+  if (!wallet) {
+    res.status(400).json({ error: "wallet query param required" });
+    return;
+  }
+  const rows = await db
+    .select({
+      id: purchasesTable.id,
+      chainId: purchasesTable.chainId,
+      mainnetAmountPaid: purchasesTable.mainnetAmountPaid,
+      testnetAmountSent: purchasesTable.testnetAmountSent,
+      mainnetTxHash: purchasesTable.mainnetTxHash,
+      testnetTxHash: purchasesTable.testnetTxHash,
+      status: purchasesTable.status,
+      createdAt: purchasesTable.createdAt,
+      chainName: chainsTable.name,
+      chainSymbol: chainsTable.symbol,
+      explorerUrl: chainsTable.explorerUrl,
+    })
+    .from(purchasesTable)
+    .leftJoin(chainsTable, eq(purchasesTable.chainId, chainsTable.id))
+    .where(eq(purchasesTable.userAddress, wallet))
+    .orderBy(desc(purchasesTable.createdAt))
+    .limit(50);
+
+  res.json(rows.map(r => ({
+    ...r,
+    createdAt: r.createdAt.toISOString(),
+  })));
 });
 
 export default router;
