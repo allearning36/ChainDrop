@@ -39,6 +39,7 @@ interface HistoryModalProps {
   onClose: () => void;
   walletAddress: string;
   defaultTab?: "swap" | "buy";
+  onlyTab?: "swap" | "buy";
 }
 
 function statusStyle(status: string): { bg: string; color: string } {
@@ -79,8 +80,8 @@ function TxLink({ hash, explorerUrl }: { hash: string | null; explorerUrl: strin
   );
 }
 
-export function HistoryModal({ open, onClose, walletAddress, defaultTab = "swap" }: HistoryModalProps) {
-  const [tab, setTab] = useState<"swap" | "buy">(defaultTab);
+export function HistoryModal({ open, onClose, walletAddress, defaultTab = "swap", onlyTab }: HistoryModalProps) {
+  const [tab, setTab] = useState<"swap" | "buy">(onlyTab ?? defaultTab);
   const [swaps, setSwaps]         = useState<SwapHistoryItem[]>([]);
   const [buys, setBuys]           = useState<BuyHistoryItem[]>([]);
   const [loadingSwaps, setLoadingSwaps] = useState(false);
@@ -89,28 +90,28 @@ export function HistoryModal({ open, onClose, walletAddress, defaultTab = "swap"
   const [errBuys,  setErrBuys]    = useState("");
 
   useEffect(() => {
-    if (open) setTab(defaultTab);
-  }, [open, defaultTab]);
+    if (open) setTab(onlyTab ?? defaultTab);
+  }, [open, defaultTab, onlyTab]);
 
   useEffect(() => {
-    if (!open || !walletAddress) return;
+    if (!open || !walletAddress || onlyTab === "buy") return;
     setLoadingSwaps(true);
     setErrSwaps("");
     fetch(`/api/exchange/orders/history?wallet=${encodeURIComponent(walletAddress)}`)
       .then(r => r.json())
       .then((data: SwapHistoryItem[]) => { setSwaps(Array.isArray(data) ? data : []); setLoadingSwaps(false); })
       .catch(() => { setErrSwaps("Failed to load swap history"); setLoadingSwaps(false); });
-  }, [open, walletAddress]);
+  }, [open, walletAddress, onlyTab]);
 
   useEffect(() => {
-    if (!open || !walletAddress) return;
+    if (!open || !walletAddress || onlyTab === "swap") return;
     setLoadingBuys(true);
     setErrBuys("");
     fetch(`/api/faucet/buy/history/user?wallet=${encodeURIComponent(walletAddress)}`)
       .then(r => r.json())
       .then((data: BuyHistoryItem[]) => { setBuys(Array.isArray(data) ? data : []); setLoadingBuys(false); })
       .catch(() => { setErrBuys("Failed to load buy history"); setLoadingBuys(false); });
-  }, [open, walletAddress]);
+  }, [open, walletAddress, onlyTab]);
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
@@ -124,8 +125,10 @@ export function HistoryModal({ open, onClose, walletAddress, defaultTab = "swap"
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-4 pb-3 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
           <div className="flex items-center gap-2">
-            <HistoryIcon className="w-4 h-4" style={{ color: "#818cf8" }} />
-            <span className="font-mono font-bold text-sm text-white">Transaction History</span>
+            <HistoryIcon className="w-4 h-4" style={{ color: onlyTab === "buy" ? "#22c55e" : "#818cf8" }} />
+            <span className="font-mono font-bold text-sm text-white">
+              {onlyTab === "swap" ? "Swap History" : onlyTab === "buy" ? "Purchase History" : "Transaction History"}
+            </span>
           </div>
           <div className="flex items-center gap-3">
             <span className="font-mono text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>
@@ -143,39 +146,41 @@ export function HistoryModal({ open, onClose, walletAddress, defaultTab = "swap"
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1.5 px-5 pt-3 pb-2 flex-shrink-0">
-          <button
-            onClick={() => setTab("swap")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs transition-all"
-            style={tab === "swap"
-              ? { background: "rgba(129,140,248,0.12)", color: "#818cf8", border: "1px solid rgba(129,140,248,0.25)" }
-              : { background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid transparent" }}
-          >
-            <ArrowLeftRight className="w-3 h-3" />
-            Swaps
-            {swaps.length > 0 && (
-              <span className="px-1 py-0.5 rounded-full text-[10px] leading-none" style={{ background: "rgba(129,140,248,0.2)", color: "#818cf8" }}>
-                {swaps.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setTab("buy")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs transition-all"
-            style={tab === "buy"
-              ? { background: "rgba(34,197,94,0.12)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)" }
-              : { background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid transparent" }}
-          >
-            <ShoppingCart className="w-3 h-3" />
-            Purchases
-            {buys.length > 0 && (
-              <span className="px-1 py-0.5 rounded-full text-[10px] leading-none" style={{ background: "rgba(34,197,94,0.2)", color: "#22c55e" }}>
-                {buys.length}
-              </span>
-            )}
-          </button>
-        </div>
+        {/* Tabs — only shown when both tabs are available */}
+        {!onlyTab && (
+          <div className="flex gap-1.5 px-5 pt-3 pb-2 flex-shrink-0">
+            <button
+              onClick={() => setTab("swap")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs transition-all"
+              style={tab === "swap"
+                ? { background: "rgba(129,140,248,0.12)", color: "#818cf8", border: "1px solid rgba(129,140,248,0.25)" }
+                : { background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid transparent" }}
+            >
+              <ArrowLeftRight className="w-3 h-3" />
+              Swaps
+              {swaps.length > 0 && (
+                <span className="px-1 py-0.5 rounded-full text-[10px] leading-none" style={{ background: "rgba(129,140,248,0.2)", color: "#818cf8" }}>
+                  {swaps.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setTab("buy")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs transition-all"
+              style={tab === "buy"
+                ? { background: "rgba(34,197,94,0.12)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)" }
+                : { background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid transparent" }}
+            >
+              <ShoppingCart className="w-3 h-3" />
+              Purchases
+              {buys.length > 0 && (
+                <span className="px-1 py-0.5 rounded-full text-[10px] leading-none" style={{ background: "rgba(34,197,94,0.2)", color: "#22c55e" }}>
+                  {buys.length}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-2 min-h-0">

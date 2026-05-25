@@ -998,7 +998,7 @@ export default function ExchangePage() {
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
         walletAddress={walletAddress}
-        defaultTab="swap"
+        onlyTab="swap"
       />
 
       <Footer />

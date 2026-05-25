@@ -746,7 +746,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
         walletAddress={walletAddress}
-        defaultTab="buy"
+        onlyTab="buy"
       />
     </>
   );
