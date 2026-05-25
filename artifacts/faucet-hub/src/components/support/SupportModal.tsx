@@ -60,12 +60,13 @@ export function SupportModal({ open, onOpenChange }: SupportModalProps) {
   }, [open]);
 
   useEffect(() => {
-    if (step === "chat" && convId && userToken) {
+    if (open && step === "chat" && convId && userToken) {
       pollRef.current = setInterval(() => void loadMessages(convId, userToken), 5000);
       return () => { if (pollRef.current) clearInterval(pollRef.current); };
     }
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [step, convId, userToken]);
+  }, [open, step, convId, userToken]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

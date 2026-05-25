@@ -633,6 +633,7 @@ router.get("/admin/announcements", async (_req, res): Promise<void> => {
       id: a.id,
       title: a.title,
       content: a.content,
+      imageUrl: a.imageUrl ?? null,
       isActive: a.isActive,
       createdAt: a.createdAt.toISOString(),
     }))
@@ -651,6 +652,7 @@ router.post("/admin/announcements", async (req, res): Promise<void> => {
     id: item.id,
     title: item.title,
     content: item.content,
+    imageUrl: item.imageUrl ?? null,
     isActive: item.isActive,
     createdAt: item.createdAt.toISOString(),
   });
@@ -685,6 +687,7 @@ router.patch("/admin/announcements/:id", async (req, res): Promise<void> => {
     id: item.id,
     title: item.title,
     content: item.content,
+    imageUrl: item.imageUrl ?? null,
     isActive: item.isActive,
     createdAt: item.createdAt.toISOString(),
   });

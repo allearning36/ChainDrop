@@ -16,6 +16,7 @@ router.get("/announcements", async (_req, res): Promise<void> => {
       id: a.id,
       title: a.title,
       content: a.content,
+      imageUrl: a.imageUrl ?? null,
       isActive: a.isActive,
       createdAt: a.createdAt.toISOString(),
     }))

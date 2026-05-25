@@ -100,6 +100,17 @@ export function Navbar() {
       .then((d: { count: number } | null) => { if (d) setSupportUnread(d.count); })
       .catch(() => {});
 
+    const token = storedToken as string;
+    // Re-fetch actual unread count (accurate, avoids race conditions)
+    async function refreshCount() {
+      try {
+        const r = await fetch(`/api/support/conversations/${id}/unread`, {
+          headers: { "x-user-token": token },
+        });
+        if (r.ok) setSupportUnread(((await r.json()) as { count: number }).count);
+      } catch { /* ignore */ }
+    }
+
     // Open SSE stream — admin reply pushes event instantly
     const es = new EventSource(
       `/api/support/conversations/${id}/stream?token=${encodeURIComponent(storedToken)}`
@@ -107,10 +118,9 @@ export function Navbar() {
     es.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data) as { type: string };
-        if (data.type === "new_reply") setSupportUnread(prev => prev + 1);
+        if (data.type === "new_reply") void refreshCount();
       } catch { /* ignore */ }
     };
-    // On error, EventSource auto-reconnects — no manual retry needed
     sseRef.current = es;
     return () => { es.close(); sseRef.current = null; };
   }, []);
@@ -127,12 +137,22 @@ export function Navbar() {
 
   function handleBellOpen(o: boolean) {
     setOpen(o);
-    if (o) {
-      const ids = activeAnnouncements.map(a => a.id);
-      markAllSeen(ids);
+    if (!o) setExpandedId(null);
+  }
+
+  function handleMarkAllRead() {
+    const ids = activeAnnouncements.map(a => a.id);
+    markAllSeen(ids);
+    setSeenIds(getSeenIds());
+  }
+
+  function handleAnnouncementClick(id: number, isExpanded: boolean) {
+    const newId = isExpanded ? null : id;
+    setExpandedId(newId);
+    if (newId !== null) {
+      markAllSeen([id]);
       setSeenIds(getSeenIds());
     }
-    if (!o) setExpandedId(null);
   }
 
   return (
@@ -279,8 +299,8 @@ export function Navbar() {
                       minWidth: 15,
                       height: 15,
                       padding: "0 3px",
-                      background: "linear-gradient(135deg,#7c3aed,#a78bfa)",
-                      boxShadow: "0 0 6px rgba(167,139,250,0.6)",
+                      background: "#ef4444",
+                      boxShadow: "0 0 6px rgba(239,68,68,0.7)",
                     }}
                   >
                     {unseenCount > 9 ? "9+" : unseenCount}
@@ -291,7 +311,7 @@ export function Navbar() {
             <PopoverContent className="w-80 p-0 overflow-hidden" align="end">
               <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-card">
                 <Megaphone className="w-4 h-4 text-primary shrink-0" />
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold font-mono leading-none">Announcements</p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
                     {activeAnnouncements.length === 0
@@ -299,6 +319,15 @@ export function Navbar() {
                       : `${activeAnnouncements.length} active`}
                   </p>
                 </div>
+                {unseenCount > 0 && (
+                  <button
+                    onClick={handleMarkAllRead}
+                    className="shrink-0 text-[10px] font-mono font-semibold px-2 py-1 rounded transition-colors"
+                    style={{ color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)" }}
+                  >
+                    Read All
+                  </button>
+                )}
               </div>
 
               <div className="max-h-[420px] overflow-y-auto divide-y divide-border">
@@ -310,15 +339,19 @@ export function Navbar() {
                 ) : (
                   activeAnnouncements.map((a) => {
                     const isExpanded = expandedId === a.id;
+                    const isUnseen = !seenIds.has(a.id);
                     return (
                       <div key={a.id} className="bg-background hover:bg-card/60 transition-colors">
                         <button
                           className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left"
-                          onClick={() => setExpandedId(isExpanded ? null : a.id)}
+                          onClick={() => handleAnnouncementClick(a.id, isExpanded)}
                         >
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-primary mt-px" />
-                            <span className="text-sm font-semibold font-mono truncate leading-snug">{a.title}</span>
+                            <span
+                              className="shrink-0 w-1.5 h-1.5 rounded-full mt-px"
+                              style={{ background: isUnseen ? "#ef4444" : "rgba(255,255,255,0.2)" }}
+                            />
+                            <span className={`text-sm font-mono truncate leading-snug ${isUnseen ? "font-bold text-foreground" : "font-semibold text-muted-foreground"}`}>{a.title}</span>
                           </div>
                           {isExpanded
                             ? <ChevronDown className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
@@ -327,10 +360,10 @@ export function Navbar() {
                         </button>
                         {isExpanded && (
                           <div className="px-4 pb-4 pt-0 space-y-2">
-                            {(a as any).imageUrl && (
+                            {a.imageUrl && (
                               <div className="rounded-lg overflow-hidden border border-border">
                                 <img
-                                  src={(a as any).imageUrl}
+                                  src={a.imageUrl}
                                   alt={a.title}
                                   className="w-full object-cover"
                                   style={{ maxHeight: 140 }}
