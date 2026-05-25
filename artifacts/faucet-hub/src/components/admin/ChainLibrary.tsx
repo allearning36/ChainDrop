@@ -359,9 +359,14 @@ export function ChainLibrary() {
                         ))}
                       </select>
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="col-span-2 space-y-1.5">
                       <Label className="text-xs">Logo URL</Label>
                       <div className="flex items-center gap-2">
+                        {form.logoUrl && (
+                          <img src={form.logoUrl} alt="" className="w-8 h-8 rounded-full object-contain shrink-0"
+                            style={{ background: "rgba(255,255,255,0.08)" }}
+                            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                        )}
                         <Input value={form.logoUrl} onChange={e => setForm(f => ({ ...f, logoUrl: e.target.value }))}
                           placeholder="https://…" className="font-mono text-xs h-9 flex-1" />
                         <button
@@ -376,11 +381,6 @@ export function ChainLibrary() {
                             : <Upload className="w-3.5 h-3.5" />}
                           Upload
                         </button>
-                        {form.logoUrl && (
-                          <img src={form.logoUrl} alt="" className="w-8 h-8 rounded-full object-contain shrink-0"
-                            style={{ background: "rgba(255,255,255,0.08)" }}
-                            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                        )}
                       </div>
                       <input
                         ref={logoFileRef}
@@ -390,7 +390,7 @@ export function ChainLibrary() {
                         onChange={e => { if (e.target.files?.[0]) handleLogoUpload(e.target.files[0]); e.target.value = ""; }}
                       />
                     </div>
-                    <div className="flex items-center gap-3 pt-5">
+                    <div className="col-span-2 flex items-center gap-3">
                       <Switch checked={form.isTestnet} onCheckedChange={c => setForm(f => ({ ...f, isTestnet: c }))} />
                       <Label className="text-xs cursor-pointer">{form.isTestnet ? "Testnet" : "Mainnet"}</Label>
                     </div>
