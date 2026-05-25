@@ -42,6 +42,28 @@ const NETWORK_RPC: Record<string, string> = {
   polygon:  "https://polygon-rpc.com",
 };
 
+/** Estimate realistic gas cost for a simple ETH transfer on the given network.
+ *  Returns cost in ETH. Falls back to a safe default if RPC doesn't respond. */
+async function fetchGasReserve(rpcUrl: string): Promise<number> {
+  try {
+    const res = await fetch(rpcUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "eth_gasPrice", params: [] }),
+    });
+    const json = await res.json() as { result?: string };
+    if (json.result) {
+      const gasPriceWei = BigInt(json.result);
+      const gasLimit = 21000n;
+      const gasCostEth = Number(gasPriceWei * gasLimit) / 1e18;
+      // 2× safety buffer, capped at 0.003 ETH (mainnet worst-case) and floored at 0.000005 ETH (L2s)
+      return Math.min(0.003, Math.max(0.000005, gasCostEth * 2));
+    }
+  } catch { /* ignore */ }
+  // Conservative fallback: works for both mainnet (low gas) and L2s
+  return 0.0005;
+}
+
 async function fetchWalletBalance(rpcUrl: string, address: string): Promise<string | null> {
   try {
     const res = await fetch(rpcUrl, {
@@ -105,6 +127,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
   const [recoveryHash, setRecoveryHash] = useState("");
   const [walletBalance, setWalletBalance] = useState<string | null>(null);
   const [isFetchingBalance, setIsFetchingBalance] = useState(false);
+  const [gasReserve, setGasReserve] = useState(0.0005);
 
   const abortRef = useRef<AbortController | null>(null);
   const submitBuy = useSubmitBuy();
@@ -131,15 +154,20 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
     return () => clearInterval(id);
   }, [step]);
 
-  // Fetch wallet balance when wallet or network changes
+  // Fetch wallet balance + real gas estimate when wallet or network changes
   useEffect(() => {
     if (!walletAddress || !selectedNetwork) { setWalletBalance(null); return; }
     const rpcUrl = NETWORK_RPC[selectedNetwork.id] ?? (selectedNetwork as any).rpcUrl as string | undefined;
     if (!rpcUrl) { setWalletBalance(null); return; }
     setIsFetchingBalance(true);
     setWalletBalance(null);
-    fetchWalletBalance(rpcUrl, walletAddress).then((bal) => {
+    // Fetch balance and gas reserve concurrently
+    Promise.all([
+      fetchWalletBalance(rpcUrl, walletAddress),
+      fetchGasReserve(rpcUrl),
+    ]).then(([bal, gas]) => {
       setWalletBalance(bal);
+      setGasReserve(gas);
       setIsFetchingBalance(false);
     });
   }, [walletAddress, selectedNetwork?.id]);
@@ -532,16 +560,20 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
                       </div>
                     </div>
                     {(() => {
-                      const GAS_RESERVE = 0.001;
                       const bal = walletBalance !== null ? parseFloat(walletBalance) : null;
-                      const lowBal = bal !== null && ethAmountNum > 0 && bal < ethAmountNum + GAS_RESERVE;
+                      const lowBal = bal !== null && ethAmountNum > 0 && bal < ethAmountNum + gasReserve;
                       const canSend = amountValid && !!selectedNetwork && !lowBal;
+                      const gasDisplay = gasReserve < 0.0001
+                        ? gasReserve.toFixed(6)
+                        : gasReserve < 0.001
+                          ? gasReserve.toFixed(5)
+                          : gasReserve.toFixed(4);
                       return (
                         <>
                           {lowBal && (
                             <div className="flex items-start gap-2 text-xs font-mono px-3 py-2.5 rounded-xl" style={{ background: "rgba(239,68,68,0.08)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
                               <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                              Insufficient balance. Need {(ethAmountNum + GAS_RESERVE).toFixed(4)} {selectedNetwork?.symbol || "ETH"} (incl. gas), you have {bal!.toFixed(4)}.
+                              Insufficient balance. Need {(ethAmountNum + gasReserve).toFixed(6)} {selectedNetwork?.symbol || "ETH"} (send + ~{gasDisplay} gas), you have {bal!.toFixed(6)}.
                             </div>
                           )}
                           <button onClick={sendEth} disabled={!canSend}

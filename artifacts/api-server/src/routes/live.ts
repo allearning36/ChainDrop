@@ -1,8 +1,11 @@
 import { Router, type IRouter } from "express";
-import { desc, gte } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
 import { requireAdmin } from "../lib/adminAuth";
 import { addClient, removeClient, clientCount } from "../lib/liveEvents";
-import { db, liveErrorLogsTable, claimsTable, chainsTable } from "@workspace/db";
+import {
+  db, liveErrorLogsTable, claimsTable, chainsTable,
+  purchasesTable, exchangeOrdersTable, exchangePairsTable,
+} from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -68,11 +71,11 @@ router.get("/admin/live", (req, res): void => {
   });
 });
 
-/** GET /admin/live-history — last 72h of errors + successful claims merged */
+/** GET /admin/live-history — last 72h of errors + successful claims/buys/swaps merged */
 router.get("/admin/live-history", requireAdmin, async (_req, res): Promise<void> => {
   const since = new Date(Date.now() - 72 * 60 * 60 * 1000);
 
-  const [errors, claims, chains] = await Promise.all([
+  const [errors, claims, chains, purchases, exchangeOrders, pairs] = await Promise.all([
     db.select().from(liveErrorLogsTable)
       .where(gte(liveErrorLogsTable.ts, since))
       .orderBy(desc(liveErrorLogsTable.ts))
@@ -82,9 +85,19 @@ router.get("/admin/live-history", requireAdmin, async (_req, res): Promise<void>
       .orderBy(desc(claimsTable.claimedAt))
       .limit(200),
     db.select({ id: chainsTable.id, name: chainsTable.name, symbol: chainsTable.symbol }).from(chainsTable),
+    db.select().from(purchasesTable)
+      .where(and(eq(purchasesTable.status, "completed"), gte(purchasesTable.createdAt, since)))
+      .orderBy(desc(purchasesTable.createdAt))
+      .limit(200),
+    db.select().from(exchangeOrdersTable)
+      .where(and(eq(exchangeOrdersTable.status, "completed"), gte(exchangeOrdersTable.createdAt, since)))
+      .orderBy(desc(exchangeOrdersTable.createdAt))
+      .limit(200),
+    db.select().from(exchangePairsTable),
   ]);
 
   const chainMap = Object.fromEntries(chains.map(c => [c.id, c]));
+  const pairMap = Object.fromEntries(pairs.map(p => [p.id, p]));
 
   const errorEvents = errors.map(e => ({
     id: `db_err_${e.id}`,
@@ -101,7 +114,7 @@ router.get("/admin/live-history", requireAdmin, async (_req, res): Promise<void>
     historical: true,
   }));
 
-  const successEvents = claims.map(c => ({
+  const claimEvents = claims.map(c => ({
     id: `db_claim_${c.id}`,
     type: "claim_success" as const,
     ts: c.claimedAt.toISOString(),
@@ -115,7 +128,38 @@ router.get("/admin/live-history", requireAdmin, async (_req, res): Promise<void>
     historical: true,
   }));
 
-  const merged = [...errorEvents, ...successEvents]
+  const buyEvents = purchases.map(p => ({
+    id: `db_buy_${p.id}`,
+    type: "buy_success" as const,
+    ts: p.createdAt.toISOString(),
+    chainId: p.chainId,
+    chainName: chainMap[p.chainId]?.name,
+    address: p.userAddress,
+    txHash: p.testnetTxHash ?? undefined,
+    amount: p.testnetAmountSent ?? undefined,
+    symbol: chainMap[p.chainId]?.symbol,
+    historical: true,
+  }));
+
+  const swapEvents = exchangeOrders.map(o => {
+    const pair = pairMap[o.pairId];
+    return {
+      id: `db_swap_${o.id}`,
+      type: "swap_success" as const,
+      ts: (o.completedAt ?? o.createdAt).toISOString(),
+      address: o.userAddress,
+      txHash: o.toTxHash ?? undefined,
+      fromChainName: pair?.fromChainName,
+      toChainName: pair?.toChainName,
+      fromSymbol: pair?.fromSymbol,
+      toSymbol: pair?.toSymbol,
+      fromAmount: o.fromAmount,
+      toAmount: o.toAmount,
+      historical: true,
+    };
+  });
+
+  const merged = [...errorEvents, ...claimEvents, ...buyEvents, ...swapEvents]
     .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
     .slice(0, 300);
 
