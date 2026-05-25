@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { Bell, MessageCircle, ChevronDown, ChevronRight, Megaphone, ArrowLeftRight, Users } from "lucide-react";
 import { useGetAnnouncements, getGetAnnouncementsQueryKey, useGetReferralSettings, getGetReferralSettingsQueryKey } from "@workspace/api-client-react";
@@ -47,9 +47,36 @@ function markAllSeen(ids: number[]) {
   } catch { /* ignore */ }
 }
 
+function renderWithLinks(text: string): React.ReactNode[] {
+  const urlRegex = /https?:\/\/[^\s]+/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = urlRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
+    const url = match[0];
+    parts.push(
+      <a
+        key={match.index}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline break-all hover:opacity-80"
+        style={{ color: "#22c55e" }}
+        onClick={e => e.stopPropagation()}
+      >
+        {url}
+      </a>
+    );
+    lastIndex = match.index + url.length;
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return parts.length > 0 ? parts : [text];
+}
+
 export function Navbar() {
-  const { data: announcements = [] } = useGetAnnouncements({
-    query: { queryKey: getGetAnnouncementsQueryKey(), refetchInterval: 30000 }
+  const { data: announcements = [], refetch: refetchAnnouncements } = useGetAnnouncements({
+    query: { queryKey: getGetAnnouncementsQueryKey(), refetchInterval: 30000, staleTime: 0 }
   });
   const { data: referralSettings } = useGetReferralSettings({
     query: { queryKey: getGetReferralSettingsQueryKey() }
@@ -137,6 +164,7 @@ export function Navbar() {
 
   function handleBellOpen(o: boolean) {
     setOpen(o);
+    if (o) void refetchAnnouncements();
     if (!o) setExpandedId(null);
   }
 
@@ -375,7 +403,7 @@ export function Navbar() {
                               className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap rounded-lg p-3"
                               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
                             >
-                              {a.content}
+                              {renderWithLinks(a.content ?? "")}
                             </div>
                           </div>
                         )}
