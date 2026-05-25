@@ -90,7 +90,7 @@ export function PaymentNetworkManagement() {
   function handleLibrarySelect(chain: MasterChain) {
     setLibrarySelectorOpen(false);
     setEditingId(null);
-    const suggestedId = chain.symbol.toLowerCase().replace(/[^a-z0-9_]/g, "");
+    const suggestedId = (chain.name + "_" + chain.symbol).toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
     setForm({
       networkId: suggestedId,
       name: chain.name,

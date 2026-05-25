@@ -758,10 +758,12 @@ router.post("/admin/payment-networks", async (req, res): Promise<void> => {
     }).returning();
     res.status(201).json(network);
   } catch (err: any) {
-    if (err?.code === "23505") {
-      res.status(409).json({ error: `Network ID "${networkId}" already exists` });
+    const pgCode = err?.code ?? err?.cause?.code ?? (err?.message?.includes("23505") ? "23505" : undefined);
+    req.log.error({ err: err?.message ?? String(err) }, "payment-network create error");
+    if (pgCode === "23505") {
+      res.status(409).json({ error: `Network ID "${networkId}" already exists. Choose a different Network ID.` });
     } else {
-      res.status(500).json({ error: "Failed to create payment network" });
+      res.status(500).json({ error: `Failed to create payment network: ${err?.message ?? "unknown error"}` });
     }
   }
 });

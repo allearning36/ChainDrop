@@ -851,13 +851,17 @@ export function ChainManagement() {
                                     {net.symbol} · Chain {net.chainId}
                                   </p>
                                 </div>
-                                {/* Rate input — only meaningful when enabled */}
-                                {isOn && (
-                                  <div className="flex items-center gap-1.5 shrink-0">
-                                    <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">Rate:</span>
-                                    <div className="relative">
+                              </div>
+                              {/* Rate input — full-width row when enabled */}
+                              {isOn && (
+                                <div className="px-3 pb-3 space-y-1.5">
+                                  <div className="flex items-center gap-2">
+                                    <label className="text-[10px] font-mono text-muted-foreground shrink-0 w-20">
+                                      Rate ({net.symbol}):
+                                    </label>
+                                    <div className="relative flex-1">
                                       <Input
-                                        type="number" step="1" min="1"
+                                        type="number" step="any" min="0"
                                         value={currentRate}
                                         onChange={e => {
                                           const val = e.target.value;
@@ -866,28 +870,28 @@ export function ChainManagement() {
                                             buyRates: { ...((p.buyRates as Record<string, string>) || {}), [net.id]: val },
                                           }));
                                         }}
-                                        className="font-mono text-xs h-8 w-28 pr-14 text-right"
-                                        placeholder="e.g. 3000"
+                                        className="font-mono text-xs h-8 w-full pr-28"
+                                        placeholder={`tokens per 1 ${net.symbol}`}
                                       />
-                                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-mono text-muted-foreground whitespace-nowrap pointer-events-none">
+                                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground whitespace-nowrap pointer-events-none">
                                         {formData.symbol || "TKN"}/{net.symbol}
                                       </span>
                                     </div>
                                   </div>
-                                )}
-                              </div>
-                              {/* Rate preview when enabled */}
-                              {isOn && currentRate && parseFloat(currentRate) > 0 && (
-                                <div className="px-3 pb-2 text-[10px] font-mono" style={{ color: "rgba(129,140,248,0.8)" }}>
-                                  1 {net.symbol} → {parseFloat(currentRate).toLocaleString()} {formData.symbol || "tokens"}
-                                  {formData.buyMinAmount && <span className="ml-3 text-muted-foreground">
-                                    Min {formData.buyMinAmount} {net.symbol} = {((parseFloat(formData.buyMinAmount) || 0) * parseFloat(currentRate)).toFixed(4)} {formData.symbol || "tokens"}
-                                  </span>}
-                                </div>
-                              )}
-                              {isOn && !currentRate && (
-                                <div className="px-3 pb-2 text-[10px] font-mono text-yellow-400/70">
-                                  ⚠ No rate set — enter tokens per 1 {net.symbol} above
+                                  {currentRate && parseFloat(currentRate) > 0 ? (
+                                    <p className="text-[10px] font-mono pl-[88px]" style={{ color: "rgba(129,140,248,0.8)" }}>
+                                      1 {net.symbol} → {parseFloat(currentRate).toLocaleString()} {formData.symbol || "tokens"}
+                                      {formData.buyMinAmount && (
+                                        <span className="ml-2 text-muted-foreground">
+                                          · min {formData.buyMinAmount} {net.symbol} = {((parseFloat(formData.buyMinAmount) || 0) * parseFloat(currentRate)).toFixed(4)} {formData.symbol || "tokens"}
+                                        </span>
+                                      )}
+                                    </p>
+                                  ) : (
+                                    <p className="text-[10px] font-mono text-yellow-400/70 pl-[88px]">
+                                      ⚠ Enter how many {formData.symbol || "tokens"} per 1 {net.symbol}
+                                    </p>
+                                  )}
                                 </div>
                               )}
                             </div>
