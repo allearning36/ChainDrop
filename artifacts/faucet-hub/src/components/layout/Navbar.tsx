@@ -49,7 +49,7 @@ function markAllSeen(ids: number[]) {
 
 export function Navbar() {
   const { data: announcements = [] } = useGetAnnouncements({
-    query: { queryKey: getGetAnnouncementsQueryKey() }
+    query: { queryKey: getGetAnnouncementsQueryKey(), refetchInterval: 30000 }
   });
   const { data: referralSettings } = useGetReferralSettings({
     query: { queryKey: getGetReferralSettingsQueryKey() }
@@ -103,7 +103,7 @@ export function Navbar() {
     }
 
     void fetchUnread();
-    supportPollRef.current = setInterval(() => void fetchUnread(), 30000);
+    supportPollRef.current = setInterval(() => void fetchUnread(), 10000);
     return () => { if (supportPollRef.current) clearInterval(supportPollRef.current); };
   }, []);
 
