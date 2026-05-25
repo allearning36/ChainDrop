@@ -244,6 +244,15 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
           );
         } catch {}
         queryClient.invalidateQueries({ queryKey: getGetChainQueryKey(chain.id) });
+        // Register referral (fire-and-forget)
+        const pendingRef = sessionStorage.getItem("pendingReferrer");
+        if (pendingRef && pendingRef !== debouncedAddress.toLowerCase()) {
+          import("@workspace/api-client-react").then(({ registerReferral }) => {
+            registerReferral({ refereeAddress: debouncedAddress.toLowerCase(), referrerAddress: pendingRef })
+              .then(() => sessionStorage.removeItem("pendingReferrer"))
+              .catch(() => {});
+          });
+        }
       },
       onError: (err: any) => {
         setCaptchaToken("");
@@ -288,6 +297,15 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
           setAdCountdown(5);
           setStep("ad");
           queryClient.invalidateQueries({ queryKey: getGetChainQueryKey(chain.id) });
+          // Register referral (fire-and-forget)
+          const pendingRef = sessionStorage.getItem("pendingReferrer");
+          if (pendingRef && pendingRef !== debouncedAddress.toLowerCase()) {
+            import("@workspace/api-client-react").then(({ registerReferral }) => {
+              registerReferral({ refereeAddress: debouncedAddress.toLowerCase(), referrerAddress: pendingRef })
+                .then(() => sessionStorage.removeItem("pendingReferrer"))
+                .catch(() => {});
+            });
+          }
         },
         onError: (err: any) => {
           setAdWatchError(err?.data?.error || "Claim failed. Please try again.");

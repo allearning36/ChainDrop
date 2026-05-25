@@ -470,6 +470,15 @@ export default function ExchangePage() {
     setWalletOpen(false);
     setStep("select");
     localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify({ address: addr, type }));
+    // Register referral (fire-and-forget)
+    const pendingRef = sessionStorage.getItem("pendingReferrer");
+    if (pendingRef && pendingRef !== addr.toLowerCase()) {
+      import("@workspace/api-client-react").then(({ registerReferral }) => {
+        registerReferral({ refereeAddress: addr.toLowerCase(), referrerAddress: pendingRef })
+          .then(() => sessionStorage.removeItem("pendingReferrer"))
+          .catch(() => {});
+      });
+    }
   };
 
   const handleInitiateOrder = async () => {

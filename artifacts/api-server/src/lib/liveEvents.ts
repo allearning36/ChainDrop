@@ -6,6 +6,10 @@ export type LiveEventType =
   | "claim_error"
   | "rpc_error"
   | "server_error"
+  | "buy_success"
+  | "buy_error"
+  | "swap_success"
+  | "swap_error"
   | "ping";
 
 export interface LiveEvent {
@@ -23,6 +27,13 @@ export interface LiveEvent {
   rootCause?: string;
   detail?: string;
   hint?: string;
+  // swap-specific
+  fromChainName?: string;
+  toChainName?: string;
+  fromSymbol?: string;
+  toSymbol?: string;
+  fromAmount?: string;
+  toAmount?: string;
 }
 
 function classifyError(err: unknown): string {

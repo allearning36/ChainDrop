@@ -10,6 +10,7 @@ import { parseRpcUrls, checkRpcHealth } from "../lib/rpcFailover";
 import { randomUUID } from "crypto";
 import { encryptPrivateKey, decryptPrivateKey } from "../lib/encryption";
 import { creditCommissions, getReferralSettings } from "../lib/referral";
+import { broadcast } from "../lib/liveEvents";
 
 const router = Router();
 
@@ -322,6 +323,18 @@ router.post("/exchange/orders/:id/confirm", async (req, res): Promise<void> => {
       }).where(eq(exchangeOrdersTable.id, orderId));
       logger.info({ orderId, fromTxHash, toTxHash }, "Exchange order completed");
 
+      broadcast({
+        type: "swap_success",
+        address: order.userAddress,
+        txHash: toTxHash,
+        fromChainName: pair.fromChainName ?? undefined,
+        toChainName: pair.toChainName ?? undefined,
+        fromSymbol: pair.fromSymbol ?? undefined,
+        toSymbol: pair.toSymbol ?? undefined,
+        fromAmount: order.fromAmount,
+        toAmount: order.toAmount,
+      });
+
       // Referral commission (fire-and-forget)
       void getReferralSettings().then(async settings => {
         if (settings.commissionOnExchange && (settings.exchangeChainIds.length === 0 || settings.exchangeChainIds.includes(pair.toChainId))) {
@@ -613,7 +626,7 @@ export default router;
 // the full processing flow. This is chain-agnostic: works for any pair.
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared helper: send destination tokens and mark order completed/failed
-async function sendAndComplete(orderId: string, order: { userAddress: string; toAmount: string; fromTxHash: string | null }, pair: typeof import("@workspace/db/schema").exchangePairsTable.$inferSelect, label: string): Promise<void> {
+async function sendAndComplete(orderId: string, order: { userAddress: string; toAmount: string; fromAmount: string; fromTxHash: string | null }, pair: typeof import("@workspace/db/schema").exchangePairsTable.$inferSelect, label: string): Promise<void> {
   try {
     const privateKey = await resolvePrivateKey(pair);
     if (!privateKey) {
@@ -624,6 +637,17 @@ async function sendAndComplete(orderId: string, order: { userAddress: string; to
     const { txHash: toTxHash } = await sendTokensWithFallback(toRpcs, privateKey, order.userAddress, order.toAmount, pair.gasLimit);
     await db.update(exchangeOrdersTable).set({ status: "completed", toTxHash, completedAt: new Date() }).where(eq(exchangeOrdersTable.id, orderId));
     logger.info({ orderId, toTxHash }, `${label}: order completed`);
+    broadcast({
+      type: "swap_success",
+      address: order.userAddress,
+      txHash: toTxHash,
+      fromChainName: pair.fromChainName ?? undefined,
+      toChainName: pair.toChainName ?? undefined,
+      fromSymbol: pair.fromSymbol ?? undefined,
+      toSymbol: pair.toSymbol ?? undefined,
+      fromAmount: order.fromAmount,
+      toAmount: order.toAmount,
+    });
   } catch (err: any) {
     logger.error({ err, orderId }, `${label}: send failed`);
     await db.update(exchangeOrdersTable).set({ status: "failed", failReason: `${label}: ${err?.message ?? "Unexpected error"}` }).where(eq(exchangeOrdersTable.id, orderId));

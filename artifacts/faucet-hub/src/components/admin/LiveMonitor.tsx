@@ -5,13 +5,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import {
   CheckCircle2, XCircle, Wifi, WifiOff, Trash2,
-  Activity, AlertTriangle, Zap,
+  Activity, AlertTriangle, Zap, ShoppingCart, ArrowLeftRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface LiveEvent {
   id: string;
-  type: "claim_success" | "claim_error" | "rpc_error" | "server_error" | "ping" | "connected";
+  type: "claim_success" | "claim_error" | "rpc_error" | "server_error" | "buy_success" | "buy_error" | "swap_success" | "swap_error" | "ping" | "connected";
   ts: string;
   chainName?: string;
   chainId?: number;
@@ -26,6 +26,12 @@ interface LiveEvent {
   hint?: string;
   clients?: number;
   historical?: boolean;
+  fromChainName?: string;
+  toChainName?: string;
+  fromSymbol?: string;
+  toSymbol?: string;
+  fromAmount?: string;
+  toAmount?: string;
 }
 
 function maskAddress(addr?: string) {
@@ -61,8 +67,8 @@ export function LiveMonitor() {
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const pausedRef = useRef(false);
   const esRef = useRef<EventSource | null>(null);
-  const successCount = events.filter((e) => e.type === "claim_success").length;
-  const errorCount = events.filter((e) => e.type === "claim_error" || e.type === "rpc_error" || e.type === "server_error").length;
+  const successCount = events.filter((e) => e.type === "claim_success" || e.type === "buy_success" || e.type === "swap_success").length;
+  const errorCount = events.filter((e) => e.type === "claim_error" || e.type === "rpc_error" || e.type === "server_error" || e.type === "buy_error" || e.type === "swap_error").length;
 
   // Load DB history once on mount
   useEffect(() => {
@@ -239,32 +245,35 @@ export function LiveMonitor() {
 }
 
 function EventRow({ event: ev }: { event: LiveEvent }) {
-  const isSuccess = ev.type === "claim_success";
-  const isError = ev.type === "claim_error" || ev.type === "rpc_error" || ev.type === "server_error";
+  const isClaimSuccess = ev.type === "claim_success";
+  const isBuySuccess = ev.type === "buy_success";
+  const isSwapSuccess = ev.type === "swap_success";
+  const isSuccess = isClaimSuccess || isBuySuccess || isSwapSuccess;
+  const isError = ev.type === "claim_error" || ev.type === "rpc_error" || ev.type === "server_error" || ev.type === "buy_error" || ev.type === "swap_error";
   const isConnected = ev.type === "connected";
+
+  const typeColor = isBuySuccess ? "text-blue-400" : isSwapSuccess ? "text-purple-400" : isSuccess ? "text-green-400" : isError ? "text-red-400" : isConnected ? "text-primary" : "text-muted-foreground";
 
   return (
     <div className={cn(
       "px-4 py-3 flex flex-col gap-1.5 text-xs font-mono transition-colors",
-      isSuccess && "bg-green-500/5 hover:bg-green-500/10",
+      isClaimSuccess && "bg-green-500/5 hover:bg-green-500/10",
+      isBuySuccess && "bg-blue-500/5 hover:bg-blue-500/10",
+      isSwapSuccess && "bg-purple-500/5 hover:bg-purple-500/10",
       isError && "bg-red-500/5 hover:bg-red-500/10",
       isConnected && "bg-primary/5",
       !isSuccess && !isError && !isConnected && "hover:bg-muted/30",
       ev.historical && "opacity-60",
     )}>
       <div className="flex items-center gap-2 flex-wrap">
-        {isSuccess && <CheckCircle2 className="w-3.5 h-3.5 text-green-400 shrink-0" />}
+        {isClaimSuccess && <CheckCircle2 className="w-3.5 h-3.5 text-green-400 shrink-0" />}
+        {isBuySuccess && <ShoppingCart className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
+        {isSwapSuccess && <ArrowLeftRight className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
         {isError && <XCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />}
         {isConnected && <Wifi className="w-3.5 h-3.5 text-primary shrink-0" />}
         {!isSuccess && !isError && !isConnected && <Activity className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
 
-        <span className={cn(
-          "font-semibold uppercase tracking-wide",
-          isSuccess && "text-green-400",
-          isError && "text-red-400",
-          isConnected && "text-primary",
-          !isSuccess && !isError && !isConnected && "text-muted-foreground",
-        )}>
+        <span className={cn("font-semibold uppercase tracking-wide", typeColor)}>
           {ev.type.replace(/_/g, " ")}
         </span>
 
@@ -273,16 +282,42 @@ function EventRow({ event: ev }: { event: LiveEvent }) {
             {ev.chainName}
           </Badge>
         )}
+        {(ev.fromChainName || ev.toChainName) && (
+          <Badge variant="outline" className="text-[10px] px-1.5 h-4 border-purple-400/30 text-purple-400">
+            {ev.fromChainName} → {ev.toChainName}
+          </Badge>
+        )}
 
         <span className="ml-auto text-muted-foreground text-[10px]">{timeAgo(ev.ts)}</span>
       </div>
 
-      {isSuccess && (
+      {isClaimSuccess && (
         <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-muted-foreground pl-5">
           <span>addr: <span className="text-foreground">{maskAddress(ev.address)}</span></span>
           <span>amount: <span className="text-green-400 font-semibold">{ev.amount} {ev.symbol}</span></span>
           {ev.txHash && <span>tx: <span className="text-foreground">{ev.txHash.slice(0, 12)}…</span></span>}
           {ev.ip && <span>ip: <span className="text-foreground">{maskIp(ev.ip)}</span></span>}
+        </div>
+      )}
+
+      {isBuySuccess && (
+        <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-muted-foreground pl-5">
+          <span>addr: <span className="text-foreground">{maskAddress(ev.address)}</span></span>
+          <span>received: <span className="text-blue-400 font-semibold">{ev.amount} {ev.symbol}</span></span>
+          {ev.chainName && <span>chain: <span className="text-foreground">{ev.chainName}</span></span>}
+          {ev.txHash && <span>tx: <span className="text-foreground">{ev.txHash.slice(0, 12)}…</span></span>}
+        </div>
+      )}
+
+      {isSwapSuccess && (
+        <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-muted-foreground pl-5">
+          <span>addr: <span className="text-foreground">{maskAddress(ev.address)}</span></span>
+          <span>
+            <span className="text-foreground">{ev.fromAmount} {ev.fromSymbol}</span>
+            <span className="text-muted-foreground"> → </span>
+            <span className="text-purple-400 font-semibold">{ev.toAmount} {ev.toSymbol}</span>
+          </span>
+          {ev.txHash && <span>tx: <span className="text-foreground">{ev.txHash.slice(0, 12)}…</span></span>}
         </div>
       )}
 
