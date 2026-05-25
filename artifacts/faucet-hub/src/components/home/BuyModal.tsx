@@ -19,19 +19,69 @@ interface BuyModalProps {
 type Step = "info" | "sending" | "confirming" | "submitting" | "success" | "error";
 
 const NETWORK_LOGOS: Record<string, string> = {
-  eth:      "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png",
-  base:     "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/info/logo.png",
-  arbitrum: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/arbitrum/info/logo.png",
-  optimism: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/optimism/info/logo.png",
-  polygon:  "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/polygon/info/logo.png",
+  eth:          "https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg",
+  ethereum:     "https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg",
+  base:         "https://icons.llamao.fi/icons/chains/rsz_base.jpg",
+  arbitrum:     "https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg",
+  arbitrum_eth: "https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg",
+  optimism:     "https://icons.llamao.fi/icons/chains/rsz_optimism.jpg",
+  optimism_eth: "https://icons.llamao.fi/icons/chains/rsz_optimism.jpg",
+  polygon:      "https://icons.llamao.fi/icons/chains/rsz_polygon.jpg",
+  matic:        "https://icons.llamao.fi/icons/chains/rsz_polygon.jpg",
+  bsc:          "https://icons.llamao.fi/icons/chains/rsz_bsc.jpg",
+  bnb:          "https://icons.llamao.fi/icons/chains/rsz_bsc.jpg",
+  linea:        "https://icons.llamao.fi/icons/chains/rsz_linea.jpg",
+  linea_eth:    "https://icons.llamao.fi/icons/chains/rsz_linea.jpg",
+  scroll:       "https://icons.llamao.fi/icons/chains/rsz_scroll.jpg",
+  zksync:       "https://icons.llamao.fi/icons/chains/rsz_zksync%20era.jpg",
+  zksync_era:   "https://icons.llamao.fi/icons/chains/rsz_zksync%20era.jpg",
+  avalanche:    "https://icons.llamao.fi/icons/chains/rsz_avalanche.jpg",
+  avax:         "https://icons.llamao.fi/icons/chains/rsz_avalanche.jpg",
+  fantom:       "https://icons.llamao.fi/icons/chains/rsz_fantom.jpg",
+  ftm:          "https://icons.llamao.fi/icons/chains/rsz_fantom.jpg",
+  morph:        "https://icons.llamao.fi/icons/chains/rsz_morph.jpg",
+  morph_eth:    "https://icons.llamao.fi/icons/chains/rsz_morph.jpg",
+};
+
+/** Fallback by chainId for any network not matched by name */
+const CHAIN_ID_LOGOS: Record<number, string> = {
+  1:      "https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg",
+  10:     "https://icons.llamao.fi/icons/chains/rsz_optimism.jpg",
+  56:     "https://icons.llamao.fi/icons/chains/rsz_bsc.jpg",
+  137:    "https://icons.llamao.fi/icons/chains/rsz_polygon.jpg",
+  250:    "https://icons.llamao.fi/icons/chains/rsz_fantom.jpg",
+  324:    "https://icons.llamao.fi/icons/chains/rsz_zksync%20era.jpg",
+  2818:   "https://icons.llamao.fi/icons/chains/rsz_morph.jpg",
+  8453:   "https://icons.llamao.fi/icons/chains/rsz_base.jpg",
+  42161:  "https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg",
+  43114:  "https://icons.llamao.fi/icons/chains/rsz_avalanche.jpg",
+  59144:  "https://icons.llamao.fi/icons/chains/rsz_linea.jpg",
+  534352: "https://icons.llamao.fi/icons/chains/rsz_scroll.jpg",
 };
 
 const NETWORK_COLORS: Record<string, string> = {
-  eth:      "#627EEA",
-  base:     "#0052FF",
-  arbitrum: "#28A0F0",
-  optimism: "#FF0420",
-  polygon:  "#8247E5",
+  eth:          "#627EEA",
+  ethereum:     "#627EEA",
+  base:         "#0052FF",
+  arbitrum:     "#28A0F0",
+  arbitrum_eth: "#28A0F0",
+  optimism:     "#FF0420",
+  optimism_eth: "#FF0420",
+  polygon:      "#8247E5",
+  matic:        "#8247E5",
+  bsc:          "#F3BA2F",
+  bnb:          "#F3BA2F",
+  linea:        "#61DFFF",
+  linea_eth:    "#61DFFF",
+  scroll:       "#EEB878",
+  zksync:       "#4E529A",
+  zksync_era:   "#4E529A",
+  avalanche:    "#E84142",
+  avax:         "#E84142",
+  fantom:       "#13B5EC",
+  ftm:          "#13B5EC",
+  morph:        "#00FF94",
+  morph_eth:    "#00FF94",
 };
 
 const NETWORK_RPC: Record<string, string> = {
@@ -217,9 +267,14 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
   const willReceive = (ethAmountNum * buyRate).toFixed(8);
   const amountValid = ethAmountNum >= minAmount;
 
-  const netColor = selectedNetwork ? (NETWORK_COLORS[selectedNetwork.id] || "#818cf8") : "#818cf8";
+  const netColor = selectedNetwork
+    ? (NETWORK_COLORS[selectedNetwork.id] || "#818cf8")
+    : "#818cf8";
   const netLogo = selectedNetwork
-    ? (NETWORK_LOGOS[selectedNetwork.id] || (selectedNetwork as any).logoUrl || "")
+    ? (NETWORK_LOGOS[selectedNetwork.id]
+        || (selectedNetwork as any).logoUrl
+        || CHAIN_ID_LOGOS[selectedNetwork.chainId]
+        || "")
     : "";
   const dots = ".".repeat(confirmDots);
 
@@ -475,7 +530,10 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
                       {networkDropdown && (
                         <div className="absolute top-12 left-0 right-0 rounded-xl z-50 overflow-hidden" style={{ background: "#13131f", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
                           {buyInfo.networks.map((net) => {
-                            const logo = NETWORK_LOGOS[net.id] || (net as any).logoUrl || "";
+                            const logo = NETWORK_LOGOS[net.id]
+                              || (net as any).logoUrl
+                              || CHAIN_ID_LOGOS[net.chainId]
+                              || "";
                             const color = NETWORK_COLORS[net.id] || "#818cf8";
                             return (
                               <button key={net.id} onClick={() => { setSelectedNetwork(net); setNetworkDropdown(false); }}
