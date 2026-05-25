@@ -71,6 +71,27 @@ function generateFilename(originalname: string): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}${safeExt}`;
 }
 
+// Support image upload — no admin required, any user can upload (for chat images)
+router.post("/uploads/support", upload.single("image"), async (req, res): Promise<void> => {
+  if (!req.file) {
+    res.status(400).json({ error: "No image file provided" });
+    return;
+  }
+
+  if (useR2 && r2) {
+    const filename = `support-${generateFilename(req.file.originalname)}`;
+    await r2.send(new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME!,
+      Key: filename,
+      Body: req.file.buffer,
+      ContentType: req.file.mimetype,
+    }));
+    res.json({ url: buildUploadUrl(filename) });
+  } else {
+    res.json({ url: buildUploadUrl(req.file.filename!) });
+  }
+});
+
 router.post("/uploads/banner", requireAdmin, upload.single("image"), async (req, res): Promise<void> => {
   if (!req.file) {
     res.status(400).json({ error: "No image file provided" });

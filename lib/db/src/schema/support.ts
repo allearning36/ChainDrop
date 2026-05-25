@@ -13,7 +13,8 @@ export const supportConversationsTable = pgTable("support_conversations", {
 export const supportMessagesTable = pgTable("support_messages", {
   id: serial("id").primaryKey(),
   conversationId: integer("conversation_id").notNull().references(() => supportConversationsTable.id, { onDelete: "cascade" }),
-  content: text("content").notNull(),
+  content: text("content").notNull().default(""),
+  imageUrl: text("image_url"),
   isAdmin: boolean("is_admin").notNull().default(false),
   // adminSeen: has the admin read this user message? (only relevant when isAdmin=false)
   adminSeen: boolean("admin_seen").notNull().default(false),

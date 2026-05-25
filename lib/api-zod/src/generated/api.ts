@@ -986,7 +986,9 @@ export const GetSupportMessagesResponse = zod.object({
   "id": zod.number(),
   "conversationId": zod.number(),
   "content": zod.string(),
+  "imageUrl": zod.string().nullish(),
   "isAdmin": zod.boolean(),
+  "userSeen": zod.boolean().optional(),
   "createdAt": zod.coerce.date()
 })),
   "createdAt": zod.coerce.date()
@@ -1001,7 +1003,8 @@ export const SendSupportMessageParams = zod.object({
 })
 
 export const SendSupportMessageBody = zod.object({
-  "content": zod.string()
+  "content": zod.string().optional(),
+  "imageUrl": zod.string().nullish()
 })
 
 
@@ -1036,7 +1039,9 @@ export const GetAdminSupportConversationResponse = zod.object({
   "id": zod.number(),
   "conversationId": zod.number(),
   "content": zod.string(),
+  "imageUrl": zod.string().nullish(),
   "isAdmin": zod.boolean(),
+  "userSeen": zod.boolean().optional(),
   "createdAt": zod.coerce.date()
 })),
   "createdAt": zod.coerce.date()
@@ -1073,7 +1078,8 @@ export const AdminReplySupportConversationParams = zod.object({
 })
 
 export const AdminReplySupportConversationBody = zod.object({
-  "content": zod.string()
+  "content": zod.string().optional(),
+  "imageUrl": zod.string().nullish()
 })
 
 

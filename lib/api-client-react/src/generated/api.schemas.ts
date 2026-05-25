@@ -534,7 +534,9 @@ export interface SupportMessage {
   id: number;
   conversationId: number;
   content: string;
+  imageUrl?: string | null;
   isAdmin: boolean;
+  userSeen?: boolean;
   createdAt: string;
 }
 
@@ -554,7 +556,8 @@ export interface SupportStartInput {
 }
 
 export interface SupportMessageInput {
-  content: string;
+  content?: string;
+  imageUrl?: string | null;
 }
 
 export interface AdminStats {

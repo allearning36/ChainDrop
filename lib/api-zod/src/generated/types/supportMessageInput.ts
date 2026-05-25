@@ -7,5 +7,6 @@
  */
 
 export interface SupportMessageInput {
-  content: string;
+  content?: string;
+  imageUrl?: string | null;
 }

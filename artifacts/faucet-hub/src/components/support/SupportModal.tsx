@@ -1,10 +1,13 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useId } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Send, MessageCircle, Loader2, Key, Copy, Check, RotateCcw, ChevronDown } from "lucide-react";
+import {
+  Send, MessageCircle, Loader2, Key, Copy, Check,
+  RotateCcw, ChevronDown, Image as ImageIcon, X,
+} from "lucide-react";
 
 const STORAGE_KEY = "chainDrop_supportConvId";
 const TOKEN_KEY   = "chainDrop_supportToken";
@@ -12,6 +15,7 @@ const TOKEN_KEY   = "chainDrop_supportToken";
 type Message = {
   id: number;
   content: string;
+  imageUrl?: string | null;
   isAdmin: boolean;
   createdAt: string;
 };
@@ -23,24 +27,40 @@ interface SupportModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
+async function uploadSupportImage(file: File): Promise<string> {
+  const fd = new FormData();
+  fd.append("image", file);
+  const res = await fetch("/api/uploads/support", { method: "POST", body: fd });
+  if (!res.ok) throw new Error("Upload failed");
+  const data = await res.json() as { url: string };
+  return data.url;
+}
+
 export function SupportModal({ open, onOpenChange }: SupportModalProps) {
-  const [step, setStep]         = useState<Step>("info");
-  const [name, setName]         = useState("");
-  const [email, setEmail]       = useState("");
-  const [firstMsg, setFirstMsg] = useState("");
-  const [convId, setConvId]     = useState<number | null>(null);
+  const [step, setStep]           = useState<Step>("info");
+  const [name, setName]           = useState("");
+  const [email, setEmail]         = useState("");
+  const [firstMsg, setFirstMsg]   = useState("");
+  const [convId, setConvId]       = useState<number | null>(null);
   const [userToken, setUserToken] = useState<string>("");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMsg, setNewMsg]     = useState("");
-  const [sending, setSending]   = useState(false);
+  const [messages, setMessages]   = useState<Message[]>([]);
+  const [newMsg, setNewMsg]       = useState("");
+  const [sending, setSending]     = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError]       = useState("");
-  const [showKey, setShowKey]   = useState(false);
+  const [error, setError]         = useState("");
+  const [showKey, setShowKey]     = useState(false);
   const [keyCopied, setKeyCopied] = useState(false);
   const [restoreKey, setRestoreKey] = useState("");
   const [restoring, setRestoring] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  const bottomRef   = useRef<HTMLDivElement>(null);
+  const pollRef     = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputId  = useId();
 
   const recoveryKey = convId && userToken ? `${convId}:${userToken}` : "";
 
@@ -86,6 +106,21 @@ export function SupportModal({ open, onOpenChange }: SupportModalProps) {
   function handleClose() {
     onOpenChange(false);
     setError("");
+  }
+
+  function clearImagePreview() {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = ev => setImagePreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
   }
 
   async function handleStart() {
@@ -146,15 +181,24 @@ export function SupportModal({ open, onOpenChange }: SupportModalProps) {
   }
 
   async function handleSend() {
-    if (!newMsg.trim() || !convId || !userToken) return;
+    if ((!newMsg.trim() && !imageFile) || !convId || !userToken) return;
     setSending(true);
     const content = newMsg.trim();
     setNewMsg("");
+
     try {
+      let imageUrl: string | undefined;
+      if (imageFile) {
+        setUploadingImage(true);
+        try { imageUrl = await uploadSupportImage(imageFile); }
+        finally { setUploadingImage(false); }
+        clearImagePreview();
+      }
+
       const res = await fetch(`/api/support/conversations/${convId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-user-token": userToken },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, imageUrl }),
       });
       if (!res.ok) throw new Error("Failed");
       await loadMessages(convId, userToken);
@@ -193,227 +237,324 @@ export function SupportModal({ open, onOpenChange }: SupportModalProps) {
     setEmail("");
     setFirstMsg("");
     setShowKey(false);
+    clearImagePreview();
     setStep("info");
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="sm:max-w-md p-0 overflow-hidden gap-0"
-        style={{ background: "hsl(var(--background))", border: "1px solid rgba(255,255,255,0.08)" }}
-      >
-        {/* Header */}
-        <DialogHeader className="px-4 py-3 border-b border-border flex-row items-center gap-3 space-y-0">
-          <div
-            className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-            style={{ background: "linear-gradient(135deg,#15803d,#22c55e)", boxShadow: "0 0 10px rgba(34,197,94,0.4)" }}
-          >
-            <MessageCircle className="w-4 h-4 text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <DialogTitle className="text-sm font-semibold leading-none">ChainDrop Support</DialogTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">We usually reply within a few hours</p>
-          </div>
-          {step === "chat" && (
-            <button
-              onClick={handleNewConversation}
-              className="text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded"
-              title="Start new conversation"
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          className="sm:max-w-md p-0 overflow-hidden gap-0"
+          style={{ background: "hsl(var(--background))", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          {/* Header */}
+          <DialogHeader className="px-4 py-3 border-b border-border flex-row items-center gap-3 space-y-0">
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+              style={{ background: "linear-gradient(135deg,#15803d,#22c55e)", boxShadow: "0 0 10px rgba(34,197,94,0.4)" }}
             >
-              New
-            </button>
-          )}
-        </DialogHeader>
-
-        {/* Step: Info collection */}
-        {step === "info" && (
-          <div className="p-5 flex flex-col gap-4">
-            <p className="text-sm text-muted-foreground">
-              Tell us a bit about yourself, then describe your issue.
-            </p>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="sup-name" className="text-xs font-medium">Your Name</Label>
-              <Input
-                id="sup-name"
-                placeholder="Alice"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                className="h-9 text-sm"
-              />
+              <MessageCircle className="w-4 h-4 text-white" />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="sup-email" className="text-xs font-medium">Email</Label>
-              <Input
-                id="sup-email"
-                type="email"
-                placeholder="alice@example.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="h-9 text-sm"
-              />
+            <div className="flex-1 min-w-0">
+              <DialogTitle className="text-sm font-semibold leading-none">ChainDrop Support</DialogTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">We usually reply within a few hours</p>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="sup-msg" className="text-xs font-medium">How can we help?</Label>
-              <Textarea
-                id="sup-msg"
-                placeholder="Describe your issue..."
-                value={firstMsg}
-                onChange={e => setFirstMsg(e.target.value)}
-                rows={3}
-                className="text-sm resize-none"
-              />
-            </div>
-            {error && <p className="text-xs text-destructive">{error}</p>}
-            <Button
-              onClick={handleStart}
-              disabled={submitting}
-              className="w-full h-9 font-mono font-semibold text-sm"
-              style={{ background: "linear-gradient(135deg,#15803d,#22c55e)", color: "#fff" }}
-            >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-              Start Conversation
-            </Button>
-
-            <div className="border-t border-border pt-3">
+            {step === "chat" && (
               <button
-                onClick={() => { setStep("restore"); setError(""); }}
-                className="w-full text-xs font-mono text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-1.5 py-1"
+                onClick={handleNewConversation}
+                className="text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded"
+                title="Start new conversation"
               >
-                <Key className="w-3.5 h-3.5" />
-                Restore previous chat with recovery key
+                New
+              </button>
+            )}
+          </DialogHeader>
+
+          {/* Step: Info */}
+          {step === "info" && (
+            <div className="p-5 flex flex-col gap-4">
+              <p className="text-sm text-muted-foreground">
+                Tell us a bit about yourself, then describe your issue.
+              </p>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="sup-name" className="text-xs font-medium">Your Name</Label>
+                <Input
+                  id="sup-name"
+                  placeholder="Alice"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="sup-email" className="text-xs font-medium">Email</Label>
+                <Input
+                  id="sup-email"
+                  type="email"
+                  placeholder="alice@example.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="sup-msg" className="text-xs font-medium">How can we help?</Label>
+                <Textarea
+                  id="sup-msg"
+                  placeholder="Describe your issue..."
+                  value={firstMsg}
+                  onChange={e => setFirstMsg(e.target.value)}
+                  rows={3}
+                  className="text-sm resize-none"
+                />
+              </div>
+              {error && <p className="text-xs text-destructive">{error}</p>}
+              <Button
+                onClick={handleStart}
+                disabled={submitting}
+                className="w-full h-9 font-mono font-semibold text-sm"
+                style={{ background: "linear-gradient(135deg,#15803d,#22c55e)", color: "#fff" }}
+              >
+                {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                Start Conversation
+              </Button>
+              <div className="border-t border-border pt-3">
+                <button
+                  onClick={() => { setStep("restore"); setError(""); }}
+                  className="w-full text-xs font-mono text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-1.5 py-1"
+                >
+                  <Key className="w-3.5 h-3.5" />
+                  Restore previous chat with recovery key
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step: Restore */}
+          {step === "restore" && (
+            <div className="p-5 flex flex-col gap-4">
+              <div className="flex items-center gap-2">
+                <Key className="w-4 h-4 text-primary shrink-0" />
+                <p className="text-sm font-semibold font-mono">Restore Chat</p>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Paste the recovery key you saved from your previous conversation. It looks like{" "}
+                <span className="font-mono text-primary">123:xxxxxxxx-xxxx-…</span>
+              </p>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-medium">Recovery Key</Label>
+                <Input
+                  placeholder="123:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  value={restoreKey}
+                  onChange={e => setRestoreKey(e.target.value)}
+                  className="h-9 text-xs font-mono"
+                />
+              </div>
+              {error && <p className="text-xs text-destructive">{error}</p>}
+              <Button
+                onClick={handleRestore}
+                disabled={restoring || !restoreKey.trim()}
+                className="w-full h-9 font-mono font-semibold text-sm"
+                style={{ background: "linear-gradient(135deg,#15803d,#22c55e)", color: "#fff" }}
+              >
+                {restoring ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RotateCcw className="w-4 h-4 mr-2" />}
+                Restore
+              </Button>
+              <button
+                onClick={() => { setStep("info"); setError(""); }}
+                className="text-xs font-mono text-muted-foreground hover:text-foreground transition-colors text-center"
+              >
+                ← Back
               </button>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Step: Restore */}
-        {step === "restore" && (
-          <div className="p-5 flex flex-col gap-4">
-            <div className="flex items-center gap-2">
-              <Key className="w-4 h-4 text-primary shrink-0" />
-              <p className="text-sm font-semibold font-mono">Restore Chat</p>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Paste the recovery key you saved from your previous conversation. It looks like <span className="font-mono text-primary">123:xxxxxxxx-xxxx-…</span>
-            </p>
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs font-medium">Recovery Key</Label>
-              <Input
-                placeholder="123:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                value={restoreKey}
-                onChange={e => setRestoreKey(e.target.value)}
-                className="h-9 text-xs font-mono"
-              />
-            </div>
-            {error && <p className="text-xs text-destructive">{error}</p>}
-            <Button
-              onClick={handleRestore}
-              disabled={restoring || !restoreKey.trim()}
-              className="w-full h-9 font-mono font-semibold text-sm"
-              style={{ background: "linear-gradient(135deg,#15803d,#22c55e)", color: "#fff" }}
-            >
-              {restoring ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RotateCcw className="w-4 h-4 mr-2" />}
-              Restore
-            </Button>
-            <button
-              onClick={() => { setStep("info"); setError(""); }}
-              className="text-xs font-mono text-muted-foreground hover:text-foreground transition-colors text-center"
-            >
-              ← Back
-            </button>
-          </div>
-        )}
+          {/* Step: Chat */}
+          {step === "chat" && (
+            <div className="flex flex-col" style={{ height: "460px" }}>
+              {/* Recovery Key banner */}
+              {showKey && recoveryKey && (
+                <div
+                  className="mx-3 mt-3 rounded-lg px-3 py-2.5 flex items-start gap-2.5"
+                  style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}
+                >
+                  <Key className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-semibold text-primary mb-1">Save your Recovery Key</p>
+                    <p className="text-[10px] text-muted-foreground mb-1.5">You'll need this to restore your chat if you clear browser data.</p>
+                    <div className="flex items-center gap-1.5">
+                      <code className="text-[10px] font-mono bg-black/20 px-1.5 py-0.5 rounded truncate flex-1" style={{ color: "rgba(255,255,255,0.7)" }}>
+                        {recoveryKey}
+                      </code>
+                      <button onClick={copyKey} className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors">
+                        {keyCopied ? <Check className="w-3 h-3 text-primary" /> : <Copy className="w-3 h-3 text-muted-foreground" />}
+                      </button>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowKey(false)} className="text-muted-foreground hover:text-foreground text-xs shrink-0">✕</button>
+                </div>
+              )}
 
-        {/* Step: Chat */}
-        {step === "chat" && (
-          <div className="flex flex-col" style={{ height: "460px" }}>
-            {/* Recovery Key banner (shown after first open) */}
-            {showKey && recoveryKey && (
-              <div
-                className="mx-3 mt-3 rounded-lg px-3 py-2.5 flex items-start gap-2.5"
-                style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}
-              >
-                <Key className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-semibold text-primary mb-1">Save your Recovery Key</p>
-                  <p className="text-[10px] text-muted-foreground mb-1.5">You'll need this to restore your chat if you clear browser data.</p>
-                  <div className="flex items-center gap-1.5">
-                    <code className="text-[10px] font-mono bg-black/20 px-1.5 py-0.5 rounded truncate flex-1" style={{ color: "rgba(255,255,255,0.7)" }}>
-                      {recoveryKey}
-                    </code>
-                    <button onClick={copyKey} className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors">
-                      {keyCopied ? <Check className="w-3 h-3 text-primary" /> : <Copy className="w-3 h-3 text-muted-foreground" />}
+              {!showKey && recoveryKey && (
+                <button
+                  onClick={() => setShowKey(true)}
+                  className="mx-3 mt-2 flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <Key className="w-3 h-3" />
+                  Show recovery key
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+              )}
+
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2 mt-1">
+                {messages.length === 0 && (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                    No messages yet…
+                  </div>
+                )}
+                {messages.map(msg => (
+                  <UserMessageBubble
+                    key={msg.id}
+                    msg={msg}
+                    onImageClick={url => setLightboxUrl(url)}
+                    formatTime={formatTime}
+                  />
+                ))}
+                <div ref={bottomRef} />
+              </div>
+
+              {/* Image preview strip */}
+              {imagePreview && (
+                <div className="mx-3 mb-1 flex items-end gap-2">
+                  <div className="relative inline-flex rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.12)" }}>
+                    <img src={imagePreview} alt="preview" className="max-h-24 max-w-36 object-cover rounded-xl" />
+                    <button
+                      onClick={clearImagePreview}
+                      className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center hover:bg-black/80"
+                    >
+                      <X className="w-3 h-3 text-white" />
                     </button>
                   </div>
                 </div>
-                <button onClick={() => setShowKey(false)} className="text-muted-foreground hover:text-foreground text-xs shrink-0">✕</button>
-              </div>
-            )}
-
-            {/* Key toggle button (when banner hidden) */}
-            {!showKey && recoveryKey && (
-              <button
-                onClick={() => setShowKey(true)}
-                className="mx-3 mt-2 flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground hover:text-primary transition-colors"
-              >
-                <Key className="w-3 h-3" />
-                Show recovery key
-                <ChevronDown className="w-3 h-3" />
-              </button>
-            )}
-
-            <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2 mt-1">
-              {messages.length === 0 && (
-                <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                  No messages yet...
-                </div>
               )}
-              {messages.map(msg => (
-                <div key={msg.id} className={`flex ${msg.isAdmin ? "justify-start" : "justify-end"}`}>
-                  <div
-                    className="max-w-[80%] rounded-2xl px-3 py-2 text-sm leading-relaxed"
-                    style={
-                      msg.isAdmin
-                        ? { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }
-                        : { background: "linear-gradient(135deg,#15803d,#22c55e)", color: "#fff" }
-                    }
-                  >
-                    {msg.isAdmin && (
-                      <div className="text-[10px] font-semibold text-primary mb-0.5 uppercase tracking-wider">Support</div>
-                    )}
-                    <div className="whitespace-pre-wrap break-words">{msg.content}</div>
-                    <div className={`text-[10px] mt-1 ${msg.isAdmin ? "text-muted-foreground" : "text-green-100"}`}>
-                      {formatTime(msg.createdAt)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <div ref={bottomRef} />
-            </div>
 
-            <div className="border-t border-border px-3 py-2 flex items-end gap-2">
-              <Textarea
-                placeholder="Type a message… (Enter to send)"
-                value={newMsg}
-                onChange={e => setNewMsg(e.target.value)}
-                onKeyDown={handleKeyDown}
-                rows={1}
-                className="flex-1 text-sm resize-none min-h-[36px] max-h-[100px]"
-                style={{ fieldSizing: "content" } as React.CSSProperties}
-              />
-              <Button
-                size="icon"
-                onClick={handleSend}
-                disabled={sending || !newMsg.trim()}
-                className="h-9 w-9 shrink-0"
-                style={{ background: "linear-gradient(135deg,#15803d,#22c55e)" }}
-              >
-                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 text-white" />}
-              </Button>
+              {/* Send bar */}
+              <div className="border-t border-border px-3 py-2 flex items-end gap-2">
+                <input
+                  ref={fileInputRef}
+                  id={fileInputId}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  title="Send image"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                </button>
+
+                <Textarea
+                  placeholder="Type a message… (Enter to send)"
+                  value={newMsg}
+                  onChange={e => setNewMsg(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  rows={1}
+                  className="flex-1 text-sm resize-none min-h-[36px] max-h-[100px]"
+                  style={{ fieldSizing: "content" } as React.CSSProperties}
+                />
+                <Button
+                  size="icon"
+                  onClick={handleSend}
+                  disabled={sending || uploadingImage || (!newMsg.trim() && !imageFile)}
+                  className="h-9 w-9 shrink-0"
+                  style={{ background: "linear-gradient(135deg,#15803d,#22c55e)" }}
+                >
+                  {(sending || uploadingImage) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 text-white" />}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-[200] bg-black/85 flex items-center justify-center p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <img src={lightboxUrl} alt="attachment" className="max-w-full max-h-full rounded-xl object-contain" />
+          <button
+            className="absolute top-4 right-4 text-white bg-white/10 rounded-full p-2 hover:bg-white/20"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+function UserMessageBubble({
+  msg,
+  onImageClick,
+  formatTime,
+}: {
+  msg: Message;
+  onImageClick: (url: string) => void;
+  formatTime: (iso: string) => string;
+}) {
+  return (
+    <div className={`flex ${msg.isAdmin ? "justify-start" : "justify-end"}`}>
+      <div
+        className="max-w-[80%] rounded-2xl overflow-hidden text-sm leading-relaxed"
+        style={
+          msg.isAdmin
+            ? { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }
+            : { background: "linear-gradient(135deg,#15803d,#22c55e)", color: "#fff" }
+        }
+      >
+        {/* Image */}
+        {msg.imageUrl && (
+          <div
+            className="cursor-pointer"
+            onClick={() => onImageClick(msg.imageUrl!)}
+          >
+            <img
+              src={msg.imageUrl}
+              alt="attachment"
+              className="max-w-full max-h-52 object-cover"
+              style={{ display: "block" }}
+            />
+          </div>
+        )}
+
+        {/* Text */}
+        {msg.content && (
+          <div className="px-3 py-2">
+            {msg.isAdmin && (
+              <div className="text-[10px] font-semibold text-primary mb-0.5 uppercase tracking-wider">Support</div>
+            )}
+            <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+            <div className={`text-[10px] mt-1 ${msg.isAdmin ? "text-muted-foreground" : "text-green-100"}`}>
+              {formatTime(msg.createdAt)}
             </div>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+
+        {/* Image-only timestamp */}
+        {msg.imageUrl && !msg.content && (
+          <div className={`px-3 py-1.5 text-[10px] ${msg.isAdmin ? "text-muted-foreground" : "text-green-100"}`}>
+            {formatTime(msg.createdAt)}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

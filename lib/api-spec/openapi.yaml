@@ -1862,7 +1862,12 @@ components:
           type: integer
         content:
           type: string
+        imageUrl:
+          type: string
+          nullable: true
         isAdmin:
+          type: boolean
+        userSeen:
           type: boolean
         createdAt:
           type: string
@@ -1901,10 +1906,13 @@ components:
 
     SupportMessageInput:
       type: object
-      required: [content]
+      required: []
       properties:
         content:
           type: string
+        imageUrl:
+          type: string
+          nullable: true
 
     AdminStats:
       type: object

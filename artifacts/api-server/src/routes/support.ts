@@ -4,7 +4,6 @@ import { db, supportConversationsTable, supportMessagesTable } from "@workspace/
 import { requireAdmin } from "../lib/adminAuth";
 import {
   StartSupportConversationBody,
-  SendSupportMessageBody,
 } from "@workspace/api-zod";
 import { supportLimiter } from "../lib/rateLimiters";
 
@@ -21,12 +20,12 @@ function notifyConvUser(convId: number, data: object) {
 }
 
 const StartSchema = StartSupportConversationBody;
-const MessageSchema = SendSupportMessageBody;
 
 const formatMsg = (m: typeof supportMessagesTable.$inferSelect, forAdmin = false) => ({
   id: m.id,
   conversationId: m.conversationId,
   content: m.content,
+  imageUrl: m.imageUrl ?? null,
   isAdmin: m.isAdmin,
   ...(forAdmin ? { userSeen: m.userSeen } : {}),
   createdAt: m.createdAt.toISOString(),
@@ -55,7 +54,6 @@ async function validateUserToken(convId: number, token: string | undefined): Pro
     .where(eq(supportConversationsTable.id, convId))
     .limit(1);
   if (!conv) return false;
-  // If no token stored (legacy rows), allow access
   if (!conv.userToken) return true;
   return conv.userToken === token;
 }
@@ -68,7 +66,6 @@ router.post("/support/conversations", supportLimiter, async (req, res): Promise<
     return;
   }
   const { userName, userEmail, message } = parsed.data;
-
   const userToken = crypto.randomUUID();
 
   const [conv] = await db.insert(supportConversationsTable).values({
@@ -85,7 +82,6 @@ router.post("/support/conversations", supportLimiter, async (req, res): Promise<
     userSeen: false,
   });
 
-  // Return userToken to client — they must store and send it on subsequent requests
   res.status(201).json({ ...formatConv(conv, message), userToken });
 });
 
@@ -117,7 +113,7 @@ router.get("/support/conversations/:id/messages", async (req, res): Promise<void
   res.json({ conversation: formatConv(conv), messages: messages.map(m => formatMsg(m, false)) });
 });
 
-// ── User: send a message ──────────────────────────────────────────────────────
+// ── User: send a message (text and/or image) ──────────────────────────────────
 router.post("/support/conversations/:id/messages", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
@@ -128,15 +124,19 @@ router.post("/support/conversations/:id/messages", async (req, res): Promise<voi
     return;
   }
 
-  const parsed = MessageSchema.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Invalid input" }); return; }
+  const { content = "", imageUrl } = req.body as { content?: string; imageUrl?: string };
+  if (!content.trim() && !imageUrl) {
+    res.status(400).json({ error: "content or imageUrl required" });
+    return;
+  }
 
   const [conv] = await db.select().from(supportConversationsTable).where(eq(supportConversationsTable.id, id)).limit(1);
   if (!conv) { res.status(404).json({ error: "Conversation not found" }); return; }
 
   const [msg] = await db.insert(supportMessagesTable).values({
     conversationId: id,
-    content: parsed.data.content,
+    content: content.trim(),
+    imageUrl: imageUrl ?? null,
     isAdmin: false,
     adminSeen: false,
     userSeen: false,
@@ -247,8 +247,9 @@ router.get("/admin/support", requireAdmin, async (_req, res): Promise<void> => {
         eq(supportMessagesTable.adminSeen, false),
       ));
     const hasUnread = (unreadRow?.cnt ?? 0) > 0;
+    const lastContent = last?.imageUrl ? "📷 Image" : (last?.content ?? "");
 
-    return formatConv(c, last?.content, hasUnread);
+    return formatConv(c, lastContent, hasUnread);
   }));
 
   res.json(result);
@@ -276,26 +277,29 @@ router.get("/admin/support/:id", requireAdmin, async (req, res): Promise<void> =
   res.json({ ...formatConv(conv), messages: messages.map(m => formatMsg(m, true)) });
 });
 
-// ── Admin: reply to a conversation ───────────────────────────────────────────
+// ── Admin: reply to a conversation (text and/or image) ────────────────────────
 router.post("/admin/support/:id/reply", requireAdmin, async (req, res): Promise<void> => {
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  const parsed = MessageSchema.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Invalid input" }); return; }
+  const { content = "", imageUrl } = req.body as { content?: string; imageUrl?: string };
+  if (!content.trim() && !imageUrl) {
+    res.status(400).json({ error: "content or imageUrl required" });
+    return;
+  }
 
   const [conv] = await db.select().from(supportConversationsTable).where(eq(supportConversationsTable.id, id)).limit(1);
   if (!conv) { res.status(404).json({ error: "Not found" }); return; }
 
   const [msg] = await db.insert(supportMessagesTable).values({
     conversationId: id,
-    content: parsed.data.content,
+    content: content.trim(),
+    imageUrl: imageUrl ?? null,
     isAdmin: true,
     adminSeen: true,
     userSeen: false,
   }).returning();
 
-  // Push instant notification to user if they have an open SSE stream
   notifyConvUser(id, { type: "new_reply", messageId: msg.id });
 
   res.status(201).json(formatMsg(msg, true));

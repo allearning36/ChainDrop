@@ -10,6 +10,8 @@ export interface SupportMessage {
   id: number;
   conversationId: number;
   content: string;
+  imageUrl?: string | null;
   isAdmin: boolean;
+  userSeen?: boolean;
   createdAt: Date;
 }
