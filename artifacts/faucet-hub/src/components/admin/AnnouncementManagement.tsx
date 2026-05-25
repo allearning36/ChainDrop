@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { 
   useGetAdminAnnouncements, 
   useCreateAnnouncement, 
@@ -16,9 +16,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Plus, Trash2, Loader2, Image as ImageIcon, X } from "lucide-react";
+import { Edit2, Plus, Trash2, Loader2, Image as ImageIcon, X, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { adminFetch } from "@/lib/auth";
 
 const DEFAULT_ANNOUNCEMENT = {
   title: "",
@@ -41,10 +42,29 @@ export function AnnouncementManagement() {
   const [editingItem, setEditingItem] = useState<Announcement | null>(null);
   const [deletingItem, setDeletingItem] = useState<Announcement | null>(null);
   const [formData, setFormData] = useState<any>(DEFAULT_ANNOUNCEMENT);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const createMutation = useCreateAnnouncement();
   const updateMutation = useUpdateAnnouncement();
   const deleteMutation = useDeleteAnnouncement();
+
+  const handleImageUpload = async (file: File) => {
+    setUploadingImage(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await adminFetch("/api/admin/upload", { method: "POST", body: fd });
+      if (!res.ok) throw new Error("Upload failed");
+      const d = await res.json() as { url: string };
+      setFormData((prev: any) => ({ ...prev, imageUrl: d.url }));
+      toast({ title: "Image uploaded" });
+    } catch {
+      toast({ variant: "destructive", title: "Upload failed", description: "Try pasting a URL instead." });
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const handleOpenCreate = () => {
     setEditingItem(null);
@@ -190,24 +210,60 @@ export function AnnouncementManagement() {
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5">
                 <ImageIcon className="w-3.5 h-3.5" />
-                Banner Image URL <span className="text-muted-foreground font-normal">(optional)</span>
+                Banner Image <span className="text-muted-foreground font-normal">(optional)</span>
               </Label>
-              <div className="relative">
-                <Input
-                  placeholder="https://example.com/banner.png"
-                  value={formData.imageUrl ?? ""}
-                  onChange={e => setFormData({...formData, imageUrl: e.target.value})}
-                  className="font-mono text-xs pr-8"
-                />
-                {formData.imageUrl && (
-                  <button
-                    onClick={() => setFormData({...formData, imageUrl: ""})}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleImageUpload(file);
+                  e.target.value = "";
+                }}
+              />
+
+              {/* Upload button + URL input row */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-mono font-semibold transition-colors"
+                  style={{
+                    background: "rgba(34,197,94,0.1)",
+                    border: "1px solid rgba(34,197,94,0.3)",
+                    color: "#22c55e",
+                  }}
+                >
+                  {uploadingImage
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <Upload className="w-3.5 h-3.5" />
+                  }
+                  {uploadingImage ? "Uploading…" : "Upload"}
+                </button>
+
+                <div className="relative flex-1">
+                  <Input
+                    placeholder="or paste image URL…"
+                    value={formData.imageUrl ?? ""}
+                    onChange={e => setFormData({...formData, imageUrl: e.target.value})}
+                    className="font-mono text-xs pr-7"
+                  />
+                  {formData.imageUrl && (
+                    <button
+                      onClick={() => setFormData({...formData, imageUrl: ""})}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
+
               {formData.imageUrl && (
                 <div className="rounded-md overflow-hidden border border-border" style={{ maxHeight: 120 }}>
                   <img
