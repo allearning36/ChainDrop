@@ -141,16 +141,30 @@ router.post("/admin/upload", requireAdmin, upload.single("file"), (req, res): vo
     return;
   }
   try {
-    const data = fs.readFileSync(req.file.path);
+    // Memory storage (R2 active) → buffer; disk storage → read from path
+    const data: Buffer = req.file.buffer ?? fs.readFileSync(req.file.path);
     const b64 = data.toString("base64");
     const mime = req.file.mimetype || "image/png";
     const dataUrl = `data:${mime};base64,${b64}`;
-    // Remove temp file — logo is now in the DB as a data URL, no filesystem needed
-    try { fs.unlinkSync(req.file.path); } catch { /* ignore */ }
+    // Remove temp file if it was written to disk
+    if (req.file.path) { try { fs.unlinkSync(req.file.path); } catch { /* ignore */ } }
     res.json({ url: dataUrl });
   } catch (err) {
     res.status(500).json({ error: "Failed to process uploaded image" });
   }
+});
+
+// Direct RPC health check — accepts URLs in body, no saved chain needed
+router.post("/admin/rpc-health-check", requireAdmin, async (req, res): Promise<void> => {
+  const body = req.body as { urls?: unknown };
+  if (!Array.isArray(body.urls) || body.urls.length === 0) {
+    res.status(400).json({ error: "urls array required" });
+    return;
+  }
+  const urls = (body.urls as unknown[]).filter((u): u is string => typeof u === "string" && u.trim().length > 0);
+  if (urls.length === 0) { res.json([]); return; }
+  const results = await Promise.all(urls.map((url) => checkRpcHealth(url)));
+  res.json(results);
 });
 
 // ── GET /api/admin/live-history ─────────────────────────────────────────────

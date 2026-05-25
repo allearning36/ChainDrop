@@ -41,11 +41,16 @@ export function ChainLibrary() {
   const [checkingHealth, setCheckingHealth] = useState(false);
 
   const handleCheckHealth = async () => {
-    if (!editId) return;
+    const urls = form.rpcUrls.filter(u => u.trim());
+    if (urls.length === 0) { setError("Add at least one RPC URL first."); return; }
     setCheckingHealth(true);
     setRpcHealth({});
     try {
-      const res = await adminFetch(`/api/admin/master-chains/${editId}/rpc-health`);
+      const res = await adminFetch("/api/admin/rpc-health-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls }),
+      });
       if (!res.ok) throw new Error();
       const data = await res.json() as Array<{ url: string; status: "ok" | "error"; latencyMs: number }>;
       const map: Record<string, { status: "ok" | "error"; latencyMs: number }> = {};
@@ -401,20 +406,18 @@ export function ChainLibrary() {
                     RPC Endpoints <span className="text-destructive">*</span>
                   </span>
                   <div className="flex items-center gap-2">
-                    {editId && (
-                      <button
-                        type="button"
-                        onClick={handleCheckHealth}
-                        disabled={checkingHealth}
-                        className="text-[10px] font-mono flex items-center gap-1 px-2 py-0.5 rounded-md transition-colors"
-                        style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)", color: "#22c55e" }}
-                      >
-                        {checkingHealth
-                          ? <Loader2 className="w-3 h-3 animate-spin" />
-                          : <Activity className="w-3 h-3" />}
-                        {checkingHealth ? "Checking…" : "Check RPC"}
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={handleCheckHealth}
+                      disabled={checkingHealth}
+                      className="text-[10px] font-mono flex items-center gap-1 px-2 py-0.5 rounded-md transition-colors"
+                      style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)", color: "#22c55e" }}
+                    >
+                      {checkingHealth
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <Activity className="w-3 h-3" />}
+                      {checkingHealth ? "Checking…" : "Check RPC"}
+                    </button>
                     <button onClick={() => setForm(f => ({ ...f, rpcUrls: [...f.rpcUrls, ""] }))}
                       className="text-[10px] font-mono flex items-center gap-1" style={{ color: "#22c55e" }}>
                       <Plus className="w-3 h-3" /> Add RPC
