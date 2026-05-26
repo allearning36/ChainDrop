@@ -231,17 +231,23 @@ router.post("/referral/claim-request", async (req, res): Promise<void> => {
 
   nonceStore.delete(walletLower);
 
-  const commissions = await db.select().from(referralCommissionsTable).where(
-    and(eq(referralCommissionsTable.referrerAddress, walletLower), eq(referralCommissionsTable.status, "pending"))
-  );
-  const totalPending = commissions.reduce((s, c) => s + parseFloat(c.amountEth), 0);
+  const [commissions, existingRequests, adjustments] = await Promise.all([
+    db.select().from(referralCommissionsTable).where(
+      and(eq(referralCommissionsTable.referrerAddress, walletLower), eq(referralCommissionsTable.status, "pending"))
+    ),
+    db.select().from(referralClaimRequestsTable)
+      .where(eq(referralClaimRequestsTable.walletAddress, walletLower)),
+    db.select().from(referralBalanceAdjustmentsTable)
+      .where(eq(referralBalanceAdjustmentsTable.walletAddress, walletLower)),
+  ]);
 
-  const existingRequests = await db.select().from(referralClaimRequestsTable)
-    .where(eq(referralClaimRequestsTable.walletAddress, walletLower));
+  const totalPending = commissions.reduce((s, c) => s + parseFloat(c.amountEth), 0);
   const alreadyRequested = existingRequests
     .filter(r => r.status === "approved" || r.status === "pending")
     .reduce((s, r) => s + parseFloat(r.amountEth), 0);
-  const claimable = totalPending - alreadyRequested;
+  const adjustmentDelta = adjustments.reduce((s, a) =>
+    a.type === "add" ? s + parseFloat(a.amountEth) : s - parseFloat(a.amountEth), 0);
+  const claimable = Math.max(0, totalPending + adjustmentDelta - alreadyRequested);
 
   if (claimable < settings.minClaimEth) {
     res.status(400).json({
