@@ -1,4 +1,4 @@
-// v3 — bulletproof migration, referral tables auto-created
+// v4 — all DB calls wrapped, referral tables non-fatal
 import app from "./app";
 import { logger } from "./lib/logger";
 import { runMigrations } from "@workspace/db";
