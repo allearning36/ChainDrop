@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { Bell, MessageCircle, ChevronDown, ChevronRight, Megaphone, ArrowLeftRight, Users } from "lucide-react";
+import { LogoIcon, isDefaultLogo } from "@/components/ui/LogoIcon";
 import { useGetAnnouncements, getGetAnnouncementsQueryKey, useGetReferralSettings, getGetReferralSettingsQueryKey } from "@workspace/api-client-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -261,12 +262,19 @@ export function Navbar() {
 
         {/* ── Logo + Name ── */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
-          <img
-            src={logo.logoUrl}
-            alt="ChainDrop"
-            className="shrink-0"
-            style={{ width: px, height: px, objectFit: "contain", filter: GLOW_FILTER[logo.logoGlow] ?? GLOW_FILTER.medium, transition: "all 0.3s" }}
-          />
+          {isDefaultLogo(logo.logoUrl) ? (
+            <LogoIcon
+              size={px}
+              style={{ filter: GLOW_FILTER[logo.logoGlow] ?? GLOW_FILTER.medium, transition: "all 0.3s", flexShrink: 0 }}
+            />
+          ) : (
+            <img
+              src={logo.logoUrl}
+              alt="ChainDrop"
+              className="shrink-0"
+              style={{ width: px, height: px, objectFit: "contain", filter: GLOW_FILTER[logo.logoGlow] ?? GLOW_FILTER.medium, transition: "all 0.3s" }}
+            />
+          )}
           <div className="flex flex-col leading-none">
             <span
               className="font-black tracking-wider uppercase"

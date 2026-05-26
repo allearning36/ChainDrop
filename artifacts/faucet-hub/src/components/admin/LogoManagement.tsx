@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Upload, RefreshCw, Check, Image as ImageIcon, Sliders } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { adminFetch } from "@/lib/auth";
+import { LogoIcon, isDefaultLogo } from "@/components/ui/LogoIcon";
 
 interface LogoSettings {
   logoUrl: string;
@@ -131,11 +132,15 @@ export function LogoManagement() {
           className="w-full rounded-xl flex items-center gap-3 px-4 py-3"
           style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.1)" }}
         >
-          <img
-            src={settings.logoUrl}
-            alt="Logo preview"
-            style={{ width: previewSize, height: previewSize, objectFit: "contain", filter: glowStyle, transition: "all 0.3s" }}
-          />
+          {isDefaultLogo(settings.logoUrl) ? (
+            <LogoIcon size={previewSize} style={{ filter: glowStyle, transition: "all 0.3s" }} />
+          ) : (
+            <img
+              src={settings.logoUrl}
+              alt="Logo preview"
+              style={{ width: previewSize, height: previewSize, objectFit: "contain", filter: glowStyle, transition: "all 0.3s" }}
+            />
+          )}
           <div>
             <p className="font-black font-mono uppercase tracking-widest text-primary" style={{ fontSize: 20 }}>ChainDrop</p>
             <p className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">Your Ultimate Faucet Hub</p>
