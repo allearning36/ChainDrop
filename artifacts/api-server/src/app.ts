@@ -4,10 +4,12 @@ import helmet from "helmet";
 import pinoHttp from "pino-http";
 import path from "path";
 import fs from "fs";
+import { eq } from "drizzle-orm";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { startOrderRecoveryWorker } from "./routes/exchange";
 import { globalLimiter } from "./lib/rateLimiters";
+import { db, settingsTable } from "@workspace/db";
 
 // ── Honeypot: paths that only scanners/bots would hit ─────────────────────────
 const HONEYPOT_PATHS = [
@@ -156,10 +158,61 @@ const frontendDist = path.resolve(
 
 if (fs.existsSync(frontendDist)) {
   app.use(express.static(frontendDist));
-  // SPA fallback — serve index.html for any non-API route (Express 5: use /{*path})
-  app.get("/{*path}", (_req, res) => {
-    res.sendFile(path.join(frontendDist, "index.html"));
+
+  // Read index.html once at startup; replace at request time with DB-driven SEO meta
+  const indexHtmlPath = path.join(frontendDist, "index.html");
+  let indexHtmlTemplate = fs.readFileSync(indexHtmlPath, "utf-8");
+  // Refresh template when the file changes (Vercel hot-swap, etc.)
+  fs.watch(indexHtmlPath, () => {
+    try { indexHtmlTemplate = fs.readFileSync(indexHtmlPath, "utf-8"); } catch { /* ignore */ }
   });
+
+  // 5-minute in-memory cache for SEO settings (avoids a DB round-trip per crawl)
+  let seoCache: { title: string; description: string; ogImage: string; ts: number } | null = null;
+
+  // SPA fallback — inject live SEO meta from DB, then serve index.html
+  app.get("/{*path}", async (req: Request, res: Response) => {
+    try {
+      const now = Date.now();
+      if (!seoCache || now - seoCache.ts > 5 * 60 * 1000) {
+        const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "seoSettings")).limit(1);
+        const seo: { title?: string; description?: string; ogImage?: string } =
+          row?.value ? JSON.parse(row.value) : {};
+        seoCache = {
+          title:       seo.title       || "ChainDrop — Your Ultimate Faucet Hub",
+          description: seo.description || "ChainDrop — Multi-chain crypto faucet hub. Get free testnet tokens instantly.",
+          ogImage:     seo.ogImage     || "https://chaindrop.app/opengraph.jpg",
+          ts: now,
+        };
+      }
+
+      // Ensure og:image is an absolute URL so crawlers can fetch it
+      let ogImage = seoCache.ogImage;
+      if (ogImage && ogImage.startsWith("/")) {
+        const proto = req.get("x-forwarded-proto") || req.protocol;
+        const host  = req.get("x-forwarded-host")  || req.get("host") || "chaindrop.app";
+        ogImage = `${proto}://${host}${ogImage}`;
+      }
+
+      const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+      const html = indexHtmlTemplate
+        .replace(/(<title>)[^<]*(<\/title>)/,                           `$1${esc(seoCache.title)}$2`)
+        .replace(/(<meta property="og:title" content=")[^"]*(")/,       `$1${esc(seoCache.title)}$2`)
+        .replace(/(<meta property="og:description" content=")[^"]*(")/,  `$1${esc(seoCache.description)}$2`)
+        .replace(/(<meta property="og:image" content=")[^"]*(")/,        `$1${esc(ogImage)}$2`)
+        .replace(/(<meta name="twitter:title" content=")[^"]*(")/,       `$1${esc(seoCache.title)}$2`)
+        .replace(/(<meta name="twitter:description" content=")[^"]*(")/,  `$1${esc(seoCache.description)}$2`)
+        .replace(/(<meta name="twitter:image" content=")[^"]*(")/,        `$1${esc(ogImage)}$2`);
+
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache");
+      res.send(html);
+    } catch {
+      // Fallback to plain static file if DB is unavailable
+      res.sendFile(indexHtmlPath);
+    }
+  });
+
   logger.info({ frontendDist }, "Serving frontend static files");
 }
 
