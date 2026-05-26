@@ -1074,6 +1074,7 @@ export function ChainManagement() {
                     </div>
                   </div>
                   <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ""; }} />
+                  <p className="text-[11px] text-muted-foreground">Recommended: 64×64px, square. PNG / SVG / WebP.</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">CoinGecko ID</Label>

@@ -371,6 +371,7 @@ export function PaymentNetworkManagement() {
                     <span className="text-xs">Upload</span>
                   </Button>
                 </div>
+                <p className="text-[11px] text-muted-foreground">Recommended: 64×64px, square. PNG / SVG / WebP.</p>
               </div>
 
               {/* Enabled */}

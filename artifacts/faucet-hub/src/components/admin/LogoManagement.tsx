@@ -155,7 +155,7 @@ export function LogoManagement() {
           <span className="font-mono font-semibold text-sm uppercase tracking-widest">Upload Logo</span>
         </div>
 
-        <p className="text-xs text-muted-foreground font-mono">PNG, JPG, SVG, WebP supported. Square image recommended.</p>
+        <p className="text-xs text-muted-foreground font-mono">Recommended: 200×200px, square. PNG / SVG / WebP preferred.</p>
 
         <div className="flex gap-3 flex-wrap">
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />

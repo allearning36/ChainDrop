@@ -186,6 +186,7 @@ function LogoUploader({ label, value, onChange }: { label: string; value: string
       </div>
       <input ref={ref} type="file" accept="image/*" className="hidden"
         onChange={e => { if (e.target.files?.[0]) upload(e.target.files[0]); }} />
+      <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>Recommended: 64×64px, square. PNG / SVG / WebP.</p>
     </div>
   );
 }

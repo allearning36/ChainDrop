@@ -651,6 +651,7 @@ export function ChainLibrary() {
                         className="hidden"
                         onChange={e => { if (e.target.files?.[0]) handleLogoUpload(e.target.files[0]); e.target.value = ""; }}
                       />
+                      <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>Recommended: 64×64px, square. PNG / SVG / WebP.</p>
                     </div>
                     <div className="col-span-2 flex items-center gap-3">
                       <Switch checked={form.isTestnet} onCheckedChange={c => setForm(f => ({ ...f, isTestnet: c }))} />
