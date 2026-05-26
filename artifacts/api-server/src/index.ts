@@ -1,4 +1,4 @@
-// v4 — all DB calls wrapped, referral tables non-fatal
+// v5 — IPv4 forced via --dns-result-order=ipv4first
 import app from "./app";
 import { logger } from "./lib/logger";
 import { runMigrations } from "@workspace/db";
