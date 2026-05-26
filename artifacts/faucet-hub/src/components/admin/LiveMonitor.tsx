@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { adminFetch } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import {
   CheckCircle2, XCircle, Wifi, WifiOff, Trash2,
-  Activity, AlertTriangle, Zap, ShoppingCart, ArrowLeftRight,
+  Activity, AlertTriangle, Zap, ShoppingCart, ArrowLeftRight, RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -64,37 +64,46 @@ export function LiveMonitor() {
   const [connected, setConnected] = useState(false);
   const [events, setEvents] = useState<LiveEvent[]>(() => loadStoredEvents());
   const [paused, setPaused] = useState(false);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const pausedRef = useRef(false);
   const esRef = useRef<EventSource | null>(null);
+  // Track the most recent event timestamp so reconnect-based reloads only fetch new data
+  const lastEventTsRef = useRef<string | null>(null);
+
   const successCount = events.filter((e) => e.type === "claim_success" || e.type === "buy_success" || e.type === "swap_success").length;
   const errorCount = events.filter((e) => e.type === "claim_error" || e.type === "rpc_error" || e.type === "server_error" || e.type === "buy_error" || e.type === "swap_error").length;
 
-  // Load DB history once on mount
-  useEffect(() => {
-    async function loadHistory() {
-      try {
-        const r = await adminFetch("/api/admin/live-history");
-        if (!r.ok) return;
-        const hist = await r.json() as LiveEvent[];
-        if (!hist.length) return;
-        setEvents((prev) => {
-          // Merge: live events (non-historical) come first, then DB history
-          const live = prev.filter(e => !e.historical);
-          const liveIds = new Set(live.map(e => e.id));
-          const fresh = hist.filter(h => !liveIds.has(h.id));
-          const next = [...live, ...fresh].slice(0, 300);
-          try { localStorage.setItem(LIVE_EVENTS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-          return next;
-        });
-        setHistoryLoaded(true);
-      } catch { /* non-critical */ }
-    }
-    void loadHistory();
+  // Load DB history — optionally from a specific timestamp (for reconnect catch-up)
+  const loadHistory = useCallback(async (since?: string) => {
+    try {
+      const url = since
+        ? `/api/admin/live-history?since=${encodeURIComponent(since)}`
+        : "/api/admin/live-history";
+      const r = await adminFetch(url);
+      if (!r.ok) return;
+      const hist = await r.json() as LiveEvent[];
+      if (!hist.length) return;
+      setEvents((prev) => {
+        // Merge: live events (non-historical) come first, then DB history
+        const live = prev.filter(e => !e.historical);
+        const liveIds = new Set(live.map(e => e.id));
+        const fresh = hist.filter(h => !liveIds.has(h.id));
+        const next = [...live, ...fresh].slice(0, 300);
+        // Update lastEventTs to newest event we now hold
+        const allTs = next.map(e => e.ts).filter(Boolean);
+        if (allTs.length) lastEventTsRef.current = allTs.reduce((a, b) => a > b ? a : b);
+        try { localStorage.setItem(LIVE_EVENTS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+        return next;
+      });
+    } catch { /* non-critical */ }
   }, []);
+
+  // Full history load on mount
+  useEffect(() => { void loadHistory(); }, [loadHistory]);
 
   useEffect(() => {
     let cancelled = false;
+    let reconnectCount = 0;
 
     async function connect() {
       if (cancelled) return;
@@ -115,7 +124,14 @@ export function LiveMonitor() {
       const es = new EventSource(`${apiBase}/api/admin/live?ticket=${encodeURIComponent(ticket)}`);
       esRef.current = es;
 
-      es.onopen = () => setConnected(true);
+      es.onopen = () => {
+        setConnected(true);
+        // On reconnect (not first connect), fetch missed events from DB since last known event
+        if (reconnectCount > 0 && lastEventTsRef.current) {
+          void loadHistory(lastEventTsRef.current);
+        }
+        reconnectCount++;
+      };
       es.onerror = () => {
         setConnected(false);
         es.close();
@@ -127,6 +143,10 @@ export function LiveMonitor() {
         try {
           const event = JSON.parse(e.data as string) as LiveEvent;
           if (event.type === "ping") return;
+          // Track most recent event timestamp
+          if (event.ts && (!lastEventTsRef.current || event.ts > lastEventTsRef.current)) {
+            lastEventTsRef.current = event.ts;
+          }
           setEvents((prev) => {
             // New live events go to the top, above any historical entries
             const historical = prev.filter(p => p.historical);
@@ -141,11 +161,17 @@ export function LiveMonitor() {
 
     void connect();
     return () => { cancelled = true; esRef.current?.close(); };
-  }, []);
+  }, [loadHistory]);
 
   const togglePause = () => {
     pausedRef.current = !pausedRef.current;
     setPaused(pausedRef.current);
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadHistory();
+    setRefreshing(false);
   };
 
   return (
@@ -175,6 +201,9 @@ export function LiveMonitor() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => void handleRefresh()} disabled={refreshing} className="font-mono text-xs h-7 px-2 text-blue-400 border-blue-400/30 hover:bg-blue-400/10">
+            <RefreshCw className={cn("w-3 h-3 mr-1", refreshing && "animate-spin")} />Refresh
+          </Button>
           <Button size="sm" variant="outline" onClick={togglePause} className="font-mono text-xs h-7 px-2">
             {paused ? <><Activity className="w-3 h-3 mr-1" />Resume</> : <><Zap className="w-3 h-3 mr-1" />Pause</>}
           </Button>

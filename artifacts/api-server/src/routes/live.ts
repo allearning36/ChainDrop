@@ -71,9 +71,16 @@ router.get("/admin/live", (req, res): void => {
   });
 });
 
-/** GET /admin/live-history — last 72h of errors + successful claims/buys/swaps merged */
-router.get("/admin/live-history", requireAdmin, async (_req, res): Promise<void> => {
-  const since = new Date(Date.now() - 72 * 60 * 60 * 1000);
+/** GET /admin/live-history — last 72h of errors + successful claims/buys/swaps merged
+ *  Optional query param: ?since=<ISO timestamp> — only return events after this time (for reconnect catch-up)
+ */
+router.get("/admin/live-history", requireAdmin, async (req, res): Promise<void> => {
+  const rawQuery = req.originalUrl.includes("?") ? req.originalUrl.split("?")[1] : "";
+  const sinceParam = new URLSearchParams(rawQuery ?? "").get("since");
+  const sinceDate = sinceParam ? new Date(sinceParam) : null;
+  const since = (sinceDate && !isNaN(sinceDate.getTime()))
+    ? sinceDate
+    : new Date(Date.now() - 72 * 60 * 60 * 1000);
 
   const [errors, claims, chains, purchases, exchangeOrders, pairs] = await Promise.all([
     db.select().from(liveErrorLogsTable)
