@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { isAuthenticated, removeToken, getToken, registerUnauthorizedHandler, adminFetch } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import {
   LogOut, LayoutDashboard, Link as LinkIcon,
   HeadphonesIcon, ClipboardList, ShieldOff, Wallet,
   FileText, BarChart2, Settings2, Globe, Send, Users, Radio, ArrowLeftRight, Network, GitBranch,
-  Download, Upload, Loader2, Megaphone, ShieldAlert, Database, Menu, X,
+  Download, Upload, Loader2, Megaphone, ShieldAlert, Database, Menu, X, ChevronRight,
 } from "lucide-react";
 import { StatsOverview } from "@/components/admin/Stats";
 import { ChainManagement } from "@/components/admin/ChainManagement";
@@ -30,95 +30,120 @@ import { AdManagement } from "@/components/admin/AdManagement";
 import { AntiAbusePanel } from "@/components/admin/AntiAbusePanel";
 import { AdminTabErrorBoundary } from "@/components/admin/ErrorBoundary";
 
-type SectionId =
-  | "live" | "stats" | "analytics" | "audience"
-  | "chain-library" | "chains" | "wallets"
-  | "claims" | "blocked" | "ipblocks" | "antiabuse"
-  | "exchange" | "paynetworks"
-  | "referral"
-  | "post" | "ads" | "pages" | "support"
-  | "siteconfig";
+// ── Types ──────────────────────────────────────────────────────────────────────
 
-interface NavItem {
-  id: SectionId;
+type TopSection =
+  | "dashboard" | "live" | "claims" | "exchange" | "referral" | "wallets" | "siteconfig"
+  | "overview-group" | "chains-group" | "security-group" | "content-group";
+
+type SubTab = {
+  id: string;
   label: string;
   icon: React.ElementType;
-}
+  badge?: number;
+};
 
-interface NavGroup {
-  title: string;
-  items: NavItem[];
-}
+// ── Sub-tab definitions ────────────────────────────────────────────────────────
 
-const NAV_GROUPS: NavGroup[] = [
-  {
-    title: "Overview",
-    items: [
-      { id: "stats",     label: "Dashboard",    icon: LayoutDashboard },
-      { id: "live",      label: "Live Monitor", icon: Radio },
-      { id: "analytics", label: "Analytics",    icon: BarChart2 },
-      { id: "audience",  label: "Audience",     icon: Users },
-    ],
-  },
-  {
-    title: "Chains",
-    items: [
-      { id: "chains",         label: "Chain Management", icon: LinkIcon },
-      { id: "chain-library",  label: "Chain Library",    icon: Database },
-      { id: "wallets",        label: "Wallet Health",    icon: Wallet },
-    ],
-  },
-  {
-    title: "Claims & Security",
-    items: [
-      { id: "claims",    label: "Claims Log",        icon: ClipboardList },
-      { id: "blocked",   label: "Blocked Addresses", icon: ShieldOff },
-      { id: "ipblocks",  label: "IP Blocking",       icon: Globe },
-      { id: "antiabuse", label: "Anti-Abuse",        icon: ShieldAlert },
-    ],
-  },
-  {
-    title: "Exchange",
-    items: [
-      { id: "exchange",    label: "Exchange",     icon: ArrowLeftRight },
-      { id: "paynetworks", label: "Pay Networks", icon: Network },
-    ],
-  },
-  {
-    title: "Referrals",
-    items: [
-      { id: "referral", label: "Referral", icon: GitBranch },
-    ],
-  },
-  {
-    title: "Content",
-    items: [
-      { id: "post",    label: "Post Management", icon: Send },
-      { id: "ads",     label: "Ads",             icon: Megaphone },
-      { id: "pages",   label: "Pages",           icon: FileText },
-      { id: "support", label: "Support",         icon: HeadphonesIcon },
-    ],
-  },
-  {
-    title: "Settings",
-    items: [
-      { id: "siteconfig", label: "Site Settings", icon: Settings2 },
-    ],
-  },
+const OVERVIEW_TABS: SubTab[] = [
+  { id: "stats",     label: "Stats",     icon: LayoutDashboard },
+  { id: "analytics", label: "Analytics", icon: BarChart2 },
+  { id: "audience",  label: "Audience",  icon: Users },
 ];
+
+const CHAINS_TABS: SubTab[] = [
+  { id: "chains",        label: "Chains",        icon: LinkIcon },
+  { id: "chain-library", label: "Chain Library", icon: Database },
+  { id: "paynetworks",   label: "Pay Networks",  icon: Network },
+];
+
+const SECURITY_TABS: SubTab[] = [
+  { id: "blocked",   label: "Blocked",    icon: ShieldOff },
+  { id: "ipblocks",  label: "IP Block",   icon: Globe },
+  { id: "antiabuse", label: "Anti-Abuse", icon: ShieldAlert },
+];
+
+const CONTENT_TABS: SubTab[] = [
+  { id: "post",    label: "Post",    icon: Send },
+  { id: "ads",     label: "Ads",     icon: Megaphone },
+  { id: "pages",   label: "Pages",   icon: FileText },
+  { id: "support", label: "Support", icon: HeadphonesIcon },
+];
+
+// ── Sidebar nav structure ──────────────────────────────────────────────────────
+
+interface NavEntry {
+  section: TopSection;
+  label: string;
+  icon: React.ElementType;
+  subTabs?: SubTab[];
+}
+
+const NAV: NavEntry[] = [
+  { section: "overview-group", label: "Overview",        icon: LayoutDashboard, subTabs: OVERVIEW_TABS },
+  { section: "live",           label: "Live Monitor",    icon: Radio },
+  { section: "claims",         label: "Claims Log",      icon: ClipboardList },
+  { section: "chains-group",   label: "Chains",          icon: LinkIcon,        subTabs: CHAINS_TABS },
+  { section: "wallets",        label: "Wallet Health",   icon: Wallet },
+  { section: "exchange",       label: "Exchange",        icon: ArrowLeftRight },
+  { section: "referral",       label: "Referral",        icon: GitBranch },
+  { section: "security-group", label: "Security",        icon: ShieldAlert,     subTabs: SECURITY_TABS },
+  { section: "content-group",  label: "Content",         icon: Send,            subTabs: CONTENT_TABS },
+  { section: "siteconfig",     label: "Settings",        icon: Settings2 },
+];
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
 async function fetchUnreadCount(): Promise<number> {
   try {
     const res = await adminFetch("/api/admin/support/unread-count");
     if (!res.ok) return 0;
-    const data = await res.json() as { count: number };
-    return data.count ?? 0;
+    return ((await res.json() as { count: number }).count) ?? 0;
   } catch { return 0; }
 }
 
+function SubTabBar({
+  tabs, active, onChange, supportUnread,
+}: {
+  tabs: SubTab[];
+  active: string;
+  onChange: (id: string) => void;
+  supportUnread: number;
+}) {
+  return (
+    <div className="flex items-center gap-1 border-b border-border px-4 md:px-6 bg-card/40 overflow-x-auto shrink-0">
+      {tabs.map(tab => {
+        const isActive = active === tab.id;
+        return (
+          <button
+            key={tab.id}
+            onClick={() => onChange(tab.id)}
+            className={cn(
+              "relative flex items-center gap-1.5 px-3 py-3 text-xs font-mono whitespace-nowrap transition-colors border-b-2 -mb-px",
+              isActive
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-border",
+            )}
+          >
+            <tab.icon className="w-3.5 h-3.5 shrink-0" />
+            {tab.label}
+            {tab.id === "support" && supportUnread > 0 && (
+              <span className="flex items-center justify-center font-mono font-bold text-white rounded-full text-[9px] px-1 min-w-[15px] h-[15px] leading-none bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.7)]">
+                {supportUnread > 99 ? "99+" : supportUnread}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
+
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
-  const [activeSection, setActiveSection] = useState<SectionId>("stats");
+  const [activeSection, setActiveSection] = useState<TopSection>("overview-group");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [supportUnread, setSupportUnread] = useState(0);
   const [backingUp, setBackingUp] = useState(false);
@@ -126,13 +151,21 @@ export default function AdminDashboard() {
   const [restoreResult, setRestoreResult] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const activeLabel = useMemo(() => {
-    for (const group of NAV_GROUPS) {
-      const item = group.items.find(i => i.id === activeSection);
-      if (item) return item.label;
-    }
-    return "Dashboard";
-  }, [activeSection]);
+  // Sub-tab state per group
+  const [overviewSub, setOverviewSub]   = useState("stats");
+  const [chainsSub,   setChainsSub]     = useState("chains");
+  const [securitySub, setSecuritySub]   = useState("blocked");
+  const [contentSub,  setContentSub]    = useState("post");
+
+  // Active breadcrumb label
+  const activeEntry = NAV.find(n => n.section === activeSection);
+  const breadcrumb = (() => {
+    if (activeSection === "overview-group") return OVERVIEW_TABS.find(t => t.id === overviewSub)?.label ?? "Stats";
+    if (activeSection === "chains-group")   return CHAINS_TABS.find(t => t.id === chainsSub)?.label ?? "Chains";
+    if (activeSection === "security-group") return SECURITY_TABS.find(t => t.id === securitySub)?.label ?? "Security";
+    if (activeSection === "content-group")  return CONTENT_TABS.find(t => t.id === contentSub)?.label ?? "Content";
+    return activeEntry?.label ?? "Dashboard";
+  })();
 
   const handleBackup = async () => {
     setBackingUp(true);
@@ -154,14 +187,11 @@ export default function AdminDashboard() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!window.confirm(`"${file.name}" থেকে data restore করবেন? এটা বিদ্যমান data overwrite করবে।`)) {
-      e.target.value = "";
-      return;
+      e.target.value = ""; return;
     }
-    setRestoring(true);
-    setRestoreResult(null);
+    setRestoring(true); setRestoreResult(null);
     try {
-      const text = await file.text();
-      const json = JSON.parse(text) as unknown;
+      const json = JSON.parse(await file.text()) as unknown;
       const res = await adminFetch("/api/admin/restore", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -176,10 +206,7 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       setRestoreResult(`❌ Error: ${err instanceof Error ? err.message : "Parse error"}`);
-    } finally {
-      setRestoring(false);
-      e.target.value = "";
-    }
+    } finally { setRestoring(false); e.target.value = ""; }
   };
 
   useEffect(() => {
@@ -200,109 +227,95 @@ export default function AdminDashboard() {
 
   const handleLogout = () => { removeToken(); setLocation("/"); };
 
-  const navigate = (id: SectionId) => {
-    setActiveSection(id);
+  const navigateTo = (section: TopSection) => {
+    setActiveSection(section);
     setSidebarOpen(false);
   };
 
   if (!isAuthenticated()) return null;
 
+  // Content sub-tab routing helpers
+  const contentSupportBadge = contentSub === "support" ? supportUnread : 0;
+  void contentSupportBadge;
+
   return (
     <div className="min-h-[100dvh] bg-background flex">
 
-      {/* ── Mobile overlay ─────────────────────────────────────────── */}
+      {/* Mobile overlay */}
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 z-40 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
+        <div className="fixed inset-0 bg-black/60 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* ── Sidebar ────────────────────────────────────────────────── */}
+      {/* ── Sidebar ──────────────────────────────────────────────────── */}
       <aside className={cn(
-        "fixed left-0 top-0 h-full w-60 bg-card border-r border-border z-50 flex flex-col transition-transform duration-200",
+        "fixed left-0 top-0 h-full w-56 bg-card border-r border-border z-50 flex flex-col transition-transform duration-200",
         "md:translate-x-0",
         sidebarOpen ? "translate-x-0" : "-translate-x-full",
       )}>
 
         {/* Logo */}
-        <div className="h-16 flex items-center gap-3 px-5 border-b border-border shrink-0">
-          <img src="/logo.svg" alt="CD" className="w-8 h-8 object-contain" />
+        <div className="h-16 flex items-center gap-3 px-4 border-b border-border shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0">
+            <img src="/logo.svg" alt="CD" className="w-5 h-5 object-contain" />
+          </div>
           <div className="min-w-0">
             <div className="font-bold font-mono text-sm tracking-tight leading-none">ChainDrop</div>
-            <div className="text-[9px] text-muted-foreground font-mono uppercase tracking-widest mt-0.5">Admin Panel</div>
+            <div className="text-[9px] text-muted-foreground font-mono uppercase tracking-widest mt-0.5 text-primary/70">Admin</div>
           </div>
-          <button
-            className="ml-auto md:hidden text-muted-foreground hover:text-foreground transition-colors"
-            onClick={() => setSidebarOpen(false)}
-          >
+          <button className="ml-auto md:hidden text-muted-foreground hover:text-foreground" onClick={() => setSidebarOpen(false)}>
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-4 px-2.5 space-y-5">
-          {NAV_GROUPS.map(group => (
-            <div key={group.title}>
-              <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/50 px-2.5 mb-1.5 select-none">
-                {group.title}
-              </p>
-              <div className="space-y-0.5">
-                {group.items.map(item => {
-                  const active = activeSection === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => navigate(item.id)}
-                      className={cn(
-                        "relative w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-mono transition-colors text-left group",
-                        active
-                          ? "bg-primary/15 text-primary"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent/50",
-                      )}
-                    >
-                      {active && (
-                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary rounded-r-full" />
-                      )}
-                      <item.icon className={cn(
-                        "w-4 h-4 shrink-0 transition-colors",
-                        active ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
-                      )} />
-                      <span className="flex-1 truncate">{item.label}</span>
-                      {item.id === "support" && supportUnread > 0 && (
-                        <span className="flex items-center justify-center font-mono font-bold text-white rounded-full text-[9px] px-1 min-w-[16px] h-4 leading-none bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.7)]">
-                          {supportUnread > 99 ? "99+" : supportUnread}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+        {/* Nav items */}
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+          {NAV.map(entry => {
+            const active = activeSection === entry.section;
+            const hasSubTabs = (entry.subTabs?.length ?? 0) > 0;
+            const showSupportBadge = entry.section === "content-group" && supportUnread > 0;
+
+            return (
+              <button
+                key={entry.section}
+                onClick={() => navigateTo(entry.section)}
+                className={cn(
+                  "relative w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-mono transition-all text-left group",
+                  active
+                    ? "bg-primary/15 text-primary shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.2)]"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/60",
+                )}
+              >
+                {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-r-full" />}
+                <entry.icon className={cn("w-4 h-4 shrink-0 transition-colors", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+                <span className="flex-1 truncate">{entry.label}</span>
+                {showSupportBadge && (
+                  <span className="flex items-center justify-center font-mono font-bold text-white rounded-full text-[9px] px-1 min-w-[15px] h-[15px] leading-none bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.7)]">
+                    {supportUnread > 99 ? "99+" : supportUnread}
+                  </span>
+                )}
+                {hasSubTabs && !showSupportBadge && (
+                  <ChevronRight className={cn("w-3 h-3 shrink-0 transition-transform text-muted-foreground/50", active && "rotate-90 text-primary/50")} />
+                )}
+              </button>
+            );
+          })}
         </nav>
 
-        {/* Bottom: Backup / Restore / Logout */}
+        {/* Bottom actions */}
         <div className="border-t border-border p-3 space-y-1.5 shrink-0">
           <div className="flex gap-1.5">
             <Button
               variant="outline" size="sm" onClick={handleBackup} disabled={backingUp}
               className="flex-1 font-mono text-xs border-primary/30 text-primary hover:bg-primary/10 h-8"
             >
-              {backingUp
-                ? <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                : <Download className="w-3 h-3 mr-1" />}
+              {backingUp ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Download className="w-3 h-3 mr-1" />}
               Backup
             </Button>
             <Button
-              variant="outline" size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={restoring}
+              variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={restoring}
               className="flex-1 font-mono text-xs border-blue-500/30 text-blue-400 hover:bg-blue-500/10 h-8"
             >
-              {restoring
-                ? <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                : <Upload className="w-3 h-3 mr-1" />}
+              {restoring ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Upload className="w-3 h-3 mr-1" />}
               Restore
             </Button>
           </div>
@@ -315,24 +328,19 @@ export default function AdminDashboard() {
         </div>
       </aside>
 
-      {/* ── Main area ──────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col md:ml-60 min-w-0">
+      {/* ── Main ─────────────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col md:ml-56 min-w-0">
 
-        {/* Top header bar */}
-        <header className="sticky top-0 z-30 h-16 border-b border-border bg-background/95 backdrop-blur flex items-center gap-3 px-4 shrink-0">
-          <button
-            className="md:hidden text-muted-foreground hover:text-foreground transition-colors"
-            onClick={() => setSidebarOpen(true)}
-          >
+        {/* Header */}
+        <header className="sticky top-0 z-30 h-14 border-b border-border bg-background/95 backdrop-blur flex items-center gap-3 px-4 shrink-0">
+          <button className="md:hidden text-muted-foreground hover:text-foreground" onClick={() => setSidebarOpen(true)}>
             <Menu className="w-5 h-5" />
           </button>
-
-          <div className="flex items-center gap-1.5 text-sm font-mono min-w-0">
-            <span className="text-muted-foreground hidden sm:inline">Admin</span>
-            <span className="text-muted-foreground hidden sm:inline">/</span>
-            <span className="text-foreground font-semibold truncate">{activeLabel}</span>
+          <div className="flex items-center gap-1.5 text-sm font-mono min-w-0 text-muted-foreground">
+            <span className="hidden sm:inline">Admin</span>
+            <ChevronRight className="w-3 h-3 hidden sm:inline shrink-0" />
+            <span className="text-foreground font-semibold truncate">{breadcrumb}</span>
           </div>
-
           {restoreResult && (
             <div className="ml-auto text-xs font-mono border border-border rounded px-2.5 py-1 max-w-[260px] truncate text-muted-foreground">
               {restoreResult}
@@ -340,37 +348,70 @@ export default function AdminDashboard() {
           )}
         </header>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          className="hidden"
-          onChange={handleRestoreFile}
-        />
+        <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleRestoreFile} />
+
+        {/* Sub-tab bar (only for grouped sections) */}
+        {activeSection === "overview-group" && (
+          <SubTabBar tabs={OVERVIEW_TABS} active={overviewSub} onChange={setOverviewSub} supportUnread={0} />
+        )}
+        {activeSection === "chains-group" && (
+          <SubTabBar tabs={CHAINS_TABS} active={chainsSub} onChange={setChainsSub} supportUnread={0} />
+        )}
+        {activeSection === "security-group" && (
+          <SubTabBar tabs={SECURITY_TABS} active={securitySub} onChange={setSecuritySub} supportUnread={0} />
+        )}
+        {activeSection === "content-group" && (
+          <SubTabBar tabs={CONTENT_TABS.map(t => t.id === "support" ? { ...t, badge: supportUnread } : t)} active={contentSub} onChange={setContentSub} supportUnread={supportUnread} />
+        )}
 
         {/* Page content */}
-        <main className="flex-1 p-4 md:p-6 min-w-0">
-          <AdminTabErrorBoundary label={activeLabel}>
-            {activeSection === "stats"         && <StatsOverview />}
-            {activeSection === "live"          && <LiveMonitor />}
-            {activeSection === "analytics"     && <Analytics />}
-            {activeSection === "audience"      && <Audience />}
-            {activeSection === "chain-library" && <ChainLibrary />}
-            {activeSection === "chains"        && <ChainManagement />}
-            {activeSection === "wallets"       && <WalletHealth />}
-            {activeSection === "claims"        && <ClaimsLog />}
-            {activeSection === "blocked"       && <BlockedAddresses />}
-            {activeSection === "ipblocks"      && <IPBlocking />}
-            {activeSection === "antiabuse"     && <AntiAbusePanel />}
-            {activeSection === "exchange"      && <ExchangeManagement />}
-            {activeSection === "paynetworks"   && <PaymentNetworkManagement />}
-            {activeSection === "referral"      && <ReferralManagement />}
-            {activeSection === "post"          && <PostManagement />}
-            {activeSection === "ads"           && <AdManagement />}
-            {activeSection === "pages"         && <PagesManagement />}
-            {activeSection === "support"       && <SupportManagement onUnreadCount={setSupportUnread} />}
-            {activeSection === "siteconfig"    && <SiteConfig />}
-          </AdminTabErrorBoundary>
+        <main className="flex-1 p-4 md:p-6 min-w-0 overflow-auto">
+
+          {/* Overview group */}
+          {activeSection === "overview-group" && (
+            <AdminTabErrorBoundary label={breadcrumb}>
+              {overviewSub === "stats"     && <StatsOverview />}
+              {overviewSub === "analytics" && <Analytics />}
+              {overviewSub === "audience"  && <Audience />}
+            </AdminTabErrorBoundary>
+          )}
+
+          {/* Standalone sections */}
+          {activeSection === "live"     && <AdminTabErrorBoundary label="Live Monitor"><LiveMonitor /></AdminTabErrorBoundary>}
+          {activeSection === "claims"   && <AdminTabErrorBoundary label="Claims Log"><ClaimsLog /></AdminTabErrorBoundary>}
+          {activeSection === "wallets"  && <AdminTabErrorBoundary label="Wallet Health"><WalletHealth /></AdminTabErrorBoundary>}
+          {activeSection === "exchange" && <AdminTabErrorBoundary label="Exchange"><ExchangeManagement /></AdminTabErrorBoundary>}
+          {activeSection === "referral" && <AdminTabErrorBoundary label="Referral"><ReferralManagement /></AdminTabErrorBoundary>}
+          {activeSection === "siteconfig" && <AdminTabErrorBoundary label="Settings"><SiteConfig /></AdminTabErrorBoundary>}
+
+          {/* Chains group */}
+          {activeSection === "chains-group" && (
+            <AdminTabErrorBoundary label={breadcrumb}>
+              {chainsSub === "chains"        && <ChainManagement />}
+              {chainsSub === "chain-library" && <ChainLibrary />}
+              {chainsSub === "paynetworks"   && <PaymentNetworkManagement />}
+            </AdminTabErrorBoundary>
+          )}
+
+          {/* Security group */}
+          {activeSection === "security-group" && (
+            <AdminTabErrorBoundary label={breadcrumb}>
+              {securitySub === "blocked"   && <BlockedAddresses />}
+              {securitySub === "ipblocks"  && <IPBlocking />}
+              {securitySub === "antiabuse" && <AntiAbusePanel />}
+            </AdminTabErrorBoundary>
+          )}
+
+          {/* Content group */}
+          {activeSection === "content-group" && (
+            <AdminTabErrorBoundary label={breadcrumb}>
+              {contentSub === "post"    && <PostManagement />}
+              {contentSub === "ads"     && <AdManagement />}
+              {contentSub === "pages"   && <PagesManagement />}
+              {contentSub === "support" && <SupportManagement onUnreadCount={setSupportUnread} />}
+            </AdminTabErrorBoundary>
+          )}
+
         </main>
       </div>
     </div>
