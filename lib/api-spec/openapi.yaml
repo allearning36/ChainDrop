@@ -1248,6 +1248,9 @@ components:
           type: ["string", "null"]
         tokenPrice:
           type: ["string", "null"]
+        rpcUrl:
+          type: ["string", "null"]
+          description: "Primary public RPC endpoint URL"
         explorerUrl:
           type: ["string", "null"]
         coingeckoId:
@@ -1305,6 +1308,9 @@ components:
           type: ["string", "null"]
         tokenPrice:
           type: ["string", "null"]
+        rpcUrl:
+          type: ["string", "null"]
+          description: "Primary public RPC endpoint URL"
         explorerUrl:
           type: ["string", "null"]
         coingeckoId:

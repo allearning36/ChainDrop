@@ -34,9 +34,7 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
       ? (displayChain as any).soonMessage
       : "This faucet will be live very soon. Stay tuned!";
 
-  const rpcUrl: string | null = ("rpcUrl" in displayChain && typeof (displayChain as any).rpcUrl === "string")
-    ? (displayChain as any).rpcUrl
-    : null;
+  const rpcUrl: string | null = displayChain.rpcUrl ?? null;
 
   const evmChainId: number | null =
     typeof displayChain.chainId === "number" ? displayChain.chainId : null;
@@ -169,18 +167,19 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
 
           {/* Status dot + Info button */}
           <div className="ml-auto shrink-0 flex items-center gap-2">
-            {/* Info button — visible on hover */}
+            {/* Info button — always visible */}
             <button
               onClick={(e) => { e.stopPropagation(); setSoonPopover(false); setInfoOpen(p => !p); }}
-              className="w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200"
               style={{
-                background: infoOpen ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.06)",
-                border: infoOpen ? "1px solid rgba(34,197,94,0.35)" : "1px solid rgba(255,255,255,0.1)",
-                color: infoOpen ? "#4ade80" : "rgba(255,255,255,0.4)",
+                background: infoOpen ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.08)",
+                border: infoOpen ? "1px solid rgba(34,197,94,0.5)" : "1px solid rgba(255,255,255,0.15)",
+                color: infoOpen ? "#4ade80" : "rgba(255,255,255,0.6)",
+                boxShadow: infoOpen ? "0 0 8px rgba(34,197,94,0.2)" : "none",
               }}
               title="Network details"
             >
-              <Info className="w-3 h-3" />
+              <Info className="w-3.5 h-3.5" />
             </button>
 
             {isYes ? (

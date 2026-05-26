@@ -39,6 +39,11 @@ export interface ChainPublic {
   buyRate?: string | null;
   /** @nullable */
   tokenPrice?: string | null;
+  /**
+     * Primary public RPC endpoint URL
+     * @nullable
+     */
+  rpcUrl?: string | null;
   /** @nullable */
   explorerUrl?: string | null;
   /** @nullable */
