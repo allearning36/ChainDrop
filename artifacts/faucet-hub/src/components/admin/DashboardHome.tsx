@@ -100,9 +100,9 @@ export function DashboardHome() {
           />
           <StatCard
             icon={Coins}
-            label="ETH Distributed"
-            value={summary ? `${summary.totalEth} ETH` : "—"}
-            sub="all chains"
+            label="Tokens Distributed"
+            value={summary ? summary.totalEth : "—"}
+            sub="native tokens (mixed)"
             color="#4ade80"
           />
           <StatCard
