@@ -32,6 +32,7 @@ interface IntegrationsConfig {
   googleAds: { enabled: boolean; publisherId: string; slots: { header: string; inContent: string; footer: string } };
   googleAnalytics: { enabled: boolean; measurementId: string };
   googleSearchConsole: { verificationCode: string };
+  customMetaTags: string;
 }
 interface HeroConfig {
   enabled: boolean;
@@ -54,6 +55,7 @@ const DEFAULT: SiteConfigData = {
     googleAds: { enabled: false, publisherId: "", slots: { header: "", inContent: "", footer: "" } },
     googleAnalytics: { enabled: false, measurementId: "" },
     googleSearchConsole: { verificationCode: "" },
+    customMetaTags: "",
   },
   heroSection: {
     enabled: true,
@@ -411,6 +413,29 @@ function IntegrationsTab({ data, onSave, saving }: { data: IntegrationsConfig; o
             placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="font-mono bg-background border-border text-xs" />
           <p className="text-xs text-muted-foreground">
             In Search Console → Add property → HTML tag → copy only the <code className="bg-muted px-1 rounded">content="..."</code> value.
+          </p>
+        </div>
+      </div>
+
+      {/* Custom Meta Tags / Site Verification */}
+      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <div>
+          <p className="font-mono font-semibold text-sm">Site Verification &amp; Custom Tags</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Paste any verification meta tags here (Bitmedia, Coinzilla, Bing, etc.). Each tag on its own line. Injected into the page <code className="bg-muted px-1 rounded">&lt;head&gt;</code> automatically.
+          </p>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="font-mono text-xs">Meta Tags (HTML)</Label>
+          <Textarea
+            value={form.customMetaTags}
+            onChange={e => setForm(p => ({ ...p, customMetaTags: e.target.value }))}
+            rows={5}
+            placeholder={`<meta name="bitmedia-verification" content="xxxxxxxxxxxxxxxx">\n<meta name="coinzilla-verification" content="yyyyyyyyyyyyyy">`}
+            className="font-mono text-xs bg-background border-border resize-none"
+          />
+          <p className="text-xs text-muted-foreground">
+            Example: copy the full <code className="bg-muted px-1 rounded">&lt;meta ...&gt;</code> tag from Bitmedia / Google Search Console / Bing Webmaster and paste it here.
           </p>
         </div>
       </div>

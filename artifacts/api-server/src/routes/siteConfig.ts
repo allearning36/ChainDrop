@@ -36,6 +36,7 @@ const DEFAULT_INTEGRATIONS = {
   googleAds: { enabled: false, publisherId: "", slots: { header: "", inContent: "", footer: "" } },
   googleAnalytics: { enabled: false, measurementId: "" },
   googleSearchConsole: { verificationCode: "" },
+  customMetaTags: "",
 };
 
 // ── Public endpoint (for footer social links, SEO meta, maintenance banner) ────
@@ -146,6 +147,7 @@ router.patch("/admin/site-config/integrations", requireAdmin, async (req, res): 
     googleSearchConsole: {
       verificationCode: typeof gsc.verificationCode === "string" ? gsc.verificationCode.trim() : "",
     },
+    customMetaTags: typeof body.customMetaTags === "string" ? body.customMetaTags : "",
   });
   res.json({ ok: true });
 });

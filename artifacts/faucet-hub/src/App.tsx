@@ -1,5 +1,5 @@
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,6 +17,36 @@ import AdminLogin from "@/pages/admin/login";
 import AdminDashboard from "@/pages/admin/dashboard";
 
 import "@/lib/auth";
+
+// ── Custom meta tags injection (from admin Site Verification settings) ────────
+function useCustomMetaTags() {
+  const injectedRef = useRef<HTMLElement[]>([]);
+  useEffect(() => {
+    fetch("/api/site-config/public")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { integrations?: { customMetaTags?: string } } | null) => {
+        const raw = d?.integrations?.customMetaTags?.trim() ?? "";
+        if (!raw) return;
+        // Remove previously injected elements
+        injectedRef.current.forEach(el => el.remove());
+        injectedRef.current = [];
+        // Parse and inject each tag individually
+        const temp = document.createElement("div");
+        temp.innerHTML = raw;
+        Array.from(temp.children).forEach(child => {
+          const tag = child.cloneNode(true) as HTMLElement;
+          tag.setAttribute("data-chaindrop-custom", "1");
+          document.head.appendChild(tag);
+          injectedRef.current.push(tag);
+        });
+      })
+      .catch(() => {});
+    return () => {
+      injectedRef.current.forEach(el => el.remove());
+      injectedRef.current = [];
+    };
+  }, []);
+}
 
 // ── Page-view tracking ────────────────────────────────────────────────────────
 // Send one beacon per page navigation. Uses sessionStorage to deduplicate
@@ -61,6 +91,7 @@ function Router() {
 }
 
 function App() {
+  useCustomMetaTags();
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
