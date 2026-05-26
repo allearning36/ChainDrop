@@ -542,24 +542,57 @@ function UsersPanel() {
           <div className="space-y-4">
             <div className="font-mono text-xs break-all" style={{ color: "rgba(255,255,255,0.6)" }}>{userDetail.wallet}</div>
 
-            {/* ── Balance Summary ── */}
-            <div className="rounded-xl p-4 space-y-2" style={{ background: "rgba(34,197,94,0.05)", border: "1px solid rgba(34,197,94,0.2)" }}>
-              <p className="font-mono text-xs font-semibold text-green-400 mb-3">Balance Summary</p>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="rounded-lg p-2.5 text-center" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                  <p className="font-mono text-[9px] text-muted-foreground mb-1">Total Earned</p>
-                  <p className="font-mono text-xs font-bold" style={{ color: "rgba(255,255,255,0.8)" }}>{parseFloat(userDetail.totalEarnedEth).toFixed(6)}</p>
+            {/* ── Total Balance ── */}
+            {(() => {
+              const l1Commission = userDetail.commissions.filter(c => c.level === 1 && c.status === "pending").reduce((s, c) => s + parseFloat(c.amountEth), 0);
+              const l2Commission = userDetail.commissions.filter(c => c.level === 2 && c.status === "pending").reduce((s, c) => s + parseFloat(c.amountEth), 0);
+              const adjAdd = userDetail.adjustments.filter(a => a.type === "add").reduce((s, a) => s + parseFloat(a.amountEth), 0);
+              const adjDeduct = userDetail.adjustments.filter(a => a.type === "deduct").reduce((s, a) => s + parseFloat(a.amountEth), 0);
+              const adjNet = adjAdd - adjDeduct;
+              const alreadyClaimed = userDetail.claimRequests.filter(r => r.status === "approved" || r.status === "pending").reduce((s, r) => s + parseFloat(r.amountEth), 0);
+              const totalBalance = parseFloat(userDetail.claimableEth);
+
+              const Row = ({ label, value, color }: { label: string; value: number; color?: string }) => (
+                <div className="flex items-center justify-between py-1.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                  <span className="font-mono text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>{label}</span>
+                  <span className="font-mono text-[11px] font-semibold" style={{ color: color ?? "rgba(255,255,255,0.75)" }}>
+                    {value >= 0 ? "+" : ""}{value.toFixed(6)} ETH
+                  </span>
                 </div>
-                <div className="rounded-lg p-2.5 text-center" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                  <p className="font-mono text-[9px] text-muted-foreground mb-1">Pending</p>
-                  <p className="font-mono text-xs font-bold text-yellow-400">{parseFloat(userDetail.pendingCommissionEth).toFixed(6)}</p>
+              );
+
+              return (
+                <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(34,197,94,0.25)" }}>
+                  {/* Total Balance header */}
+                  <div className="px-4 pt-4 pb-3" style={{ background: "rgba(34,197,94,0.08)" }}>
+                    <p className="font-mono text-[10px] text-green-400 mb-1 uppercase tracking-wider">Total Balance</p>
+                    <p className="font-mono text-2xl font-bold text-green-400">{totalBalance.toFixed(6)} <span className="text-sm font-normal opacity-70">ETH</span></p>
+                  </div>
+                  {/* Breakdown */}
+                  <div className="px-4 py-3 space-y-0" style={{ background: "rgba(255,255,255,0.02)" }}>
+                    <p className="font-mono text-[9px] uppercase tracking-wider mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>Earning Sources</p>
+                    {l1Commission > 0 && <Row label="Level 1 Commission" value={l1Commission} color="#a3e635" />}
+                    {l2Commission > 0 && <Row label="Level 2 Commission" value={l2Commission} color="#86efac" />}
+                    {adjNet !== 0 && (
+                      <Row
+                        label={adjNet > 0 ? "Admin Bonus / Adjustment" : "Admin Deduction"}
+                        value={adjNet}
+                        color={adjNet > 0 ? "#facc15" : "#f87171"}
+                      />
+                    )}
+                    {alreadyClaimed > 0 && (
+                      <div className="flex items-center justify-between py-1.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                        <span className="font-mono text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>Already Claimed</span>
+                        <span className="font-mono text-[11px] font-semibold text-red-400">−{alreadyClaimed.toFixed(6)} ETH</span>
+                      </div>
+                    )}
+                    {l1Commission === 0 && l2Commission === 0 && adjNet === 0 && alreadyClaimed === 0 && (
+                      <p className="font-mono text-[10px] text-muted-foreground py-1">No earning sources yet</p>
+                    )}
+                  </div>
                 </div>
-                <div className="rounded-lg p-2.5 text-center" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)" }}>
-                  <p className="font-mono text-[9px] text-green-400 mb-1">Claimable</p>
-                  <p className="font-mono text-xs font-bold text-green-400">{parseFloat(userDetail.claimableEth).toFixed(6)}</p>
-                </div>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* ── Adjust Balance ── */}
             <AdjustBalanceForm wallet={userDetail.wallet} onSuccess={refreshDetail} />
