@@ -470,6 +470,7 @@ export const GetAdminReferralUsersResponseItem = zod.object({
   "level2Count": zod.number(),
   "totalCommissionEth": zod.string(),
   "pendingCommissionEth": zod.string(),
+  "claimableEth": zod.string(),
   "claimRequestCount": zod.number(),
   "joinedAt": zod.coerce.date()
 })
@@ -485,6 +486,9 @@ export const GetAdminReferralUserParams = zod.object({
 
 export const GetAdminReferralUserResponse = zod.object({
   "wallet": zod.string(),
+  "totalEarnedEth": zod.string(),
+  "pendingCommissionEth": zod.string(),
+  "claimableEth": zod.string(),
   "level1Referrals": zod.array(zod.object({
   "id": zod.number(),
   "refereeAddress": zod.string(),
@@ -518,6 +522,14 @@ export const GetAdminReferralUserResponse = zod.object({
   "txHash": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "processedAt": zod.coerce.date().nullish()
+})),
+  "adjustments": zod.array(zod.object({
+  "id": zod.number(),
+  "walletAddress": zod.string(),
+  "type": zod.enum(['add', 'deduct']),
+  "amountEth": zod.string(),
+  "note": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
 }))
 })
 

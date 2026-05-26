@@ -2189,7 +2189,7 @@ components:
 
     ReferralUserSummary:
       type: object
-      required: [wallet, level1Count, level2Count, totalCommissionEth, pendingCommissionEth, claimRequestCount, joinedAt]
+      required: [wallet, level1Count, level2Count, totalCommissionEth, pendingCommissionEth, claimableEth, claimRequestCount, joinedAt]
       properties:
         wallet:
           type: string
@@ -2201,6 +2201,8 @@ components:
           type: string
         pendingCommissionEth:
           type: string
+        claimableEth:
+          type: string
         claimRequestCount:
           type: integer
         joinedAt:
@@ -2209,9 +2211,15 @@ components:
 
     ReferralUserDetail:
       type: object
-      required: [wallet, level1Referrals, level2Referrals, commissions, claimRequests]
+      required: [wallet, totalEarnedEth, pendingCommissionEth, claimableEth, level1Referrals, level2Referrals, commissions, claimRequests, adjustments]
       properties:
         wallet:
+          type: string
+        totalEarnedEth:
+          type: string
+        pendingCommissionEth:
+          type: string
+        claimableEth:
           type: string
         level1Referrals:
           type: array
@@ -2229,6 +2237,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ReferralClaimRequestAdmin"
+        adjustments:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReferralBalanceAdjustment"
 
     ReferralRecord:
       type: object

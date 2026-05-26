@@ -5,14 +5,19 @@
  * ChainDrop — Multi-chain faucet hub API
  * OpenAPI spec version: 0.1.0
  */
+import type { ReferralBalanceAdjustment } from './referralBalanceAdjustment';
 import type { ReferralClaimRequestAdmin } from './referralClaimRequestAdmin';
 import type { ReferralCommissionRecord } from './referralCommissionRecord';
 import type { ReferralRecord } from './referralRecord';
 
 export interface ReferralUserDetail {
   wallet: string;
+  totalEarnedEth: string;
+  pendingCommissionEth: string;
+  claimableEth: string;
   level1Referrals: ReferralRecord[];
   level2Referrals: ReferralRecord[];
   commissions: ReferralCommissionRecord[];
   claimRequests: ReferralClaimRequestAdmin[];
+  adjustments: ReferralBalanceAdjustment[];
 }

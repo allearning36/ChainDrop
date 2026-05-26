@@ -542,17 +542,36 @@ function UsersPanel() {
           <div className="space-y-4">
             <div className="font-mono text-xs break-all" style={{ color: "rgba(255,255,255,0.6)" }}>{userDetail.wallet}</div>
 
+            {/* ── Balance Summary ── */}
+            <div className="rounded-xl p-4 space-y-2" style={{ background: "rgba(34,197,94,0.05)", border: "1px solid rgba(34,197,94,0.2)" }}>
+              <p className="font-mono text-xs font-semibold text-green-400 mb-3">Balance Summary</p>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-lg p-2.5 text-center" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <p className="font-mono text-[9px] text-muted-foreground mb-1">Total Earned</p>
+                  <p className="font-mono text-xs font-bold" style={{ color: "rgba(255,255,255,0.8)" }}>{parseFloat(userDetail.totalEarnedEth).toFixed(6)}</p>
+                </div>
+                <div className="rounded-lg p-2.5 text-center" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <p className="font-mono text-[9px] text-muted-foreground mb-1">Pending</p>
+                  <p className="font-mono text-xs font-bold text-yellow-400">{parseFloat(userDetail.pendingCommissionEth).toFixed(6)}</p>
+                </div>
+                <div className="rounded-lg p-2.5 text-center" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)" }}>
+                  <p className="font-mono text-[9px] text-green-400 mb-1">Claimable</p>
+                  <p className="font-mono text-xs font-bold text-green-400">{parseFloat(userDetail.claimableEth).toFixed(6)}</p>
+                </div>
+              </div>
+            </div>
+
             {/* ── Adjust Balance ── */}
             <AdjustBalanceForm wallet={userDetail.wallet} onSuccess={refreshDetail} />
 
             {/* ── Adjustment History ── */}
-            {(userDetail as any).adjustments?.length > 0 && (
+            {userDetail.adjustments?.length > 0 && (
               <div>
                 <p className="font-mono font-semibold text-sm mb-2 flex items-center gap-1.5">
-                  <History className="w-3.5 h-3.5 text-yellow-400" /> Adjustment History ({(userDetail as any).adjustments.length})
+                  <History className="w-3.5 h-3.5 text-yellow-400" /> Adjustment History ({userDetail.adjustments.length})
                 </p>
                 <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                  {(userDetail as any).adjustments.map((a: any) => (
+                  {userDetail.adjustments.map((a) => (
                     <div key={a.id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="shrink-0 font-mono text-[10px] px-1.5 py-0.5 rounded font-bold" style={{ background: a.type === "add" ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)", color: a.type === "add" ? "#22c55e" : "#f87171" }}>
@@ -664,7 +683,10 @@ function UsersPanel() {
               <p className="font-mono text-xs truncate" style={{ color: "rgba(255,255,255,0.8)" }}>{u.wallet}</p>
               <div className="flex items-center gap-3 mt-1">
                 <span className="font-mono text-[10px] text-muted-foreground">L1: {u.level1Count} L2: {u.level2Count}</span>
-                <span className="font-mono text-[10px] text-green-400">{parseFloat(u.pendingCommissionEth).toFixed(6)} ETH pending</span>
+                <span className="font-mono text-[10px] text-green-400">{parseFloat(u.claimableEth).toFixed(6)} ETH claimable</span>
+                {parseFloat(u.pendingCommissionEth) > 0 && (
+                  <span className="font-mono text-[10px] text-yellow-400">{parseFloat(u.pendingCommissionEth).toFixed(6)} pending</span>
+                )}
               </div>
             </div>
             <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 ml-2" />

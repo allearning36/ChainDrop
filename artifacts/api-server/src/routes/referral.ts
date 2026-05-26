@@ -293,14 +293,18 @@ router.get("/admin/referral/users", requireAdmin, async (_req, res): Promise<voi
   const allReferrers = await db.selectDistinct({ wallet: referralsTable.referrerAddress }).from(referralsTable);
 
   const results = await Promise.all(allReferrers.map(async ({ wallet }) => {
-    const [l1, l2, commissions, claimReqs] = await Promise.all([
+    const [l1, l2, commissions, claimReqs, adjustments] = await Promise.all([
       db.select().from(referralsTable).where(and(eq(referralsTable.referrerAddress, wallet), eq(referralsTable.level, 1))),
       db.select().from(referralsTable).where(and(eq(referralsTable.referrerAddress, wallet), eq(referralsTable.level, 2))),
       db.select().from(referralCommissionsTable).where(eq(referralCommissionsTable.referrerAddress, wallet)),
       db.select().from(referralClaimRequestsTable).where(eq(referralClaimRequestsTable.walletAddress, wallet)),
+      db.select().from(referralBalanceAdjustmentsTable).where(eq(referralBalanceAdjustmentsTable.walletAddress, wallet)),
     ]);
     const totalEth = commissions.reduce((s, c) => s + parseFloat(c.amountEth), 0);
     const pendingEth = commissions.filter(c => c.status === "pending").reduce((s, c) => s + parseFloat(c.amountEth), 0);
+    const adjustmentDelta = adjustments.reduce((s, a) => a.type === "add" ? s + parseFloat(a.amountEth) : s - parseFloat(a.amountEth), 0);
+    const alreadyRequested = claimReqs.filter(r => r.status === "approved" || r.status === "pending").reduce((s, r) => s + parseFloat(r.amountEth), 0);
+    const claimableEth = Math.max(0, pendingEth + adjustmentDelta - alreadyRequested);
     const allRefs = [...l1, ...l2].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
     return {
       wallet,
@@ -308,6 +312,7 @@ router.get("/admin/referral/users", requireAdmin, async (_req, res): Promise<voi
       level2Count: l2.length,
       totalCommissionEth: totalEth.toFixed(10),
       pendingCommissionEth: pendingEth.toFixed(10),
+      claimableEth: claimableEth.toFixed(10),
       claimRequestCount: claimReqs.length,
       joinedAt: allRefs[0]?.createdAt.toISOString() ?? new Date().toISOString(),
     };
@@ -322,20 +327,30 @@ router.get("/admin/referral/users", requireAdmin, async (_req, res): Promise<voi
 router.get("/admin/referral/users/:wallet", requireAdmin, async (req, res): Promise<void> => {
   const wallet = String(req.params.wallet).toLowerCase();
 
-  const [level1, level2, commissions, claimRequests] = await Promise.all([
+  const [level1, level2, commissions, claimRequests, adjustments] = await Promise.all([
     db.select().from(referralsTable).where(and(eq(referralsTable.referrerAddress, wallet), eq(referralsTable.level, 1))).orderBy(desc(referralsTable.createdAt)),
     db.select().from(referralsTable).where(and(eq(referralsTable.referrerAddress, wallet), eq(referralsTable.level, 2))).orderBy(desc(referralsTable.createdAt)),
     db.select().from(referralCommissionsTable).where(eq(referralCommissionsTable.referrerAddress, wallet)).orderBy(desc(referralCommissionsTable.createdAt)),
     db.select().from(referralClaimRequestsTable).where(eq(referralClaimRequestsTable.walletAddress, wallet)).orderBy(desc(referralClaimRequestsTable.createdAt)),
+    db.select().from(referralBalanceAdjustmentsTable).where(eq(referralBalanceAdjustmentsTable.walletAddress, wallet)).orderBy(desc(referralBalanceAdjustmentsTable.createdAt)),
   ]);
 
-  if (level1.length === 0 && level2.length === 0 && commissions.length === 0) {
+  if (level1.length === 0 && level2.length === 0 && commissions.length === 0 && adjustments.length === 0) {
     res.status(404).json({ error: "No referral data found for this wallet" });
     return;
   }
 
+  const totalEarnedEth = commissions.reduce((s, c) => s + parseFloat(c.amountEth), 0);
+  const pendingCommissionEth = commissions.filter(c => c.status === "pending").reduce((s, c) => s + parseFloat(c.amountEth), 0);
+  const adjustmentDelta = adjustments.reduce((s, a) => a.type === "add" ? s + parseFloat(a.amountEth) : s - parseFloat(a.amountEth), 0);
+  const alreadyRequested = claimRequests.filter(r => r.status === "approved" || r.status === "pending").reduce((s, r) => s + parseFloat(r.amountEth), 0);
+  const claimableEth = Math.max(0, pendingCommissionEth + adjustmentDelta - alreadyRequested);
+
   res.json({
     wallet,
+    totalEarnedEth: totalEarnedEth.toFixed(10),
+    pendingCommissionEth: pendingCommissionEth.toFixed(10),
+    claimableEth: claimableEth.toFixed(10),
     level1Referrals: level1.map(r => ({ id: r.id, refereeAddress: r.refereeAddress, level: r.level, createdAt: r.createdAt.toISOString() })),
     level2Referrals: level2.map(r => ({ id: r.id, refereeAddress: r.refereeAddress, level: r.level, createdAt: r.createdAt.toISOString() })),
     commissions: commissions.map(c => ({
@@ -350,6 +365,11 @@ router.get("/admin/referral/users/:wallet", requireAdmin, async (req, res): Prom
       adminNote: r.adminNote ?? null, txHash: r.txHash ?? null,
       createdAt: r.createdAt.toISOString(),
       processedAt: r.processedAt?.toISOString() ?? null,
+    })),
+    adjustments: adjustments.map(a => ({
+      id: a.id, walletAddress: a.walletAddress, type: a.type,
+      amountEth: a.amountEth, note: a.note ?? null,
+      createdAt: a.createdAt.toISOString(),
     })),
   });
 });

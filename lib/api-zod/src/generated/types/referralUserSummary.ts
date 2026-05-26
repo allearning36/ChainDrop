@@ -12,6 +12,7 @@ export interface ReferralUserSummary {
   level2Count: number;
   totalCommissionEth: string;
   pendingCommissionEth: string;
+  claimableEth: string;
   claimRequestCount: number;
   joinedAt: Date;
 }

@@ -727,6 +727,7 @@ export interface ReferralUserSummary {
   level2Count: number;
   totalCommissionEth: string;
   pendingCommissionEth: string;
+  claimableEth: string;
   claimRequestCount: number;
   joinedAt: string;
 }
@@ -755,10 +756,14 @@ export interface ReferralClaimRequestAdmin {
 
 export interface ReferralUserDetail {
   wallet: string;
+  totalEarnedEth: string;
+  pendingCommissionEth: string;
+  claimableEth: string;
   level1Referrals: ReferralRecord[];
   level2Referrals: ReferralRecord[];
   commissions: ReferralCommissionRecord[];
   claimRequests: ReferralClaimRequestAdmin[];
+  adjustments: ReferralBalanceAdjustment[];
 }
 
 export interface ApproveClaimInput {
