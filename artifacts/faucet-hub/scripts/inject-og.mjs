@@ -13,7 +13,7 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const INDEX_PATH = path.join(__dirname, "..", "dist", "public", "index.html");
-const API_URL = "https://chaindrop.app/api/site-config/public";
+const API_URL = "https://www.chaindrop.app/api/site-config/public";
 
 function esc(s) {
   return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
@@ -43,9 +43,9 @@ async function main() {
     return;
   }
 
-  // Convert relative paths to absolute URLs
+  // Convert relative paths to absolute URLs (always use www to avoid redirect)
   if (ogImage && ogImage.startsWith("/")) {
-    ogImage = `https://chaindrop.app${ogImage}`;
+    ogImage = `https://www.chaindrop.app${ogImage}`;
   }
 
   let html = fs.readFileSync(INDEX_PATH, "utf-8");
