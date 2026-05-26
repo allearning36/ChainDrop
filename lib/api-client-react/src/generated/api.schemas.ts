@@ -649,6 +649,7 @@ export interface ReferralDashboard {
   pendingCommissionEth: string;
   totalEarnedEth: string;
   claimableEth: string;
+  minClaimEth: number;
   commissions: ReferralCommissionRecord[];
   claimRequests: ReferralClaimRequestRecord[];
   adjustments: ReferralBalanceAdjustment[];

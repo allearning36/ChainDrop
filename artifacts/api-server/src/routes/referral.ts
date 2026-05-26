@@ -74,7 +74,7 @@ router.get("/referral/dashboard/:wallet", async (req, res): Promise<void> => {
     })();
   const referralLink = `${frontendUrl}/?ref=${wallet}`;
 
-  const [level1, level2, commissions, claimRequests, adjustments] = await Promise.all([
+  const [level1, level2, commissions, claimRequests, adjustments, settings] = await Promise.all([
     db.select().from(referralsTable).where(and(eq(referralsTable.referrerAddress, wallet), eq(referralsTable.level, 1))),
     db.select().from(referralsTable).where(and(eq(referralsTable.referrerAddress, wallet), eq(referralsTable.level, 2))),
     db.select().from(referralCommissionsTable)
@@ -89,6 +89,7 @@ router.get("/referral/dashboard/:wallet", async (req, res): Promise<void> => {
       .where(eq(referralBalanceAdjustmentsTable.walletAddress, wallet))
       .orderBy(desc(referralBalanceAdjustmentsTable.createdAt))
       .limit(50),
+    getReferralSettings(),
   ]);
 
   const totalEarned = commissions.reduce((s, c) => s + parseFloat(c.amountEth), 0);
@@ -113,6 +114,7 @@ router.get("/referral/dashboard/:wallet", async (req, res): Promise<void> => {
     pendingCommissionEth: pendingCommission.toFixed(10),
     totalEarnedEth: totalEarned.toFixed(10),
     claimableEth: claimable.toFixed(10),
+    minClaimEth: settings.minClaimEth,
     commissions: commissions.map(c => ({
       id: c.id,
       refereeAddress: c.refereeAddress,

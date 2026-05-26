@@ -1974,7 +1974,7 @@ components:
 
     ReferralDashboard:
       type: object
-      required: [wallet, referralCode, referralLink, level1Count, level2Count, pendingCommissionEth, totalEarnedEth, claimableEth, commissions, claimRequests, adjustments]
+      required: [wallet, referralCode, referralLink, level1Count, level2Count, pendingCommissionEth, totalEarnedEth, claimableEth, minClaimEth, commissions, claimRequests, adjustments]
       properties:
         wallet:
           type: string
@@ -1992,6 +1992,8 @@ components:
           type: string
         claimableEth:
           type: string
+        minClaimEth:
+          type: number
         commissions:
           type: array
           items:

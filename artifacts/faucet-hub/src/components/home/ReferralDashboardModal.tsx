@@ -183,7 +183,7 @@ export function ReferralDashboardModal({ open, onClose }: ReferralDashboardModal
   };
 
   const claimableEth = parseFloat(dashboard?.claimableEth ?? "0");
-  const minClaim = 0.001;
+  const minClaim = dashboard?.minClaimEth ?? 0.001;
   const canClaim = claimableEth >= minClaim && !claiming;
 
   const visibleCommissions = showAllCommissions

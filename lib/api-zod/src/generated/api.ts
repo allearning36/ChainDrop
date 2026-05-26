@@ -288,6 +288,7 @@ export const GetReferralDashboardResponse = zod.object({
   "pendingCommissionEth": zod.string(),
   "totalEarnedEth": zod.string(),
   "claimableEth": zod.string(),
+  "minClaimEth": zod.number(),
   "commissions": zod.array(zod.object({
   "id": zod.number(),
   "refereeAddress": zod.string(),
