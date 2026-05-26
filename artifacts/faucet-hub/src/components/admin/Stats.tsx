@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function StatsOverview() {
   const { data: stats, isLoading } = useGetAdminStats({
     query: { 
-      refetchInterval: 30000,
+      refetchInterval: 120000,
       queryKey: getGetAdminStatsQueryKey()
     }
   });

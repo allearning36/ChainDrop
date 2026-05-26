@@ -278,7 +278,7 @@ function ClaimRequestsPanel({ onViewUser }: { onViewUser: (wallet: string) => vo
     {
       query: {
         queryKey: getGetAdminReferralClaimRequestsQueryKey(statusFilter ? { status: statusFilter as any } : undefined),
-        refetchInterval: 10000,
+        refetchInterval: 60000,
       }
     }
   );
@@ -528,7 +528,7 @@ function UsersPanel({ initialWallet }: { initialWallet?: string | null }) {
   }, [initialWallet]);
 
   const { data: users = [], isLoading } = useGetAdminReferralUsers({
-    query: { queryKey: getGetAdminReferralUsersQueryKey(), refetchInterval: 30000 }
+    query: { queryKey: getGetAdminReferralUsersQueryKey(), refetchInterval: 120000 }
   });
 
   const filteredUsers = search.trim()

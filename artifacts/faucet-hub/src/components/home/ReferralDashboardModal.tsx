@@ -90,7 +90,7 @@ export function ReferralDashboardModal({ open, onClose }: ReferralDashboardModal
       query: {
         enabled: !!wallet?.address,
         queryKey: getGetReferralDashboardQueryKey(wallet?.address ?? ""),
-        refetchInterval: 15000,
+        refetchInterval: 60000,
       }
     }
   );

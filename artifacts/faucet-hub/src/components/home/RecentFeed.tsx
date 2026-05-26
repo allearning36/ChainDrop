@@ -31,7 +31,7 @@ function getExplorerUrl(chainName: string, txHash: string, explorerUrl?: string 
 export function RecentFeed() {
   const { data: history = [] } = useGetFaucetHistory({
     query: {
-      refetchInterval: 10000,
+      refetchInterval: 60000,
       queryKey: getGetFaucetHistoryQueryKey(),
     }
   });

@@ -77,7 +77,7 @@ function renderWithLinks(text: string): React.ReactNode[] {
 
 export function Navbar() {
   const { data: announcements = [], refetch: refetchAnnouncements } = useGetAnnouncements({
-    query: { queryKey: getGetAnnouncementsQueryKey(), refetchInterval: 30000, staleTime: 0 }
+    query: { queryKey: getGetAnnouncementsQueryKey(), refetchInterval: 120000, staleTime: 0 }
   });
   const { data: referralSettings } = useGetReferralSettings({
     query: { queryKey: getGetReferralSettingsQueryKey() }

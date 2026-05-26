@@ -55,7 +55,7 @@ export function DashboardHome() {
   const [loading, setLoading] = useState(true);
 
   const { data: stats } = useGetAdminStats({
-    query: { refetchInterval: 30000, queryKey: getGetAdminStatsQueryKey() }
+    query: { refetchInterval: 120000, queryKey: getGetAdminStatsQueryKey() }
   });
 
   useEffect(() => {

@@ -1,0 +1,3 @@
+- [Supabase migration](supabase-migration.md) — DB migrated from Neon to Supabase; SSL fix required in pool config
+- [Polling intervals](polling-intervals.md) — aggressive polling was causing excessive DB transfer; intervals bumped
+- [Railway watch paths](railway-watch-paths.md) — Railway only triggers rebuild on changes to artifacts/api-server/, not lib/
