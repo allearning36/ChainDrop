@@ -1,5 +1,10 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "WgvE7I8OBBB9kMG666l28"
+uri = "file://attached_assets/admin_mockup_preview.png"
+type = "image"
+title = "chaindrop admin dashboard mockup"
 
 [[outputs]]
 id = "zFHxcCacC3D4tb2SYQnAj"
