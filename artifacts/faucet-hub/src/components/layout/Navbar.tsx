@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Bell, MessageCircle, ChevronDown, ChevronRight, Megaphone, ArrowLeftRight, Users } from "lucide-react";
 import { useGetAnnouncements, getGetAnnouncementsQueryKey, useGetReferralSettings, getGetReferralSettingsQueryKey } from "@workspace/api-client-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -86,7 +86,18 @@ export function Navbar() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [supportOpen, setSupportOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [referralOpen, setReferralOpen] = useState(false);
+  const [, navigate] = useLocation();
+  const referralOpen = new URLSearchParams(window.location.search).get("referral") === "open";
+  const setReferralOpen = (val: boolean) => {
+    const params = new URLSearchParams(window.location.search);
+    if (val) {
+      params.set("referral", "open");
+    } else {
+      params.delete("referral");
+    }
+    const qs = params.toString();
+    navigate(window.location.pathname + (qs ? "?" + qs : ""), { replace: true });
+  };
   const [logo, setLogo] = useState<LogoSettings>({ logoUrl: "/logo.svg", logoGlow: "medium", logoSize: "medium" });
   const [seenIds, setSeenIds] = useState<Set<number>>(getSeenIds);
   const [supportUnread, setSupportUnread] = useState(0);
