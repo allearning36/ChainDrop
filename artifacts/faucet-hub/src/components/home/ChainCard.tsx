@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChainPublic, useGetChain, getGetChainQueryKey } from "@workspace/api-client-react";
-import { Droplet, Wallet, Zap, Clock } from "lucide-react";
+import { Droplet, Wallet, Zap, Clock, Info, Copy, Check, ExternalLink, Plus } from "lucide-react";
 import { formatCooldown, formatTokenAmount } from "@/lib/utils";
 
 interface ChainCardProps {
@@ -11,6 +11,10 @@ interface ChainCardProps {
 
 export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) {
   const [soonPopover, setSoonPopover] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [addingToWallet, setAddingToWallet] = useState(false);
+  const [walletError, setWalletError] = useState("");
 
   const { data: detail } = useGetChain(chain.id, {
     query: {
@@ -23,15 +27,64 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
   const displayChain = detail || chain;
   const isSoon = displayChain.availableStatus === "SOON";
   const isYes  = displayChain.availableStatus === "YES";
+  const isEvm  = displayChain.chainType === "evm";
 
   const soonMsg: string =
     ("soonMessage" in displayChain && typeof (displayChain as any).soonMessage === "string" && (displayChain as any).soonMessage.trim())
       ? (displayChain as any).soonMessage
       : "This faucet will be live very soon. Stay tuned!";
 
+  const rpcUrl: string | null = ("rpcUrl" in displayChain && typeof (displayChain as any).rpcUrl === "string")
+    ? (displayChain as any).rpcUrl
+    : null;
+
+  const evmChainId: number | null =
+    typeof displayChain.chainId === "number" ? displayChain.chainId : null;
+
+  function handleCopy(value: string, field: string) {
+    navigator.clipboard.writeText(value).catch(() => {});
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  }
+
+  async function handleAddToMetaMask() {
+    if (!evmChainId || !rpcUrl) return;
+    const eth = (window as any).ethereum;
+    if (!eth) {
+      setWalletError("MetaMask not detected.");
+      setTimeout(() => setWalletError(""), 3000);
+      return;
+    }
+    setAddingToWallet(true);
+    setWalletError("");
+    try {
+      await eth.request({
+        method: "wallet_addEthereumChain",
+        params: [{
+          chainId: `0x${evmChainId.toString(16)}`,
+          chainName: displayChain.name,
+          nativeCurrency: {
+            name: displayChain.name,
+            symbol: displayChain.symbol,
+            decimals: 18,
+          },
+          rpcUrls: [rpcUrl],
+          blockExplorerUrls: displayChain.explorerUrl ? [displayChain.explorerUrl] : [],
+        }],
+      });
+    } catch (err: any) {
+      if (err?.code !== 4001) {
+        setWalletError("Could not add network.");
+        setTimeout(() => setWalletError(""), 3000);
+      }
+    } finally {
+      setAddingToWallet(false);
+    }
+  }
+
   return (
     <div
-      className="chain-card group relative flex flex-col overflow-hidden transition-all duration-300"
+      className="chain-card group relative flex flex-col overflow-visible transition-all duration-300"
       style={{
         background: "linear-gradient(145deg, rgba(14,17,22,0.95) 0%, rgba(10,13,18,0.98) 100%)",
         border: "1px solid rgba(255,255,255,0.07)",
@@ -63,7 +116,7 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
         }}
       />
 
-      <div className="relative p-5 flex flex-col gap-4 flex-1">
+      <div className="relative p-5 flex flex-col gap-4 flex-1 overflow-visible">
         {/* Chain header */}
         <div className="flex items-center gap-3.5">
           {/* Logo with ring */}
@@ -114,8 +167,22 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
             </div>
           </div>
 
-          {/* Status dot */}
-          <div className="ml-auto shrink-0">
+          {/* Status dot + Info button */}
+          <div className="ml-auto shrink-0 flex items-center gap-2">
+            {/* Info button — visible on hover */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setSoonPopover(false); setInfoOpen(p => !p); }}
+              className="w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              style={{
+                background: infoOpen ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.06)",
+                border: infoOpen ? "1px solid rgba(34,197,94,0.35)" : "1px solid rgba(255,255,255,0.1)",
+                color: infoOpen ? "#4ade80" : "rgba(255,255,255,0.4)",
+              }}
+              title="Network details"
+            >
+              <Info className="w-3 h-3" />
+            </button>
+
             {isYes ? (
               <span className="flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full opacity-60" style={{ background: "rgba(34,197,94,0.6)" }} />
@@ -128,6 +195,150 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
             )}
           </div>
         </div>
+
+        {/* ── Info Popover ── */}
+        {infoOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setInfoOpen(false)} />
+            <div
+              className="absolute left-0 right-0 z-50 rounded-2xl overflow-hidden shadow-2xl"
+              style={{
+                top: "64px",
+                background: "rgba(10,13,20,0.97)",
+                border: "1px solid rgba(34,197,94,0.2)",
+                boxShadow: "0 0 32px rgba(34,197,94,0.08), 0 8px 32px rgba(0,0,0,0.6)",
+                backdropFilter: "blur(16px)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Popover header */}
+              <div
+                className="px-4 py-3 flex items-center gap-2.5"
+                style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}
+              >
+                {displayChain.logoUrl ? (
+                  <img src={displayChain.logoUrl} alt={displayChain.name} className="w-6 h-6 rounded-full object-cover" />
+                ) : (
+                  <div
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black"
+                    style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}
+                  >
+                    {displayChain.symbol.slice(0, 2)}
+                  </div>
+                )}
+                <span className="text-xs font-bold font-mono text-white/80">{displayChain.name}</span>
+                <span
+                  className="ml-auto text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded"
+                  style={displayChain.isTestnet
+                    ? { background: "rgba(34,197,94,0.1)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)" }
+                    : { background: "rgba(168,85,247,0.1)", color: "#c084fc", border: "1px solid rgba(168,85,247,0.25)" }
+                  }
+                >
+                  {displayChain.isTestnet ? "Testnet" : "Mainnet"}
+                </span>
+              </div>
+
+              {/* Popover rows */}
+              <div className="px-4 py-3 space-y-2.5">
+                {/* Chain ID */}
+                {evmChainId != null && (
+                  <InfoRow
+                    label="Chain ID"
+                    value={String(evmChainId)}
+                    field="chainId"
+                    copiedField={copiedField}
+                    onCopy={handleCopy}
+                  />
+                )}
+
+                {/* Symbol */}
+                <InfoRow
+                  label="Symbol"
+                  value={displayChain.symbol}
+                  field="symbol"
+                  copiedField={copiedField}
+                  onCopy={handleCopy}
+                />
+
+                {/* RPC */}
+                {rpcUrl ? (
+                  <InfoRow
+                    label="RPC"
+                    value={rpcUrl}
+                    field="rpc"
+                    copiedField={copiedField}
+                    onCopy={handleCopy}
+                    truncate
+                  />
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>RPC</span>
+                    <span className="text-[11px] font-mono" style={{ color: "rgba(255,255,255,0.25)" }}>Loading…</span>
+                  </div>
+                )}
+
+                {/* Explorer */}
+                {displayChain.explorerUrl ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-mono uppercase tracking-widest shrink-0" style={{ color: "rgba(255,255,255,0.3)" }}>Explorer</span>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-[11px] font-mono truncate" style={{ color: "rgba(255,255,255,0.55)" }}>
+                        {displayChain.explorerUrl.replace(/^https?:\/\//, "")}
+                      </span>
+                      <button
+                        onClick={() => handleCopy(displayChain.explorerUrl!, "explorer")}
+                        className="w-5 h-5 rounded flex items-center justify-center shrink-0"
+                        style={{ background: "rgba(255,255,255,0.05)", color: copiedField === "explorer" ? "#4ade80" : "rgba(255,255,255,0.3)" }}
+                        title="Copy"
+                      >
+                        {copiedField === "explorer" ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
+                      </button>
+                      <a
+                        href={displayChain.explorerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-5 h-5 rounded flex items-center justify-center shrink-0"
+                        style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.3)" }}
+                        onClick={(e) => e.stopPropagation()}
+                        title="Open"
+                      >
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Add to MetaMask */}
+              {isEvm && evmChainId != null && rpcUrl && (
+                <div
+                  className="px-4 pb-4"
+                  style={{ borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "12px" }}
+                >
+                  {walletError && (
+                    <p className="text-[10px] font-mono text-center mb-2" style={{ color: "#f87171" }}>{walletError}</p>
+                  )}
+                  <button
+                    onClick={handleAddToMetaMask}
+                    disabled={addingToWallet}
+                    className="w-full h-9 rounded-xl flex items-center justify-center gap-2 font-bold font-mono text-xs uppercase tracking-widest transition-all duration-200 active:scale-95"
+                    style={{
+                      background: addingToWallet
+                        ? "rgba(245,158,11,0.08)"
+                        : "linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(245,158,11,0.08) 100%)",
+                      border: "1px solid rgba(245,158,11,0.3)",
+                      color: addingToWallet ? "rgba(245,158,11,0.4)" : "#fbbf24",
+                      cursor: addingToWallet ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    {addingToWallet ? "Adding…" : "Add to MetaMask"}
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Divider */}
         <div style={{ height: "1px", background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.07) 50%, transparent)" }} />
@@ -192,7 +403,7 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
           ) : isSoon ? (
             <div className="relative">
               <button
-                onClick={(e) => { e.stopPropagation(); setSoonPopover(p => !p); }}
+                onClick={(e) => { e.stopPropagation(); setInfoOpen(false); setSoonPopover(p => !p); }}
                 className="w-full py-3 rounded-xl text-sm font-black font-mono tracking-widest uppercase transition-all duration-200 active:scale-95"
                 style={{
                   background: "linear-gradient(135deg, #92400e 0%, #d97706 60%, #fbbf24 100%)",
@@ -242,6 +453,51 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Reusable info row ──────────────────────────────────────────────────────────
+function InfoRow({
+  label,
+  value,
+  field,
+  copiedField,
+  onCopy,
+  truncate = false,
+}: {
+  label: string;
+  value: string;
+  field: string;
+  copiedField: string | null;
+  onCopy: (value: string, field: string) => void;
+  truncate?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-[10px] font-mono uppercase tracking-widest shrink-0" style={{ color: "rgba(255,255,255,0.3)" }}>
+        {label}
+      </span>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <span
+          className={`text-[11px] font-mono ${truncate ? "truncate" : ""}`}
+          style={{ color: "rgba(255,255,255,0.7)" }}
+          title={truncate ? value : undefined}
+        >
+          {value}
+        </span>
+        <button
+          onClick={() => onCopy(value, field)}
+          className="w-5 h-5 rounded flex items-center justify-center shrink-0"
+          style={{
+            background: "rgba(255,255,255,0.05)",
+            color: copiedField === field ? "#4ade80" : "rgba(255,255,255,0.3)",
+          }}
+          title="Copy"
+        >
+          {copiedField === field ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
+        </button>
       </div>
     </div>
   );
