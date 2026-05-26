@@ -29,3 +29,9 @@ id = "_sCMZrkPBFMyEtzkwtBy7"
 uri = "file://artifacts/faucet-hub/public/opengraph.jpg"
 type = "image"
 title = "Current OG Image (1280×720)"
+
+[[outputs]]
+id = "i9W419RupEINV9DFLubzi"
+uri = "file://attached_assets/admin_mockup_preview.png"
+type = "image"
+title = "ChainDrop Admin Panel — নতুন Design Mockup"
