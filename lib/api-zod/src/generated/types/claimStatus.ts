@@ -14,4 +14,9 @@ export interface ClaimStatus {
   nextClaimAt?: Date | null;
   /** @nullable */
   lastClaimedAt?: Date | null;
+  /**
+     * TX hash of the most recent claim (returned in cooldown state so UI can display it)
+     * @nullable
+     */
+  lastTxHash?: string | null;
 }

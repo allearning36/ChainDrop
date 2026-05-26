@@ -123,7 +123,8 @@ export const GetFaucetStatusResponse = zod.object({
   "address": zod.string(),
   "canClaim": zod.boolean(),
   "nextClaimAt": zod.coerce.date().nullish(),
-  "lastClaimedAt": zod.coerce.date().nullish()
+  "lastClaimedAt": zod.coerce.date().nullish(),
+  "lastTxHash": zod.string().nullish().describe('TX hash of the most recent claim (returned in cooldown state so UI can display it)')
 })
 
 

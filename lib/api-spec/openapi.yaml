@@ -1677,6 +1677,9 @@ components:
         lastClaimedAt:
           type: ["string", "null"]
           format: date-time
+        lastTxHash:
+          type: ["string", "null"]
+          description: TX hash of the most recent claim (returned in cooldown state so UI can display it)
 
     ClaimRecord:
       type: object

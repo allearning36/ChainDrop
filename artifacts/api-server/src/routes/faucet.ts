@@ -458,7 +458,7 @@ router.get("/faucet/status/:chainId/:address", async (req, res): Promise<void> =
   }
 
   const nextClaimAt = new Date(recent.claimedAt.getTime() + cooldownMs);
-  res.json({ chainId, address: address.toLowerCase(), canClaim: false, nextClaimAt: nextClaimAt.toISOString(), lastClaimedAt: recent.claimedAt.toISOString() });
+  res.json({ chainId, address: address.toLowerCase(), canClaim: false, nextClaimAt: nextClaimAt.toISOString(), lastClaimedAt: recent.claimedAt.toISOString(), lastTxHash: recent.txHash ?? null });
 });
 
 router.get("/faucet/history", async (_req, res): Promise<void> => {

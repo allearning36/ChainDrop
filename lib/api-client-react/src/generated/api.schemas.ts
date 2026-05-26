@@ -425,6 +425,11 @@ export interface ClaimStatus {
   nextClaimAt?: string | null;
   /** @nullable */
   lastClaimedAt?: string | null;
+  /**
+     * TX hash of the most recent claim (returned in cooldown state so UI can display it)
+     * @nullable
+     */
+  lastTxHash?: string | null;
 }
 
 export type ClaimRecordType = typeof ClaimRecordType[keyof typeof ClaimRecordType];
