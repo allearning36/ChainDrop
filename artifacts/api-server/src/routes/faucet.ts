@@ -398,6 +398,7 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
       sourceId: claim.id,
       chainId,
       amountEth: chain.claimAmount,
+      fromCoingeckoId: chain.coingeckoId ?? null,
       settings,
     });
   }).catch(() => {/* non-critical */});
@@ -719,6 +720,7 @@ router.post("/faucet/ad-claim", claimLimiter, async (req, res): Promise<void> =>
       sourceId: claim.id,
       chainId,
       amountEth: claimAmount,
+      fromCoingeckoId: chain.coingeckoId ?? null,
       settings,
     });
   }).catch(() => {/* non-critical */});

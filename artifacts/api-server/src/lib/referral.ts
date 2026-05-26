@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { referralsTable, referralCommissionsTable, settingsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "./logger";
+import { convertToEth, registerCoingeckoId } from "./priceCache";
 
 export interface FaucetClaimChainCommission {
   chainId: number;
@@ -112,7 +113,10 @@ export async function creditCommissions(params: {
   sourceType: "exchange" | "buy" | "faucet_claim";
   sourceId?: number;
   chainId: number;
+  /** Native token amount of the source chain (will be converted to ETH via price cache) */
   amountEth: string;
+  /** CoinGecko ID of the source token — if omitted, amount is treated as already in ETH */
+  fromCoingeckoId?: string | null;
   settings: ReferralSettings;
 }): Promise<void> {
   if (!params.settings.enabled || params.settings.maintenanceMode) return;
@@ -141,6 +145,11 @@ export async function creditCommissions(params: {
     l2Pct = params.settings.buyLevel2Pct;
   }
 
+  // Convert native token amount → ETH equivalent using live price cache
+  if (params.fromCoingeckoId) registerCoingeckoId(params.fromCoingeckoId);
+  const baseAmountEth = await convertToEth(params.amountEth, params.fromCoingeckoId ?? null);
+  if (parseFloat(baseAmountEth) <= 0) return;
+
   const referee = params.refereeAddress.toLowerCase();
 
   const [l1ref] = await db
@@ -158,7 +167,7 @@ export async function creditCommissions(params: {
     sourceType: params.sourceType,
     sourceId: params.sourceId,
     chainId: params.chainId,
-    baseAmountEth: params.amountEth,
+    baseAmountEth,
     pct: l1Pct,
   });
 
@@ -177,7 +186,7 @@ export async function creditCommissions(params: {
     sourceType: params.sourceType,
     sourceId: params.sourceId,
     chainId: params.chainId,
-    baseAmountEth: params.amountEth,
+    baseAmountEth,
     pct: l2Pct,
   });
 }

@@ -218,14 +218,22 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
   });
 
   // Referral commission (fire-and-forget)
+  // Commission is based on what the user PAID (mainnetAmountPaid in payment network's native token)
   void getReferralSettings().then(async settings => {
     if (settings.commissionOnBuy && (settings.buyChainIds.length === 0 || settings.buyChainIds.includes(chain.id))) {
+      // Look up payment network's coingeckoId via its symbol in chainsTable
+      const [payChain] = await db
+        .select({ coingeckoId: chainsTable.coingeckoId })
+        .from(chainsTable)
+        .where(eq(chainsTable.symbol, network.symbol.toUpperCase()))
+        .limit(1);
       await creditCommissions({
         refereeAddress: userAddress,
         sourceType: "buy",
         sourceId: purchase.id,
         chainId: chain.id,
-        amountEth: testnetAmount,
+        amountEth: mainnetAmountPaid,
+        fromCoingeckoId: payChain?.coingeckoId ?? null,
         settings,
       });
     }

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { ethers } from "ethers";
 import { db } from "@workspace/db";
-import { exchangePairsTable, exchangeOrdersTable, settingsTable } from "@workspace/db/schema";
+import { exchangePairsTable, exchangeOrdersTable, settingsTable, chainsTable } from "@workspace/db/schema";
 import { eq, desc, and, isNotNull, isNull, lt } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendTokens } from "../lib/faucet";
@@ -336,13 +336,20 @@ router.post("/exchange/orders/:id/confirm", async (req, res): Promise<void> => {
       });
 
       // Referral commission (fire-and-forget)
+      // Commission based on fromAmount (what user actually sent), converted to ETH
       void getReferralSettings().then(async settings => {
-        if (settings.commissionOnExchange && (settings.exchangeChainIds.length === 0 || settings.exchangeChainIds.includes(pair.toChainId))) {
+        if (settings.commissionOnExchange && (settings.exchangeChainIds.length === 0 || settings.exchangeChainIds.includes(pair.fromChainId))) {
+          const [fromChainData] = await db
+            .select({ coingeckoId: chainsTable.coingeckoId })
+            .from(chainsTable)
+            .where(eq(chainsTable.id, pair.fromChainId))
+            .limit(1);
           await creditCommissions({
             refereeAddress: order.userAddress,
             sourceType: "exchange",
-            chainId: pair.toChainId,
-            amountEth: order.toAmount,
+            chainId: pair.fromChainId,
+            amountEth: order.fromAmount,
+            fromCoingeckoId: fromChainData?.coingeckoId ?? null,
             settings,
           });
         }
