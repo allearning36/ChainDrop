@@ -6,10 +6,10 @@ import { cn } from "@/lib/utils";
 import {
   LogOut, LayoutDashboard, Link as LinkIcon,
   HeadphonesIcon, ClipboardList, ShieldOff, Wallet,
-  FileText, BarChart2, Settings2, Globe, Send, Users, Radio, ArrowLeftRight, Network, GitBranch,
+  FileText, Settings2, Globe, Send, Users, Radio, ArrowLeftRight, Network, GitBranch,
   Download, Upload, Loader2, Megaphone, ShieldAlert, Database, Menu, X, ChevronRight,
 } from "lucide-react";
-import { StatsOverview } from "@/components/admin/Stats";
+import { DashboardHome } from "@/components/admin/DashboardHome";
 import { ChainManagement } from "@/components/admin/ChainManagement";
 import { PostManagement } from "@/components/admin/PostManagement";
 import { SupportManagement } from "@/components/admin/SupportManagement";
@@ -33,28 +33,24 @@ import { AdminTabErrorBoundary } from "@/components/admin/ErrorBoundary";
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 type TopSection =
-  | "dashboard" | "live" | "claims" | "exchange" | "referral" | "wallets" | "siteconfig"
-  | "overview-group" | "chains-group" | "security-group" | "content-group";
+  | "dashboard" | "live" | "claims" | "support"
+  | "exchange" | "referral" | "siteconfig"
+  | "chains-group" | "analytics-group" | "security-group" | "content-group";
 
-type SubTab = {
-  id: string;
-  label: string;
-  icon: React.ElementType;
-  badge?: number;
-};
+type SubTab = { id: string; label: string; icon: React.ElementType };
 
-// ── Sub-tab definitions ────────────────────────────────────────────────────────
-
-const OVERVIEW_TABS: SubTab[] = [
-  { id: "stats",     label: "Stats",     icon: LayoutDashboard },
-  { id: "analytics", label: "Analytics", icon: BarChart2 },
-  { id: "audience",  label: "Audience",  icon: Users },
-];
+// ── Sub-tab groups ─────────────────────────────────────────────────────────────
 
 const CHAINS_TABS: SubTab[] = [
   { id: "chains",        label: "Chains",        icon: LinkIcon },
   { id: "chain-library", label: "Chain Library", icon: Database },
+  { id: "wallets",       label: "Wallet Health", icon: Wallet },
   { id: "paynetworks",   label: "Pay Networks",  icon: Network },
+];
+
+const ANALYTICS_TABS: SubTab[] = [
+  { id: "analytics", label: "Analytics", icon: ShieldOff },
+  { id: "audience",  label: "Audience",  icon: Users },
 ];
 
 const SECURITY_TABS: SubTab[] = [
@@ -64,35 +60,36 @@ const SECURITY_TABS: SubTab[] = [
 ];
 
 const CONTENT_TABS: SubTab[] = [
-  { id: "post",    label: "Post",    icon: Send },
-  { id: "ads",     label: "Ads",     icon: Megaphone },
-  { id: "pages",   label: "Pages",   icon: FileText },
-  { id: "support", label: "Support", icon: HeadphonesIcon },
+  { id: "post",  label: "Posts", icon: Send },
+  { id: "ads",   label: "Ads",   icon: Megaphone },
+  { id: "pages", label: "Pages", icon: FileText },
 ];
 
-// ── Sidebar nav structure ──────────────────────────────────────────────────────
+// ── Sidebar nav ────────────────────────────────────────────────────────────────
 
-interface NavEntry {
+interface NavItem {
   section: TopSection;
   label: string;
   icon: React.ElementType;
   subTabs?: SubTab[];
+  isSupportBadge?: boolean;
 }
 
-const NAV: NavEntry[] = [
-  { section: "overview-group", label: "Overview",        icon: LayoutDashboard, subTabs: OVERVIEW_TABS },
-  { section: "live",           label: "Live Monitor",    icon: Radio },
-  { section: "claims",         label: "Claims Log",      icon: ClipboardList },
-  { section: "chains-group",   label: "Chains",          icon: LinkIcon,        subTabs: CHAINS_TABS },
-  { section: "wallets",        label: "Wallet Health",   icon: Wallet },
-  { section: "exchange",       label: "Exchange",        icon: ArrowLeftRight },
-  { section: "referral",       label: "Referral",        icon: GitBranch },
-  { section: "security-group", label: "Security",        icon: ShieldAlert,     subTabs: SECURITY_TABS },
-  { section: "content-group",  label: "Content",         icon: Send,            subTabs: CONTENT_TABS },
-  { section: "siteconfig",     label: "Settings",        icon: Settings2 },
+const NAV: NavItem[] = [
+  { section: "dashboard",       label: "Dashboard",     icon: LayoutDashboard },
+  { section: "live",            label: "Live Monitor",  icon: Radio },
+  { section: "claims",          label: "Claims Log",    icon: ClipboardList },
+  { section: "chains-group",    label: "Chains",        icon: LinkIcon,       subTabs: CHAINS_TABS },
+  { section: "exchange",        label: "Exchange",      icon: ArrowLeftRight },
+  { section: "referral",        label: "Referral",      icon: GitBranch },
+  { section: "analytics-group", label: "Analytics",     icon: ShieldOff,      subTabs: ANALYTICS_TABS },
+  { section: "security-group",  label: "Security",      icon: ShieldAlert,    subTabs: SECURITY_TABS },
+  { section: "content-group",   label: "Content",       icon: Send,           subTabs: CONTENT_TABS },
+  { section: "support",         label: "Support",       icon: HeadphonesIcon, isSupportBadge: true },
+  { section: "siteconfig",      label: "Settings",      icon: Settings2 },
 ];
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── Helper: fetch unread count ─────────────────────────────────────────────────
 
 async function fetchUnreadCount(): Promise<number> {
   try {
@@ -102,16 +99,15 @@ async function fetchUnreadCount(): Promise<number> {
   } catch { return 0; }
 }
 
-function SubTabBar({
-  tabs, active, onChange, supportUnread,
-}: {
+// ── Sub-tab bar ────────────────────────────────────────────────────────────────
+
+function SubTabBar({ tabs, active, onChange }: {
   tabs: SubTab[];
   active: string;
   onChange: (id: string) => void;
-  supportUnread: number;
 }) {
   return (
-    <div className="flex items-center gap-1 border-b border-border px-4 md:px-6 bg-card/40 overflow-x-auto shrink-0">
+    <div className="flex items-center gap-0.5 border-b border-border px-4 md:px-6 bg-background/50 overflow-x-auto shrink-0">
       {tabs.map(tab => {
         const isActive = active === tab.id;
         return (
@@ -119,7 +115,7 @@ function SubTabBar({
             key={tab.id}
             onClick={() => onChange(tab.id)}
             className={cn(
-              "relative flex items-center gap-1.5 px-3 py-3 text-xs font-mono whitespace-nowrap transition-colors border-b-2 -mb-px",
+              "flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-mono whitespace-nowrap transition-colors border-b-2 -mb-px",
               isActive
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:border-border",
@@ -127,11 +123,6 @@ function SubTabBar({
           >
             <tab.icon className="w-3.5 h-3.5 shrink-0" />
             {tab.label}
-            {tab.id === "support" && supportUnread > 0 && (
-              <span className="flex items-center justify-center font-mono font-bold text-white rounded-full text-[9px] px-1 min-w-[15px] h-[15px] leading-none bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.7)]">
-                {supportUnread > 99 ? "99+" : supportUnread}
-              </span>
-            )}
           </button>
         );
       })}
@@ -139,32 +130,31 @@ function SubTabBar({
   );
 }
 
-// ── Main component ─────────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
-  const [activeSection, setActiveSection] = useState<TopSection>("overview-group");
+  const [activeSection, setActiveSection] = useState<TopSection>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [supportUnread, setSupportUnread] = useState(0);
-  const [backingUp, setBackingUp] = useState(false);
-  const [restoring, setRestoring] = useState(false);
+  const [backingUp, setBackingUp]       = useState(false);
+  const [restoring, setRestoring]       = useState(false);
   const [restoreResult, setRestoreResult] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sub-tab state per group
-  const [overviewSub, setOverviewSub]   = useState("stats");
-  const [chainsSub,   setChainsSub]     = useState("chains");
-  const [securitySub, setSecuritySub]   = useState("blocked");
-  const [contentSub,  setContentSub]    = useState("post");
+  const [chainsSub,    setChainsSub]    = useState("chains");
+  const [analyticsSub, setAnalyticsSub] = useState("analytics");
+  const [securitySub,  setSecuritySub]  = useState("blocked");
+  const [contentSub,   setContentSub]   = useState("post");
 
-  // Active breadcrumb label
-  const activeEntry = NAV.find(n => n.section === activeSection);
+  // Active breadcrumb
   const breadcrumb = (() => {
-    if (activeSection === "overview-group") return OVERVIEW_TABS.find(t => t.id === overviewSub)?.label ?? "Stats";
-    if (activeSection === "chains-group")   return CHAINS_TABS.find(t => t.id === chainsSub)?.label ?? "Chains";
-    if (activeSection === "security-group") return SECURITY_TABS.find(t => t.id === securitySub)?.label ?? "Security";
-    if (activeSection === "content-group")  return CONTENT_TABS.find(t => t.id === contentSub)?.label ?? "Content";
-    return activeEntry?.label ?? "Dashboard";
+    if (activeSection === "chains-group")    return CHAINS_TABS.find(t => t.id === chainsSub)?.label ?? "Chains";
+    if (activeSection === "analytics-group") return ANALYTICS_TABS.find(t => t.id === analyticsSub)?.label ?? "Analytics";
+    if (activeSection === "security-group")  return SECURITY_TABS.find(t => t.id === securitySub)?.label ?? "Security";
+    if (activeSection === "content-group")   return CONTENT_TABS.find(t => t.id === contentSub)?.label ?? "Content";
+    return NAV.find(n => n.section === activeSection)?.label ?? "Dashboard";
   })();
 
   const handleBackup = async () => {
@@ -174,11 +164,9 @@ export default function AdminDashboard() {
       if (!res.ok) { alert("Backup failed"); return; }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
+      const a = document.createElement("a"); a.href = url;
       a.download = `chaindrop-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      a.click(); URL.revokeObjectURL(url);
     } catch { alert("Backup failed"); }
     finally { setBackingUp(false); }
   };
@@ -193,9 +181,7 @@ export default function AdminDashboard() {
     try {
       const json = JSON.parse(await file.text()) as unknown;
       const res = await adminFetch("/api/admin/restore", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(json),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(json),
       });
       const result = await res.json() as { success?: boolean; restored?: Record<string, number>; error?: string };
       if (!res.ok || !result.success) {
@@ -227,16 +213,9 @@ export default function AdminDashboard() {
 
   const handleLogout = () => { removeToken(); setLocation("/"); };
 
-  const navigateTo = (section: TopSection) => {
-    setActiveSection(section);
-    setSidebarOpen(false);
-  };
+  const navigateTo = (section: TopSection) => { setActiveSection(section); setSidebarOpen(false); };
 
   if (!isAuthenticated()) return null;
-
-  // Content sub-tab routing helpers
-  const contentSupportBadge = contentSub === "support" ? supportUnread : 0;
-  void contentSupportBadge;
 
   return (
     <div className="min-h-[100dvh] bg-background flex">
@@ -248,80 +227,80 @@ export default function AdminDashboard() {
 
       {/* ── Sidebar ──────────────────────────────────────────────────── */}
       <aside className={cn(
-        "fixed left-0 top-0 h-full w-56 bg-card border-r border-border z-50 flex flex-col transition-transform duration-200",
+        "fixed left-0 top-0 h-full w-56 z-50 flex flex-col transition-transform duration-200",
         "md:translate-x-0",
         sidebarOpen ? "translate-x-0" : "-translate-x-full",
-      )}>
+      )} style={{ background: "hsl(240 10% 5%)", borderRight: "1px solid rgba(255,255,255,0.07)" }}>
 
         {/* Logo */}
-        <div className="h-16 flex items-center gap-3 px-4 border-b border-border shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0">
-            <img src="/logo.svg" alt="CD" className="w-5 h-5 object-contain" />
+        <div className="h-16 flex items-center gap-3 px-4 shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.25)" }}>
+            <img src="/logo.svg" alt="" className="w-5 h-5 object-contain" />
           </div>
           <div className="min-w-0">
-            <div className="font-bold font-mono text-sm tracking-tight leading-none">ChainDrop</div>
-            <div className="text-[9px] text-muted-foreground font-mono uppercase tracking-widest mt-0.5 text-primary/70">Admin</div>
+            <p className="font-bold font-mono text-sm leading-none tracking-tight text-white">ChainDrop</p>
+            <p className="text-[9px] font-mono uppercase tracking-widest mt-0.5" style={{ color: "rgba(34,197,94,0.7)" }}>Admin Panel</p>
           </div>
-          <button className="ml-auto md:hidden text-muted-foreground hover:text-foreground" onClick={() => setSidebarOpen(false)}>
+          <button className="ml-auto md:hidden text-muted-foreground hover:text-white" onClick={() => setSidebarOpen(false)}>
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Nav items */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-          {NAV.map(entry => {
-            const active = activeSection === entry.section;
-            const hasSubTabs = (entry.subTabs?.length ?? 0) > 0;
-            const showSupportBadge = entry.section === "content-group" && supportUnread > 0;
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto py-3 px-2.5 space-y-0.5">
+          {NAV.map(item => {
+            const active = activeSection === item.section;
+            const hasGroup = (item.subTabs?.length ?? 0) > 0;
+            const badge = item.isSupportBadge && supportUnread > 0 ? supportUnread : 0;
 
             return (
               <button
-                key={entry.section}
-                onClick={() => navigateTo(entry.section)}
+                key={item.section}
+                onClick={() => navigateTo(item.section)}
                 className={cn(
                   "relative w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-mono transition-all text-left group",
                   active
-                    ? "bg-primary/15 text-primary shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.2)]"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent/60",
+                    ? "text-white"
+                    : "text-muted-foreground hover:text-white",
                 )}
+                style={active ? { background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.2)" } : { border: "1px solid transparent" }}
               >
-                {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-r-full" />}
-                <entry.icon className={cn("w-4 h-4 shrink-0 transition-colors", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
-                <span className="flex-1 truncate">{entry.label}</span>
-                {showSupportBadge && (
-                  <span className="flex items-center justify-center font-mono font-bold text-white rounded-full text-[9px] px-1 min-w-[15px] h-[15px] leading-none bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.7)]">
-                    {supportUnread > 99 ? "99+" : supportUnread}
+                {active && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full" style={{ background: "#22c55e" }} />
+                )}
+                <item.icon className={cn("w-4 h-4 shrink-0 transition-colors", active ? "text-green-400" : "text-muted-foreground group-hover:text-white")} />
+                <span className="flex-1 truncate text-sm">{item.label}</span>
+                {badge > 0 && (
+                  <span className="flex items-center justify-center font-mono font-bold text-white rounded-full text-[9px] px-1 min-w-[15px] h-[15px] bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.7)]">
+                    {badge > 99 ? "99+" : badge}
                   </span>
                 )}
-                {hasSubTabs && !showSupportBadge && (
-                  <ChevronRight className={cn("w-3 h-3 shrink-0 transition-transform text-muted-foreground/50", active && "rotate-90 text-primary/50")} />
+                {hasGroup && !badge && (
+                  <ChevronRight className={cn("w-3 h-3 shrink-0 transition-transform", active && "rotate-90")} style={{ color: active ? "rgba(34,197,94,0.5)" : "rgba(255,255,255,0.2)" }} />
                 )}
               </button>
             );
           })}
         </nav>
 
-        {/* Bottom actions */}
-        <div className="border-t border-border p-3 space-y-1.5 shrink-0">
+        {/* Bottom */}
+        <div className="p-3 space-y-1.5 shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
           <div className="flex gap-1.5">
-            <Button
-              variant="outline" size="sm" onClick={handleBackup} disabled={backingUp}
-              className="flex-1 font-mono text-xs border-primary/30 text-primary hover:bg-primary/10 h-8"
+            <Button variant="outline" size="sm" onClick={handleBackup} disabled={backingUp}
+              className="flex-1 font-mono text-xs h-8" style={{ borderColor: "rgba(34,197,94,0.3)", color: "#22c55e" }}
             >
               {backingUp ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Download className="w-3 h-3 mr-1" />}
               Backup
             </Button>
-            <Button
-              variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={restoring}
-              className="flex-1 font-mono text-xs border-blue-500/30 text-blue-400 hover:bg-blue-500/10 h-8"
+            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={restoring}
+              className="flex-1 font-mono text-xs h-8" style={{ borderColor: "rgba(96,165,250,0.3)", color: "#60a5fa" }}
             >
               {restoring ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Upload className="w-3 h-3 mr-1" />}
               Restore
             </Button>
           </div>
-          <Button
-            variant="ghost" size="sm" onClick={handleLogout}
-            className="w-full font-mono text-xs text-muted-foreground hover:text-foreground justify-start h-8"
+          <Button variant="ghost" size="sm" onClick={handleLogout}
+            className="w-full font-mono text-xs text-muted-foreground hover:text-white justify-start h-8"
           >
             <LogOut className="w-3.5 h-3.5 mr-2" /> Disconnect
           </Button>
@@ -350,50 +329,47 @@ export default function AdminDashboard() {
 
         <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleRestoreFile} />
 
-        {/* Sub-tab bar (only for grouped sections) */}
-        {activeSection === "overview-group" && (
-          <SubTabBar tabs={OVERVIEW_TABS} active={overviewSub} onChange={setOverviewSub} supportUnread={0} />
-        )}
+        {/* Sub-tab bars */}
         {activeSection === "chains-group" && (
-          <SubTabBar tabs={CHAINS_TABS} active={chainsSub} onChange={setChainsSub} supportUnread={0} />
+          <SubTabBar tabs={CHAINS_TABS} active={chainsSub} onChange={setChainsSub} />
+        )}
+        {activeSection === "analytics-group" && (
+          <SubTabBar tabs={ANALYTICS_TABS} active={analyticsSub} onChange={setAnalyticsSub} />
         )}
         {activeSection === "security-group" && (
-          <SubTabBar tabs={SECURITY_TABS} active={securitySub} onChange={setSecuritySub} supportUnread={0} />
+          <SubTabBar tabs={SECURITY_TABS} active={securitySub} onChange={setSecuritySub} />
         )}
         {activeSection === "content-group" && (
-          <SubTabBar tabs={CONTENT_TABS.map(t => t.id === "support" ? { ...t, badge: supportUnread } : t)} active={contentSub} onChange={setContentSub} supportUnread={supportUnread} />
+          <SubTabBar tabs={CONTENT_TABS} active={contentSub} onChange={setContentSub} />
         )}
 
-        {/* Page content */}
+        {/* Content */}
         <main className="flex-1 p-4 md:p-6 min-w-0 overflow-auto">
 
-          {/* Overview group */}
-          {activeSection === "overview-group" && (
-            <AdminTabErrorBoundary label={breadcrumb}>
-              {overviewSub === "stats"     && <StatsOverview />}
-              {overviewSub === "analytics" && <Analytics />}
-              {overviewSub === "audience"  && <Audience />}
-            </AdminTabErrorBoundary>
-          )}
-
-          {/* Standalone sections */}
-          {activeSection === "live"     && <AdminTabErrorBoundary label="Live Monitor"><LiveMonitor /></AdminTabErrorBoundary>}
-          {activeSection === "claims"   && <AdminTabErrorBoundary label="Claims Log"><ClaimsLog /></AdminTabErrorBoundary>}
-          {activeSection === "wallets"  && <AdminTabErrorBoundary label="Wallet Health"><WalletHealth /></AdminTabErrorBoundary>}
-          {activeSection === "exchange" && <AdminTabErrorBoundary label="Exchange"><ExchangeManagement /></AdminTabErrorBoundary>}
-          {activeSection === "referral" && <AdminTabErrorBoundary label="Referral"><ReferralManagement /></AdminTabErrorBoundary>}
+          {activeSection === "dashboard"  && <AdminTabErrorBoundary label="Dashboard"><DashboardHome /></AdminTabErrorBoundary>}
+          {activeSection === "live"       && <AdminTabErrorBoundary label="Live Monitor"><LiveMonitor /></AdminTabErrorBoundary>}
+          {activeSection === "claims"     && <AdminTabErrorBoundary label="Claims Log"><ClaimsLog /></AdminTabErrorBoundary>}
+          {activeSection === "support"    && <AdminTabErrorBoundary label="Support"><SupportManagement onUnreadCount={setSupportUnread} /></AdminTabErrorBoundary>}
+          {activeSection === "exchange"   && <AdminTabErrorBoundary label="Exchange"><ExchangeManagement /></AdminTabErrorBoundary>}
+          {activeSection === "referral"   && <AdminTabErrorBoundary label="Referral"><ReferralManagement /></AdminTabErrorBoundary>}
           {activeSection === "siteconfig" && <AdminTabErrorBoundary label="Settings"><SiteConfig /></AdminTabErrorBoundary>}
 
-          {/* Chains group */}
           {activeSection === "chains-group" && (
             <AdminTabErrorBoundary label={breadcrumb}>
               {chainsSub === "chains"        && <ChainManagement />}
               {chainsSub === "chain-library" && <ChainLibrary />}
+              {chainsSub === "wallets"       && <WalletHealth />}
               {chainsSub === "paynetworks"   && <PaymentNetworkManagement />}
             </AdminTabErrorBoundary>
           )}
 
-          {/* Security group */}
+          {activeSection === "analytics-group" && (
+            <AdminTabErrorBoundary label={breadcrumb}>
+              {analyticsSub === "analytics" && <Analytics />}
+              {analyticsSub === "audience"  && <Audience />}
+            </AdminTabErrorBoundary>
+          )}
+
           {activeSection === "security-group" && (
             <AdminTabErrorBoundary label={breadcrumb}>
               {securitySub === "blocked"   && <BlockedAddresses />}
@@ -402,13 +378,11 @@ export default function AdminDashboard() {
             </AdminTabErrorBoundary>
           )}
 
-          {/* Content group */}
           {activeSection === "content-group" && (
             <AdminTabErrorBoundary label={breadcrumb}>
-              {contentSub === "post"    && <PostManagement />}
-              {contentSub === "ads"     && <AdManagement />}
-              {contentSub === "pages"   && <PagesManagement />}
-              {contentSub === "support" && <SupportManagement onUnreadCount={setSupportUnread} />}
+              {contentSub === "post"  && <PostManagement />}
+              {contentSub === "ads"   && <AdManagement />}
+              {contentSub === "pages" && <PagesManagement />}
             </AdminTabErrorBoundary>
           )}
 
