@@ -46,7 +46,7 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
   }
 
   async function handleAddToMetaMask() {
-    if (!evmChainId || !rpcUrl) return;
+    if (!evmChainId) return;
     const eth = (window as any).ethereum;
     if (!eth) {
       setWalletError("MetaMask not detected.");
@@ -66,7 +66,7 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
             symbol: displayChain.symbol,
             decimals: 18,
           },
-          rpcUrls: [rpcUrl],
+          rpcUrls: rpcUrl ? [rpcUrl] : [],
           blockExplorerUrls: displayChain.explorerUrl ? [displayChain.explorerUrl] : [],
         }],
       });
@@ -309,7 +309,7 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
               </div>
 
               {/* Add to MetaMask */}
-              {isEvm && evmChainId != null && rpcUrl && (
+              {isEvm && evmChainId != null && (
                 <div
                   className="px-4 pb-4"
                   style={{ borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "12px" }}
@@ -320,12 +320,12 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
                   <button
                     onClick={handleAddToMetaMask}
                     disabled={addingToWallet}
-                    className="w-full h-9 rounded-xl flex items-center justify-center gap-2 font-bold font-mono text-xs uppercase tracking-widest transition-all duration-200 active:scale-95"
+                    className="w-full h-7 rounded-lg flex items-center justify-center gap-1.5 font-semibold font-mono text-[10px] uppercase tracking-wider transition-all duration-200 active:scale-95"
                     style={{
                       background: addingToWallet
-                        ? "rgba(245,158,11,0.08)"
-                        : "linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(245,158,11,0.08) 100%)",
-                      border: "1px solid rgba(245,158,11,0.3)",
+                        ? "rgba(245,158,11,0.06)"
+                        : "linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(245,158,11,0.06) 100%)",
+                      border: "1px solid rgba(245,158,11,0.25)",
                       color: addingToWallet ? "rgba(245,158,11,0.4)" : "#fbbf24",
                       cursor: addingToWallet ? "not-allowed" : "pointer",
                     }}
