@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetAdminReferralSettings,
@@ -23,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, Settings2, Users, CheckCircle, XCircle, AlertCircle, ChevronRight, ChevronLeft, Plus, Minus, History } from "lucide-react";
+import { Loader2, Settings2, Users, CheckCircle, XCircle, AlertCircle, ChevronRight, ChevronLeft, Plus, Minus, History, Search, ExternalLink } from "lucide-react";
 import { adminFetch } from "@/lib/auth";
 
 function ChainMultiSelect({ label, chainIds, value, onChange }: {
@@ -267,7 +267,7 @@ function SettingsPanel() {
   );
 }
 
-function ClaimRequestsPanel() {
+function ClaimRequestsPanel({ onViewUser }: { onViewUser: (wallet: string) => void }) {
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<"pending" | "approved" | "rejected" | undefined>("pending");
   const [rejectNote, setRejectNote] = useState<{ [id: number]: string }>({});
@@ -352,7 +352,17 @@ function ClaimRequestsPanel() {
                   {r.status}
                 </Badge>
               </div>
-              <div className="font-mono text-xs text-muted-foreground truncate">{r.walletAddress}</div>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs text-muted-foreground truncate">{r.walletAddress}</span>
+                <button
+                  onClick={() => onViewUser(r.walletAddress)}
+                  className="shrink-0 flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded-lg transition-colors"
+                  style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e" }}
+                  title="View user details"
+                >
+                  <ExternalLink className="w-2.5 h-2.5" /> View User
+                </button>
+              </div>
               <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
                 <span>Chain ID: {r.claimChainId}</span>
                 <span>{new Date(r.createdAt).toLocaleString()}</span>
@@ -508,13 +518,22 @@ function AdjustBalanceForm({ wallet, onSuccess }: { wallet: string; onSuccess: (
   );
 }
 
-function UsersPanel() {
-  const [selectedWallet, setSelectedWallet] = useState<string | null>(null);
+function UsersPanel({ initialWallet }: { initialWallet?: string | null }) {
+  const [selectedWallet, setSelectedWallet] = useState<string | null>(initialWallet ?? null);
+  const [search, setSearch] = useState("");
   const qc = useQueryClient();
+
+  useEffect(() => {
+    if (initialWallet) setSelectedWallet(initialWallet);
+  }, [initialWallet]);
 
   const { data: users = [], isLoading } = useGetAdminReferralUsers({
     query: { queryKey: getGetAdminReferralUsersQueryKey(), refetchInterval: 30000 }
   });
+
+  const filteredUsers = search.trim()
+    ? users.filter(u => u.wallet.toLowerCase().includes(search.trim().toLowerCase()))
+    : users;
 
   const { data: userDetail, isLoading: detailLoading } = useGetAdminReferralUser(
     selectedWallet ?? "",
@@ -695,6 +714,20 @@ function UsersPanel() {
 
   return (
     <div className="space-y-3">
+      {/* Search bar */}
+      {!isLoading && users.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search by wallet address..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 rounded-xl font-mono text-xs bg-transparent outline-none"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)" }}
+          />
+        </div>
+      )}
       {isLoading ? (
         <div className="space-y-2">{Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
       ) : users.length === 0 ? (
@@ -703,7 +736,12 @@ function UsersPanel() {
           <p className="text-sm font-mono">No referrers yet</p>
         </div>
       ) : (
-        users.map(u => (
+        filteredUsers.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+            <Search className="w-6 h-6 opacity-30 mb-2" />
+            <p className="text-sm font-mono">No users match "{search}"</p>
+          </div>
+        ) : filteredUsers.map(u => (
           <button
             key={u.wallet}
             onClick={() => setSelectedWallet(u.wallet)}
@@ -731,6 +769,14 @@ function UsersPanel() {
 }
 
 export function ReferralManagement() {
+  const [activeTab, setActiveTab] = useState("requests");
+  const [viewUserWallet, setViewUserWallet] = useState<string | null>(null);
+
+  const handleViewUser = (wallet: string) => {
+    setViewUserWallet(wallet);
+    setActiveTab("users");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -743,7 +789,7 @@ export function ReferralManagement() {
         </div>
       </div>
 
-      <Tabs defaultValue="requests" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={v => { setActiveTab(v); if (v !== "users") setViewUserWallet(null); }} className="space-y-4">
         <TabsList className="bg-card border border-border p-1 gap-0.5">
           <TabsTrigger value="requests" className="font-mono text-xs data-[state=active]:bg-primary/20 data-[state=active]:text-primary gap-1 h-8 px-3">
             <CheckCircle className="w-3.5 h-3.5" /> Claims
@@ -760,7 +806,7 @@ export function ReferralManagement() {
             <CardHeader className="pb-3">
               <CardTitle className="font-mono text-sm">Commission Claim Requests</CardTitle>
             </CardHeader>
-            <CardContent><ClaimRequestsPanel /></CardContent>
+            <CardContent><ClaimRequestsPanel onViewUser={handleViewUser} /></CardContent>
           </Card>
         </TabsContent>
         <TabsContent value="users" className="mt-0 outline-none">
@@ -768,7 +814,7 @@ export function ReferralManagement() {
             <CardHeader className="pb-3">
               <CardTitle className="font-mono text-sm">Referral Users</CardTitle>
             </CardHeader>
-            <CardContent><UsersPanel /></CardContent>
+            <CardContent><UsersPanel initialWallet={viewUserWallet} /></CardContent>
           </Card>
         </TabsContent>
         <TabsContent value="settings" className="mt-0 outline-none">
