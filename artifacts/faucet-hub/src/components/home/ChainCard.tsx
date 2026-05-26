@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { ChainPublic, useGetChain, getGetChainQueryKey } from "@workspace/api-client-react";
 import { Droplet, Wallet, Zap, Clock, Info, Copy, Check, ExternalLink, Plus } from "lucide-react";
 import { formatCooldown, formatTokenAmount } from "@/lib/utils";
@@ -12,9 +12,26 @@ interface ChainCardProps {
 export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) {
   const [soonPopover, setSoonPopover] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [popoverPos, setPopoverPos] = useState({ top: 0, left: 0, width: 0 });
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [addingToWallet, setAddingToWallet] = useState(false);
   const [walletError, setWalletError] = useState("");
+  const infoButtonRef = useRef<HTMLButtonElement>(null);
+
+  const openInfo = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSoonPopover(false);
+    if (!infoOpen && infoButtonRef.current) {
+      const rect = infoButtonRef.current.getBoundingClientRect();
+      const popW = 272;
+      let left = rect.right - popW;
+      if (left < 8) left = 8;
+      if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+      const top = rect.bottom + 8;
+      setPopoverPos({ top, left, width: popW });
+    }
+    setInfoOpen(p => !p);
+  }, [infoOpen]);
 
   const { data: detail } = useGetChain(chain.id, {
     query: {
@@ -169,7 +186,8 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
           <div className="ml-auto shrink-0 flex items-center gap-2">
             {/* Info button — always visible */}
             <button
-              onClick={(e) => { e.stopPropagation(); setSoonPopover(false); setInfoOpen(p => !p); }}
+              ref={infoButtonRef}
+              onClick={openInfo}
               className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200"
               style={{
                 background: infoOpen ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.08)",
@@ -195,14 +213,16 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
           </div>
         </div>
 
-        {/* ── Info Popover ── */}
+        {/* ── Info Popover (fixed, never clipped by card) ── */}
         {infoOpen && (
           <>
-            <div className="fixed inset-0 z-40" onClick={() => setInfoOpen(false)} />
+            <div className="fixed inset-0 z-[99]" onClick={() => setInfoOpen(false)} />
             <div
-              className="absolute left-0 right-0 z-50 rounded-2xl overflow-hidden shadow-2xl"
+              className="fixed z-[100] rounded-2xl overflow-hidden shadow-2xl"
               style={{
-                top: "64px",
+                top: popoverPos.top,
+                left: popoverPos.left,
+                width: popoverPos.width,
                 background: "rgba(10,13,20,0.97)",
                 border: "1px solid rgba(34,197,94,0.2)",
                 boxShadow: "0 0 32px rgba(34,197,94,0.08), 0 8px 32px rgba(0,0,0,0.6)",
