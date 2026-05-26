@@ -125,6 +125,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [adWatchToken, setAdWatchToken] = useState("");
   const [adWatchContent, setAdWatchContent] = useState<string | null>(null);
   const [adWatchError, setAdWatchError] = useState("");
+  const [remainingSecs, setRemainingSecs] = useState(0);
   const [captchaExpired, setCaptchaExpired] = useState(false);
   const [ipLimitReached, setIpLimitReached] = useState(false);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
@@ -160,6 +161,20 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
     }
     return undefined;
   }, [step, adCountdown]);
+
+  // Live countdown until next claim
+  useEffect(() => {
+    if (step !== "result") return;
+    const nextAt = status?.nextClaimAt ? new Date(status.nextClaimAt).getTime() : null;
+    if (!nextAt) return;
+    const tick = () => {
+      const secs = Math.max(0, Math.floor((nextAt - Date.now()) / 1000));
+      setRemainingSecs(secs);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [step, status?.nextClaimAt]);
 
   useEffect(() => {
     if (step !== "watch-ad") return;
@@ -784,17 +799,26 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                   </div>
                 )}
 
-                <button
-                  disabled
-                  className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2"
-                  style={{
-                    background: "linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)",
-                    color: "rgba(255,255,255,0.6)",
-                    cursor: "not-allowed",
-                  }}
-                >
-                  <Clock className="w-4 h-4" /> Come Back in {formatCooldown(chain.cooldownSeconds)}
-                </button>
+                <div className="flex flex-col items-center gap-1.5">
+                  <button
+                    disabled
+                    className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2"
+                    style={{
+                      background: "linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)",
+                      color: "rgba(255,255,255,0.6)",
+                      cursor: "not-allowed",
+                    }}
+                  >
+                    <Clock className="w-4 h-4" /> Come Back in {formatCooldown(chain.cooldownSeconds)}
+                  </button>
+                  {remainingSecs > 0 && (
+                    <p className="text-[11px] font-mono tabular-nums" style={{ color: "rgba(167,139,250,0.7)" }}>
+                      {String(Math.floor(remainingSecs / 3600)).padStart(2, "0")}:
+                      {String(Math.floor((remainingSecs % 3600) / 60)).padStart(2, "0")}:
+                      {String(remainingSecs % 60).padStart(2, "0")} remaining
+                    </p>
+                  )}
+                </div>
 
                 {(chain as any).adClaimEnabled && (
                   <>
