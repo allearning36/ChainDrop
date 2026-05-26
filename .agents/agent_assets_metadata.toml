@@ -18,3 +18,9 @@ id = "UWrW7ExVg3IkE156bnPYq"
 uri = "file://artifacts/faucet-hub/public/logo.png"
 type = "image"
 title = "ChainDrop Logo PNG"
+
+[[outputs]]
+id = "_sCMZrkPBFMyEtzkwtBy7"
+uri = "file://artifacts/faucet-hub/public/opengraph.jpg"
+type = "image"
+title = "Current OG Image (1280×720)"
