@@ -45,21 +45,6 @@ async function collectFingerprint(): Promise<string> {
   }
 }
 
-// ── EVM wallet signature ──────────────────────────────────────────────────────
-async function getEVMSignature(address: string): Promise<{ signature: string; nonce: string } | null> {
-  try {
-    const eth = (window as { ethereum?: { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum;
-    if (!eth) return null;
-    const nonceRes = await fetch(`/api/anti-abuse/nonce/${encodeURIComponent(address.toLowerCase())}`);
-    if (!nonceRes.ok) return null;
-    const { nonce, message } = await nonceRes.json() as { nonce: string; message: string };
-    const signature = await eth.request({ method: "personal_sign", params: [message, address] }) as string;
-    return { signature, nonce };
-  } catch {
-    return null; // user rejected or no wallet
-  }
-}
-
 // ── Address helpers ──────────────────────────────────────────────────────────
 
 function isValidAddressForChain(addr: string, chainType: string): boolean {
@@ -214,10 +199,6 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
       Promise.resolve(Intl.DateTimeFormat().resolvedOptions().timeZone),
     ]);
 
-    // Try EVM wallet signature (optional — boosts trust score)
-    const isEvm = !chain.chainType || chain.chainType === "evm";
-    const sigData = isEvm ? await getEVMSignature(debouncedAddress) : null;
-
     claimMutation.mutate({
       data: {
         chainId: chain.id,
@@ -226,7 +207,6 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
         fingerprint: fp || undefined,
         timezone: tz || undefined,
         userAgent: navigator.userAgent || undefined,
-        ...(sigData ? { signature: sigData.signature, nonce: sigData.nonce } : {}),
       }
     }, {
       onSuccess: (res) => {
