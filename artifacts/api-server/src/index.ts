@@ -1,3 +1,4 @@
+// v2 — Supabase-compatible startup
 import app from "./app";
 import { logger } from "./lib/logger";
 import { runMigrations } from "@workspace/db";
