@@ -370,6 +370,14 @@ router.post("/admin/chains", async (req, res): Promise<void> => {
   }
   delete body.rpcUrls;
 
+  // Block WebSocket RPCs — ethers.js JsonRpcProvider hangs on wss:// and ws://, causing server slowness
+  const allRpcUrls = [body.rpcUrl, ...(JSON.parse(rpcUrlsForDb) as string[])].filter(Boolean) as string[];
+  const badRpc = allRpcUrls.find(u => u.startsWith("wss://") || u.startsWith("ws://"));
+  if (badRpc) {
+    res.status(400).json({ error: "WebSocket RPC URLs (wss:// / ws://) are not supported. Use an HTTPS RPC endpoint instead." });
+    return;
+  }
+
   const parsed = CreateChainBody.safeParse(body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -463,6 +471,16 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     rpcUrlsForDb = JSON.stringify([body.rpcUrl]);
   }
   delete body.rpcUrls;
+
+  // Block WebSocket RPCs — ethers.js JsonRpcProvider hangs on wss:// and ws://, causing server slowness
+  if (rpcUrlsForDb !== undefined) {
+    const allRpcUrls = [body.rpcUrl, ...(JSON.parse(rpcUrlsForDb) as string[])].filter(Boolean) as string[];
+    const badRpc = allRpcUrls.find(u => u.startsWith("wss://") || u.startsWith("ws://"));
+    if (badRpc) {
+      res.status(400).json({ error: "WebSocket RPC URLs (wss:// / ws://) are not supported. Use an HTTPS RPC endpoint instead." });
+      return;
+    }
+  }
 
   const parsed = UpdateChainBody.safeParse(body);
   if (!parsed.success) {
