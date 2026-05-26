@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { runMigrations } from "@workspace/db";
 
 process.on("uncaughtException", (err) => {
   logger.error({ err }, "Uncaught exception — server continues");
@@ -23,11 +24,19 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
+// Run DB migrations before accepting traffic
+runMigrations()
+  .then(() => {
+    logger.info("Database migrations applied");
+    app.listen(port, (err) => {
+      if (err) {
+        logger.error({ err }, "Error listening on port");
+        process.exit(1);
+      }
+      logger.info({ port }, "Server listening");
+    });
+  })
+  .catch((err) => {
+    logger.error({ err }, "Migration failed — aborting startup");
     process.exit(1);
-  }
-
-  logger.info({ port }, "Server listening");
-});
+  });
