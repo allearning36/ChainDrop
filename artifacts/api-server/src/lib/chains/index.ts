@@ -28,7 +28,7 @@ export const CHAIN_TYPE_KEY_HINT: Record<ChainType, string> = {
   ton: "24-word mnemonic (space-separated)",
   sui: "Hex private key (0x-prefixed or plain 64 hex)",
   aptos: "Hex private key (0x-prefixed or plain 64 hex)",
-  custom: "Private key / secret in the format required by this chain",
+  custom: "0x-prefixed hex private key (custom chains use EVM-compatible sending)",
 };
 
 // ── Lazy-loaded chain modules ────────────────────────────────────────────────
@@ -66,7 +66,11 @@ export async function sendTokens(
           return sendAptos(rpcUrl, privateKey, toAddress, amount);
         }
         case "custom": {
-          throw new Error("Custom chain type does not support automatic token sending. Configure sending manually.");
+          // Custom chains use EVM-compatible token sending.
+          // This covers all EVM-compatible networks (Metis, Celo, Linea, Kava, zkSync, etc.)
+          // that aren't listed as a dedicated chain type.
+          const { sendEvm } = await import("./evm");
+          return sendEvm(rpcUrl, privateKey, toAddress, amount, options?.gasPriceGwei, options?.gasLimit);
         }
       }
     },
@@ -105,7 +109,9 @@ export async function getWalletBalance(
             return getAptosBalance(rpcUrl, address);
           }
           case "custom": {
-            return null;
+            // Custom chains use EVM-compatible balance checking
+            const { getEvmBalance } = await import("./evm");
+            return getEvmBalance(rpcUrl, address);
           }
         }
       },
