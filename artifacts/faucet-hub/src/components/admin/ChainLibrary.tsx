@@ -23,7 +23,7 @@ interface MasterChainToken {
 
 const DEFAULT_FORM = {
   name: "", symbol: "", chainId: "", chainType: "evm",
-  logoUrl: "", rpcUrls: [""], explorerUrls: [""], isTestnet: true,
+  logoUrl: "", rpcUrls: [""], explorerUrls: [""], isTestnet: true, addressRegex: "",
 };
 
 const DEFAULT_TOKEN_FORM = {
@@ -31,11 +31,12 @@ const DEFAULT_TOKEN_FORM = {
 };
 
 const CHAIN_TYPE_OPTIONS = [
-  { value: "evm", label: "EVM (Ethereum, BSC, Polygon…)" },
+  { value: "evm",    label: "EVM (Ethereum, BSC, Polygon…)" },
   { value: "solana", label: "Solana" },
-  { value: "ton", label: "TON" },
-  { value: "sui", label: "Sui" },
-  { value: "aptos", label: "Aptos" },
+  { value: "ton",    label: "TON" },
+  { value: "sui",    label: "Sui" },
+  { value: "aptos",  label: "Aptos" },
+  { value: "custom", label: "Custom / Other" },
 ];
 
 export function ChainLibrary() {
@@ -136,6 +137,7 @@ export function ChainLibrary() {
       rpcUrls: c.rpcUrls.length > 0 ? c.rpcUrls : [""],
       explorerUrls: c.explorerUrls.length > 0 ? c.explorerUrls : [""],
       isTestnet: c.isTestnet,
+      addressRegex: (c as any).addressRegex ?? "",
     });
     setError("");
     setFormOpen(true);
@@ -159,6 +161,7 @@ export function ChainLibrary() {
         rpcUrls: validRpcs,
         explorerUrls: form.explorerUrls.filter(u => u.trim()),
         isTestnet: form.isTestnet,
+        addressRegex: (form as any).addressRegex?.trim() || null,
       };
       const url = editId ? `/api/admin/master-chains/${editId}` : "/api/admin/master-chains";
       const method = editId ? "PATCH" : "POST";
@@ -621,6 +624,20 @@ export function ChainLibrary() {
                         ))}
                       </select>
                     </div>
+                    {form.chainType === "custom" && (
+                      <div className="col-span-2 space-y-1.5">
+                        <Label className="text-xs">Address Validation Regex <span style={{ color: "rgba(255,255,255,0.4)" }} className="font-normal">(optional)</span></Label>
+                        <Input
+                          value={(form as any).addressRegex ?? ""}
+                          onChange={e => setForm(f => ({ ...f, addressRegex: e.target.value } as any))}
+                          placeholder="e.g. ^sei1[a-z0-9]{38}$ · ^[1-9A-Za-z]{25,34}$ · ^[0-9a-f]{64}$"
+                          className="font-mono text-xs h-9"
+                        />
+                        <p className="text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.35)" }}>
+                          Leave empty → accept any address ≥8 chars. Examples: SEI: <code>^sei1[a-z0-9]&#123;38&#125;$</code> · Wave: <code>^[1-9A-Za-z]&#123;25,34&#125;$</code>
+                        </p>
+                      </div>
+                    )}
                     <div className="col-span-2 space-y-1.5">
                       <Label className="text-xs">Logo URL</Label>
                       <div className="flex items-center gap-2">
