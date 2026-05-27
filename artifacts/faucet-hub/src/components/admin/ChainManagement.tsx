@@ -765,11 +765,14 @@ export function ChainManagement() {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">
-                    Private Key <span className="text-muted-foreground font-normal">(blank = use system key)</span>
+                    Private Key / Secret <span className="text-muted-foreground font-normal">(blank = use system key)</span>
                     {editingChain && <span className="text-muted-foreground font-normal ml-1">· leave empty to keep current</span>}
                   </Label>
                   <Input type="password" value={formData.privateKey} onChange={e => setFormData({...formData, privateKey: e.target.value})} placeholder={`${getPrivateKeyPlaceholder(formData.chainType ?? "evm")} — or leave blank for system`} className="font-mono text-sm h-9" />
-                  <p className="text-[10px] font-mono" style={{ color: "#f87171", opacity: 0.7 }}>Custom key overrides system key. Leave blank to use FAUCET_PRIVATE_KEY.</p>
+                  {formData.chainType === "custom"
+                    ? <p className="text-[10px] font-mono" style={{ color: "#f59e0b", opacity: 0.9 }}>Custom chains store the key encrypted but do not auto-send tokens — token delivery is manual. Any format accepted (hex, base58, mnemonic, seed, etc.)</p>
+                    : <p className="text-[10px] font-mono" style={{ color: "#f87171", opacity: 0.7 }}>Custom key overrides system key. Leave blank to use FAUCET_PRIVATE_KEY.</p>
+                  }
                 </div>
               </div>
             </div>

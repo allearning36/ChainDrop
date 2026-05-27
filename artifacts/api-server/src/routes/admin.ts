@@ -30,6 +30,7 @@ import {
 } from "@workspace/api-zod";
 import { signAdminToken, requireAdmin, checkLoginRateLimit, recordFailedLogin, recordSuccessfulLogin, clearAllRateLimits } from "../lib/adminAuth";
 import { parseRpcUrls, checkRpcHealth } from "../lib/rpcFailover";
+import { CHAIN_TYPES } from "../lib/chains/index";
 
 const router: IRouter = Router();
 
@@ -378,13 +379,23 @@ router.post("/admin/chains", async (req, res): Promise<void> => {
     return;
   }
 
+  // Extract chainType before Zod so the generated enum (which may lag behind)
+  // never rejects newer chain types like "custom".
+  const rawChainType = body.chainType;
+  if (rawChainType !== undefined) delete body.chainType;
+
   const parsed = CreateChainBody.safeParse(body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
 
-  const insertData: Record<string, unknown> = { ...parsed.data, rpcUrls: rpcUrlsForDb, buyRates: buyRatesForDb, buyLimits: buyLimitsForDb };
+  // Validate chainType separately against the source-of-truth CHAIN_TYPES list.
+  const resolvedChainType = rawChainType !== undefined
+    ? (CHAIN_TYPES.includes(rawChainType as any) ? rawChainType : "evm")
+    : (parsed.data.chainType ?? "evm");
+
+  const insertData: Record<string, unknown> = { ...parsed.data, chainType: resolvedChainType, rpcUrls: rpcUrlsForDb, buyRates: buyRatesForDb, buyLimits: buyLimitsForDb };
   const rawPk = (insertData.privateKey as string | undefined)?.trim();
   if (rawPk) {
     // Auto-derive wallet address from private key if not supplied (EVM only)
@@ -482,6 +493,10 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     }
   }
 
+  // Extract chainType before Zod (same reason as POST — avoid stale enum)
+  const rawChainTypePatch = body.chainType;
+  if (rawChainTypePatch !== undefined) delete body.chainType;
+
   const parsed = UpdateChainBody.safeParse(body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -491,6 +506,11 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
   const updateData: Record<string, unknown> = rpcUrlsForDb !== undefined
     ? { ...parsed.data, rpcUrls: rpcUrlsForDb }
     : { ...parsed.data };
+
+  // Re-inject chainType after Zod validation
+  if (rawChainTypePatch !== undefined) {
+    updateData.chainType = CHAIN_TYPES.includes(rawChainTypePatch as any) ? rawChainTypePatch : "evm";
+  }
   if (buyRatesForDbPatch !== undefined) updateData.buyRates = buyRatesForDbPatch;
   if (buyLimitsForDbPatch !== undefined) updateData.buyLimits = buyLimitsForDbPatch;
   const rawUpdatePk = (updateData.privateKey as string | undefined)?.trim();
