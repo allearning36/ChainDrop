@@ -61,7 +61,13 @@ function isValidAddressForChain(addr: string, chainType: string, addressRegex?: 
     case "custom": {
       if (!addr || addr.trim().length === 0) return false;
       if (addressRegex) {
-        try { return new RegExp(addressRegex).test(addr); } catch { return addr.trim().length >= 8; }
+        // Support multi-line patterns: each non-empty line is one regex, accept if ANY matches
+        const patterns = addressRegex.split("\n").map(p => p.trim()).filter(Boolean);
+        for (const pattern of patterns) {
+          try { if (new RegExp(pattern).test(addr)) return true; } catch { /* skip invalid pattern */ }
+        }
+        // If patterns exist but none matched, fall through to length check only if ALL patterns were invalid
+        if (patterns.length > 0) return false;
       }
       return addr.trim().length >= 8;
     }
@@ -76,7 +82,7 @@ function getAddressPlaceholder(chainType: string, addressRegex?: string | null):
     case "ton":    return "EQA... (TON user-friendly address)";
     case "sui":    return "0x + 64 hex chars (Sui address)";
     case "aptos":  return "0x... (Aptos account address)";
-    case "custom": return addressRegex ? `Address matching: ${addressRegex}` : "Enter your wallet address";
+    case "custom": return "Enter your wallet address";
     default:       return "0x... (EVM address)";
   }
 }
