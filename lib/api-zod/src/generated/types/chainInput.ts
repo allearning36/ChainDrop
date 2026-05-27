@@ -51,5 +51,7 @@ export interface ChainInput {
   adCooldownSeconds?: number;
   /** Whether reCAPTCHA is required to claim this chain (default: true) */
   captchaEnabled?: boolean;
+  /** Custom address validation regex for 'custom' chain type */
+  addressRegex?: string;
   sortOrder?: number;
 }

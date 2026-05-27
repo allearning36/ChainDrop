@@ -28,7 +28,7 @@ export const GetChainsResponseItem = zod.object({
   "name": zod.string(),
   "symbol": zod.string(),
   "chainId": zod.number().nullish().describe('EVM numeric chain ID (e.g. 1 = Ethereum, 11155111 = Sepolia, 137 = Polygon)'),
-  "chainType": zod.enum(['evm', 'solana', 'ton', 'sui', 'aptos']),
+  "chainType": zod.enum(['evm', 'solana', 'ton', 'sui', 'aptos', 'custom']),
   "logoUrl": zod.string().nullish(),
   "claimAmount": zod.string(),
   "cooldownSeconds": zod.number(),
@@ -49,6 +49,7 @@ export const GetChainsResponseItem = zod.object({
   "adClaimEnabled": zod.boolean().optional(),
   "adDurationSeconds": zod.number().optional(),
   "captchaEnabled": zod.boolean().optional().describe('Whether reCAPTCHA is required to claim this chain (default: true)'),
+  "addressRegex": zod.string().nullish().describe('Custom address validation regex for \'custom\' chain type'),
   "sortOrder": zod.number()
 })
 export const GetChainsResponse = zod.array(GetChainsResponseItem)
@@ -66,7 +67,7 @@ export const GetChainResponse = zod.object({
   "name": zod.string(),
   "symbol": zod.string(),
   "chainId": zod.number().nullish().describe('EVM numeric chain ID (e.g. 1 = Ethereum, 11155111 = Sepolia, 137 = Polygon)'),
-  "chainType": zod.enum(['evm', 'solana', 'ton', 'sui', 'aptos']),
+  "chainType": zod.enum(['evm', 'solana', 'ton', 'sui', 'aptos', 'custom']),
   "logoUrl": zod.string().nullish(),
   "claimAmount": zod.string(),
   "cooldownSeconds": zod.number(),
@@ -659,7 +660,7 @@ export const GetAdminChainsResponseItem = zod.object({
   "name": zod.string(),
   "symbol": zod.string(),
   "chainId": zod.number().nullish().describe('EVM numeric chain ID (e.g. 1 = Ethereum, 11155111 = Sepolia, 137 = Polygon)'),
-  "chainType": zod.enum(['evm', 'solana', 'ton', 'sui', 'aptos']),
+  "chainType": zod.enum(['evm', 'solana', 'ton', 'sui', 'aptos', 'custom']),
   "logoUrl": zod.string().nullish(),
   "rpcUrl": zod.string(),
   "rpcUrls": zod.array(zod.string()).describe('Ordered list of RPC URLs — primary first, fallbacks after'),
@@ -689,6 +690,7 @@ export const GetAdminChainsResponseItem = zod.object({
   "adNetworkCode": zod.string().nullish().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
   "adCooldownSeconds": zod.number().optional().describe('Seconds between ad watches per address (0 = no cooldown)'),
   "captchaEnabled": zod.boolean().optional().describe('Whether reCAPTCHA is required to claim this chain (default: true)'),
+  "addressRegex": zod.string().nullish().describe('Custom address validation regex for \'custom\' chain type'),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date()
 })
@@ -702,7 +704,7 @@ export const CreateChainBody = zod.object({
   "name": zod.string(),
   "symbol": zod.string(),
   "chainId": zod.number().optional().describe('EVM numeric chain ID (e.g. 1, 11155111, 137)'),
-  "chainType": zod.enum(['evm', 'solana', 'ton', 'sui', 'aptos']).optional(),
+  "chainType": zod.enum(['evm', 'solana', 'ton', 'sui', 'aptos', 'custom']).optional(),
   "logoUrl": zod.string().optional(),
   "rpcUrl": zod.string(),
   "privateKey": zod.string().optional(),
@@ -732,6 +734,7 @@ export const CreateChainBody = zod.object({
   "adNetworkCode": zod.string().optional().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
   "adCooldownSeconds": zod.number().optional().describe('Seconds between ad watches per address (0 = no cooldown)'),
   "captchaEnabled": zod.boolean().optional().describe('Whether reCAPTCHA is required to claim this chain (default: true)'),
+  "addressRegex": zod.string().optional().describe('Custom address validation regex for \'custom\' chain type'),
   "sortOrder": zod.number().optional()
 })
 
@@ -763,7 +766,7 @@ export const UpdateChainBody = zod.object({
   "name": zod.string().optional(),
   "symbol": zod.string().optional(),
   "chainId": zod.number().optional().describe('EVM numeric chain ID (e.g. 1, 11155111, 137)'),
-  "chainType": zod.enum(['evm', 'solana', 'ton', 'sui', 'aptos']).optional(),
+  "chainType": zod.enum(['evm', 'solana', 'ton', 'sui', 'aptos', 'custom']).optional(),
   "logoUrl": zod.string().optional(),
   "rpcUrl": zod.string().optional(),
   "privateKey": zod.string().optional(),
@@ -793,6 +796,7 @@ export const UpdateChainBody = zod.object({
   "adNetworkCode": zod.string().optional().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
   "adCooldownSeconds": zod.number().optional().describe('Seconds between ad watches per address (0 = no cooldown)'),
   "captchaEnabled": zod.boolean().optional().describe('Whether reCAPTCHA is required to claim this chain (default: true)'),
+  "addressRegex": zod.string().optional().describe('Custom address validation regex for \'custom\' chain type'),
   "sortOrder": zod.number().optional()
 })
 
@@ -801,7 +805,7 @@ export const UpdateChainResponse = zod.object({
   "name": zod.string(),
   "symbol": zod.string(),
   "chainId": zod.number().nullish().describe('EVM numeric chain ID (e.g. 1 = Ethereum, 11155111 = Sepolia, 137 = Polygon)'),
-  "chainType": zod.enum(['evm', 'solana', 'ton', 'sui', 'aptos']),
+  "chainType": zod.enum(['evm', 'solana', 'ton', 'sui', 'aptos', 'custom']),
   "logoUrl": zod.string().nullish(),
   "rpcUrl": zod.string(),
   "rpcUrls": zod.array(zod.string()).describe('Ordered list of RPC URLs — primary first, fallbacks after'),
@@ -831,6 +835,7 @@ export const UpdateChainResponse = zod.object({
   "adNetworkCode": zod.string().nullish().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
   "adCooldownSeconds": zod.number().optional().describe('Seconds between ad watches per address (0 = no cooldown)'),
   "captchaEnabled": zod.boolean().optional().describe('Whether reCAPTCHA is required to claim this chain (default: true)'),
+  "addressRegex": zod.string().nullish().describe('Custom address validation regex for \'custom\' chain type'),
   "sortOrder": zod.number(),
   "createdAt": zod.coerce.date()
 })

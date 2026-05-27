@@ -62,6 +62,7 @@ export const ChainPublicChainType = {
   ton: 'ton',
   sui: 'sui',
   aptos: 'aptos',
+  custom: 'custom',
 } as const;
 
 export interface ChainPublic {
@@ -111,6 +112,11 @@ export interface ChainPublic {
   adDurationSeconds?: number;
   /** Whether reCAPTCHA is required to claim this chain (default: true) */
   captchaEnabled?: boolean;
+  /**
+     * Custom address validation regex for 'custom' chain type
+     * @nullable
+     */
+  addressRegex?: string | null;
   sortOrder: number;
 }
 
@@ -123,6 +129,7 @@ export const ChainDetailChainType = {
   ton: 'ton',
   sui: 'sui',
   aptos: 'aptos',
+  custom: 'custom',
 } as const;
 
 export interface ChainDetail {
@@ -196,6 +203,7 @@ export const ChainAdminChainType = {
   ton: 'ton',
   sui: 'sui',
   aptos: 'aptos',
+  custom: 'custom',
 } as const;
 
 export interface ChainAdmin {
@@ -262,6 +270,11 @@ export interface ChainAdmin {
   adCooldownSeconds?: number;
   /** Whether reCAPTCHA is required to claim this chain (default: true) */
   captchaEnabled?: boolean;
+  /**
+     * Custom address validation regex for 'custom' chain type
+     * @nullable
+     */
+  addressRegex?: string | null;
   sortOrder: number;
   createdAt: string;
 }
@@ -275,6 +288,7 @@ export const ChainInputChainType = {
   ton: 'ton',
   sui: 'sui',
   aptos: 'aptos',
+  custom: 'custom',
 } as const;
 
 export interface ChainInput {
@@ -321,6 +335,8 @@ export interface ChainInput {
   adCooldownSeconds?: number;
   /** Whether reCAPTCHA is required to claim this chain (default: true) */
   captchaEnabled?: boolean;
+  /** Custom address validation regex for 'custom' chain type */
+  addressRegex?: string;
   sortOrder?: number;
 }
 
@@ -333,6 +349,7 @@ export const ChainUpdateChainType = {
   ton: 'ton',
   sui: 'sui',
   aptos: 'aptos',
+  custom: 'custom',
 } as const;
 
 export interface ChainUpdate {
@@ -379,6 +396,8 @@ export interface ChainUpdate {
   adCooldownSeconds?: number;
   /** Whether reCAPTCHA is required to claim this chain (default: true) */
   captchaEnabled?: boolean;
+  /** Custom address validation regex for 'custom' chain type */
+  addressRegex?: string;
   sortOrder?: number;
 }
 

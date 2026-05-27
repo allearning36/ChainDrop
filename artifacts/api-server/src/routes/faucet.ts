@@ -223,7 +223,7 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
   const chainType = chain.chainType as ChainType;
   let addressValid: boolean;
   try {
-    addressValid = await isValidAddress(chainType, address);
+    addressValid = await isValidAddress(chainType, address, chain.addressRegex);
   } catch (err) {
     req.log.warn({ err }, "isValidAddress threw — treating as invalid");
     res.status(400).json({ error: `Invalid ${chain.name} address format` });
@@ -434,7 +434,7 @@ router.get("/faucet/status/:chainId/:address", async (req, res): Promise<void> =
   const chainType = chain.chainType as ChainType;
   let addressValid: boolean;
   try {
-    addressValid = await isValidAddress(chainType, address);
+    addressValid = await isValidAddress(chainType, address, chain.addressRegex);
   } catch {
     addressValid = false;
   }
@@ -547,7 +547,7 @@ router.post("/faucet/ad-token", async (req, res): Promise<void> => {
   const chainType = chain.chainType as ChainType;
   let addressValid: boolean;
   try {
-    addressValid = await isValidAddress(chainType, address);
+    addressValid = await isValidAddress(chainType, address, chain.addressRegex);
   } catch {
     addressValid = false;
   }

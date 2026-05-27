@@ -71,6 +71,11 @@ export interface ChainAdmin {
   adCooldownSeconds?: number;
   /** Whether reCAPTCHA is required to claim this chain (default: true) */
   captchaEnabled?: boolean;
+  /**
+     * Custom address validation regex for 'custom' chain type
+     * @nullable
+     */
+  addressRegex?: string | null;
   sortOrder: number;
   createdAt: Date;
 }

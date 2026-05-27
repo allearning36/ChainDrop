@@ -1,8 +1,8 @@
 import { withRpcFailover } from "../rpcFailover";
 
-export type ChainType = "evm" | "solana" | "ton" | "sui" | "aptos";
+export type ChainType = "evm" | "solana" | "ton" | "sui" | "aptos" | "custom";
 
-export const CHAIN_TYPES: ChainType[] = ["evm", "solana", "ton", "sui", "aptos"];
+export const CHAIN_TYPES: ChainType[] = ["evm", "solana", "ton", "sui", "aptos", "custom"];
 
 export const CHAIN_TYPE_LABELS: Record<ChainType, string> = {
   evm: "EVM (Ethereum / BSC / Polygon / etc.)",
@@ -10,6 +10,7 @@ export const CHAIN_TYPE_LABELS: Record<ChainType, string> = {
   ton: "TON (Toncoin)",
   sui: "Sui",
   aptos: "Aptos",
+  custom: "Custom / Other",
 };
 
 export const CHAIN_TYPE_ADDRESS_HINT: Record<ChainType, string> = {
@@ -18,6 +19,7 @@ export const CHAIN_TYPE_ADDRESS_HINT: Record<ChainType, string> = {
   ton: "User-friendly address (e.g. EQA...)",
   sui: "0x + 64 hex chars",
   aptos: "0x + up to 64 hex chars",
+  custom: "Any address format (validated by regex if set)",
 };
 
 export const CHAIN_TYPE_KEY_HINT: Record<ChainType, string> = {
@@ -26,6 +28,7 @@ export const CHAIN_TYPE_KEY_HINT: Record<ChainType, string> = {
   ton: "24-word mnemonic (space-separated)",
   sui: "Hex private key (0x-prefixed or plain 64 hex)",
   aptos: "Hex private key (0x-prefixed or plain 64 hex)",
+  custom: "Private key / secret in the format required by this chain",
 };
 
 // ── Lazy-loaded chain modules ────────────────────────────────────────────────
@@ -61,6 +64,9 @@ export async function sendTokens(
         case "aptos": {
           const { sendAptos } = await import("./aptos");
           return sendAptos(rpcUrl, privateKey, toAddress, amount);
+        }
+        case "custom": {
+          throw new Error("Custom chain type does not support automatic token sending. Configure sending manually.");
         }
       }
     },
@@ -98,6 +104,9 @@ export async function getWalletBalance(
             const { getAptosBalance } = await import("./aptos");
             return getAptosBalance(rpcUrl, address);
           }
+          case "custom": {
+            return null;
+          }
         }
       },
       `getBalance:${chainType}`
@@ -107,7 +116,11 @@ export async function getWalletBalance(
   }
 }
 
-export async function isValidAddress(chainType: ChainType, address: string): Promise<boolean> {
+export async function isValidAddress(
+  chainType: ChainType,
+  address: string,
+  addressRegex?: string | null
+): Promise<boolean> {
   switch (chainType) {
     case "evm": {
       const { isValidEvmAddress } = await import("./evm");
@@ -128,6 +141,17 @@ export async function isValidAddress(chainType: ChainType, address: string): Pro
     case "aptos": {
       const { isValidAptosAddress } = await import("./aptos");
       return isValidAptosAddress(address);
+    }
+    case "custom": {
+      if (!address || address.trim().length === 0) return false;
+      if (addressRegex) {
+        try {
+          return new RegExp(addressRegex).test(address);
+        } catch {
+          return address.trim().length > 0;
+        }
+      }
+      return address.trim().length >= 8;
     }
   }
 }

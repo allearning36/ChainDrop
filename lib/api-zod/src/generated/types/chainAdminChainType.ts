@@ -15,4 +15,5 @@ export const ChainAdminChainType = {
   ton: 'ton',
   sui: 'sui',
   aptos: 'aptos',
+  custom: 'custom',
 } as const;

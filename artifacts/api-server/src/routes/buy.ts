@@ -105,7 +105,7 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
   }
 
   // Validate the user's address against the actual chain type (EVM, Solana, TON, etc.)
-  const addressValid = await isValidAddress(chain.chainType as ChainType, userAddress);
+  const addressValid = await isValidAddress(chain.chainType as ChainType, userAddress, chain.addressRegex);
   if (!addressValid) {
     res.status(400).json({ error: "Invalid user wallet address for this chain" });
     return;

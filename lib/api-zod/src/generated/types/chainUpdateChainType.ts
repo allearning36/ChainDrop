@@ -15,4 +15,5 @@ export const ChainUpdateChainType = {
   ton: 'ton',
   sui: 'sui',
   aptos: 'aptos',
+  custom: 'custom',
 } as const;

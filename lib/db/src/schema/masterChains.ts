@@ -10,6 +10,7 @@ export const masterChainsTable = pgTable("master_chains", {
   rpcUrls: text("rpc_urls").notNull().default('[]'),
   explorerUrls: text("explorer_urls").notNull().default('[]'),
   isTestnet: boolean("is_testnet").notNull().default(true),
+  addressRegex: text("address_regex"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

@@ -47,7 +47,7 @@ async function collectFingerprint(): Promise<string> {
 
 // ── Address helpers ──────────────────────────────────────────────────────────
 
-function isValidAddressForChain(addr: string, chainType: string): boolean {
+function isValidAddressForChain(addr: string, chainType: string, addressRegex?: string | null): boolean {
   switch (chainType) {
     case "solana":
       return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr);
@@ -58,17 +58,25 @@ function isValidAddressForChain(addr: string, chainType: string): boolean {
       return /^0x[0-9a-fA-F]{64}$/.test(addr);
     case "aptos":
       return /^0x[0-9a-fA-F]{1,64}$/.test(addr);
+    case "custom": {
+      if (!addr || addr.trim().length === 0) return false;
+      if (addressRegex) {
+        try { return new RegExp(addressRegex).test(addr); } catch { return addr.trim().length >= 8; }
+      }
+      return addr.trim().length >= 8;
+    }
     default: // evm
       return /^0x[a-fA-F0-9]{40}$/.test(addr);
   }
 }
 
-function getAddressPlaceholder(chainType: string): string {
+function getAddressPlaceholder(chainType: string, addressRegex?: string | null): string {
   switch (chainType) {
     case "solana": return "7EcDhSYG... (Solana public key)";
     case "ton":    return "EQA... (TON user-friendly address)";
     case "sui":    return "0x + 64 hex chars (Sui address)";
     case "aptos":  return "0x... (Aptos account address)";
+    case "custom": return addressRegex ? `Address matching: ${addressRegex}` : "Enter your wallet address";
     default:       return "0x... (EVM address)";
   }
 }
@@ -139,7 +147,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedAddress(isValidAddressForChain(address, chainType) ? address : "");
+      setDebouncedAddress(isValidAddressForChain(address, chainType, (chain as any)?.addressRegex) ? address : "");
     }, 500);
     return () => clearTimeout(timer);
   }, [address, chainType]);
@@ -334,7 +342,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   if (!chain) return null;
 
   // Derived states
-  const addressValid = isValidAddressForChain(address, chainType);
+  const addressValid = isValidAddressForChain(address, chainType, (chain as any)?.addressRegex);
   const inCooldown = !!debouncedAddress && !!status && !status.canClaim;
   const chainCaptchaEnabled = (chain as any).captchaEnabled !== false;
   const canSubmit = addressValid && !inCooldown && !isStatusLoading && (chainCaptchaEnabled ? !!captchaToken : true);
@@ -406,7 +414,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                   </label>
                   <div className="relative">
                     <Input
-                      placeholder={getAddressPlaceholder(chainType)}
+                      placeholder={getAddressPlaceholder(chainType, (chain as any)?.addressRegex)}
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
                       className="font-mono text-sm h-11 pl-4 pr-10"

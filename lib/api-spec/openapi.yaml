@@ -1220,7 +1220,7 @@ components:
           description: "EVM numeric chain ID (e.g. 1 = Ethereum, 11155111 = Sepolia, 137 = Polygon)"
         chainType:
           type: string
-          enum: [evm, solana, ton, sui, aptos]
+          enum: [evm, solana, ton, sui, aptos, custom]
         logoUrl:
           type: ["string", "null"]
         claimAmount:
@@ -1264,6 +1264,9 @@ components:
         captchaEnabled:
           type: boolean
           description: "Whether reCAPTCHA is required to claim this chain (default: true)"
+        addressRegex:
+          type: ["string", "null"]
+          description: "Custom address validation regex for 'custom' chain type"
         sortOrder:
           type: integer
 
@@ -1282,7 +1285,7 @@ components:
           description: "EVM numeric chain ID (e.g. 1 = Ethereum, 11155111 = Sepolia, 137 = Polygon)"
         chainType:
           type: string
-          enum: [evm, solana, ton, sui, aptos]
+          enum: [evm, solana, ton, sui, aptos, custom]
         logoUrl:
           type: ["string", "null"]
         claimAmount:
@@ -1351,7 +1354,7 @@ components:
           description: "EVM numeric chain ID (e.g. 1 = Ethereum, 11155111 = Sepolia, 137 = Polygon)"
         chainType:
           type: string
-          enum: [evm, solana, ton, sui, aptos]
+          enum: [evm, solana, ton, sui, aptos, custom]
         logoUrl:
           type: ["string", "null"]
         rpcUrl:
@@ -1419,6 +1422,9 @@ components:
         captchaEnabled:
           type: boolean
           description: "Whether reCAPTCHA is required to claim this chain (default: true)"
+        addressRegex:
+          type: ["string", "null"]
+          description: "Custom address validation regex for 'custom' chain type"
         sortOrder:
           type: integer
         createdAt:
@@ -1438,7 +1444,7 @@ components:
           description: "EVM numeric chain ID (e.g. 1, 11155111, 137)"
         chainType:
           type: string
-          enum: [evm, solana, ton, sui, aptos]
+          enum: [evm, solana, ton, sui, aptos, custom]
         logoUrl:
           type: string
         rpcUrl:
@@ -1502,6 +1508,9 @@ components:
         captchaEnabled:
           type: boolean
           description: "Whether reCAPTCHA is required to claim this chain (default: true)"
+        addressRegex:
+          type: string
+          description: "Custom address validation regex for 'custom' chain type"
         sortOrder:
           type: integer
 
@@ -1517,7 +1526,7 @@ components:
           description: "EVM numeric chain ID (e.g. 1, 11155111, 137)"
         chainType:
           type: string
-          enum: [evm, solana, ton, sui, aptos]
+          enum: [evm, solana, ton, sui, aptos, custom]
         logoUrl:
           type: string
         rpcUrl:
@@ -1581,6 +1590,9 @@ components:
         captchaEnabled:
           type: boolean
           description: "Whether reCAPTCHA is required to claim this chain (default: true)"
+        addressRegex:
+          type: string
+          description: "Custom address validation regex for 'custom' chain type"
         sortOrder:
           type: integer
 

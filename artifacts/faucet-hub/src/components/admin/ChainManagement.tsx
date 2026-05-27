@@ -37,14 +37,16 @@ const CHAIN_TYPE_OPTIONS = [
   { value: "ton",    label: "TON (Toncoin)" },
   { value: "sui",    label: "Sui" },
   { value: "aptos",  label: "Aptos" },
+  { value: "custom", label: "Custom / Other" },
 ] as const;
 
 const CHAIN_TYPE_BADGE: Record<string, { label: string; color: string }> = {
-  evm:    { label: "EVM",  color: "#6366f1" },
-  solana: { label: "SOL",  color: "#9945ff" },
-  ton:    { label: "TON",  color: "#0088cc" },
-  sui:    { label: "SUI",  color: "#4da2ff" },
-  aptos:  { label: "APT",  color: "#00c2a8" },
+  evm:    { label: "EVM",    color: "#6366f1" },
+  solana: { label: "SOL",    color: "#9945ff" },
+  ton:    { label: "TON",    color: "#0088cc" },
+  sui:    { label: "SUI",    color: "#4da2ff" },
+  aptos:  { label: "APT",    color: "#00c2a8" },
+  custom: { label: "CUSTOM", color: "#f59e0b" },
 };
 
 function getAddressPlaceholder(chainType: string): string {
@@ -53,6 +55,7 @@ function getAddressPlaceholder(chainType: string): string {
     case "ton":    return "EQA... (TON user-friendly address)";
     case "sui":    return "0x + 64 hex chars (Sui address)";
     case "aptos":  return "0x... (Aptos account address)";
+    case "custom": return "Any address format for this chain";
     default:       return "0x... (EVM address, 20 bytes)";
   }
 }
@@ -63,6 +66,7 @@ function getPrivateKeyPlaceholder(chainType: string): string {
     case "ton":    return "24-word mnemonic (space-separated)";
     case "sui":    return "0x-prefixed hex private key (32 bytes)";
     case "aptos":  return "0x-prefixed hex private key (32 bytes)";
+    case "custom": return "Private key in the format required by this chain";
     default:       return "0x-prefixed hex private key (EVM)";
   }
 }
@@ -79,6 +83,7 @@ const DEFAULT_CHAIN = {
   chainId: "",
   cooldownSeconds: 86400,
   explorerUrl: "",
+  addressRegex: "",
   isTestnet: true,
   isEnabled: true,
   availableStatus: "YES",
@@ -276,6 +281,7 @@ export function ChainManagement() {
       adCooldownSeconds: (chain as any).adCooldownSeconds ?? 0,
       adNetworkCode: (chain as any).adNetworkCode ?? "",
       captchaEnabled: (chain as any).captchaEnabled !== false,
+      addressRegex: (chain as any).addressRegex ?? "",
     });
     setFormError("");
     setIsFormOpen(true);
@@ -689,6 +695,29 @@ export function ChainManagement() {
                   <Input type="number" min="1" value={formData.chainId} onChange={e => setFormData({...formData, chainId: e.target.value})} placeholder="e.g. 11155111" className="font-mono text-sm h-9" />
                   <p className="text-[10px] text-muted-foreground font-mono">1=ETH · 137=Polygon · 11155111=Sepolia</p>
                 </div>
+                {formData.chainType === "custom" && (
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label className="text-xs">Address Validation Regex <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                    <Input
+                      value={formData.addressRegex}
+                      onChange={e => setFormData({...formData, addressRegex: e.target.value})}
+                      placeholder="e.g. ^sei1[a-z0-9]{38}$ or ^[1-9A-Za-z]{25,34}$"
+                      className="font-mono text-sm h-9"
+                    />
+                    <div className="text-[10px] font-mono space-y-0.5">
+                      {formData.addressRegex ? (
+                        (() => {
+                          try { new RegExp(formData.addressRegex); return <p style={{ color: "#4ade80" }}>✓ Valid regex — will test user addresses against this pattern</p>; }
+                          catch { return <p style={{ color: "#f87171" }}>✗ Invalid regex syntax</p>; }
+                        })()
+                      ) : (
+                        <p className="text-muted-foreground">Leave empty to accept any non-empty address (min 8 chars). Examples:<br/>
+                          SEI: <span className="text-primary">^sei1[a-z0-9]&#123;38&#125;$</span> · Wave: <span className="text-primary">^[1-9A-Za-z]&#123;25,34&#125;$</span> · NEAR: <span className="text-primary">^[0-9a-f]&#123;64&#125;$</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <Label className="text-xs">Block Explorer URL</Label>
                   <Input value={formData.explorerUrl} onChange={e => setFormData({...formData, explorerUrl: e.target.value})} placeholder="https://explorer.example.com" className="font-mono text-sm h-9" />
