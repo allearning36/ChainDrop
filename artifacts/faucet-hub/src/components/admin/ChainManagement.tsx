@@ -697,22 +697,30 @@ export function ChainManagement() {
                 </div>
                 {formData.chainType === "custom" && (
                   <div className="space-y-1.5 sm:col-span-2">
-                    <Label className="text-xs">Address Validation Regex <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                    <Input
+                    <Label className="text-xs">Address Validation Patterns <span className="text-muted-foreground font-normal">(optional — one regex per line)</span></Label>
+                    <textarea
                       value={formData.addressRegex}
                       onChange={e => setFormData({...formData, addressRegex: e.target.value})}
-                      placeholder="e.g. ^sei1[a-z0-9]{38}$ or ^[1-9A-Za-z]{25,34}$"
-                      className="font-mono text-sm h-9"
+                      placeholder={"^[a-z0-9._-]+\\.near$\n^[0-9a-f]{64}$"}
+                      rows={3}
+                      className="w-full rounded-md border bg-transparent px-3 py-2 font-mono text-xs resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                      style={{ borderColor: "rgba(255,255,255,0.15)" }}
                     />
                     <div className="text-[10px] font-mono space-y-0.5">
-                      {formData.addressRegex ? (
+                      {formData.addressRegex.trim() ? (
                         (() => {
-                          try { new RegExp(formData.addressRegex); return <p style={{ color: "#4ade80" }}>✓ Valid regex — will test user addresses against this pattern</p>; }
-                          catch { return <p style={{ color: "#f87171" }}>✗ Invalid regex syntax</p>; }
+                          const patterns = formData.addressRegex.split("\n").map((p: string) => p.trim()).filter(Boolean);
+                          const invalid = patterns.filter((p: string) => { try { new RegExp(p); return false; } catch { return true; } });
+                          return invalid.length > 0
+                            ? <p style={{ color: "#f87171" }}>✗ Invalid pattern(s): {invalid.join(", ")}</p>
+                            : <p style={{ color: "#4ade80" }}>✓ {patterns.length} pattern{patterns.length > 1 ? "s" : ""} — address valid if it matches ANY pattern</p>;
                         })()
                       ) : (
-                        <p className="text-muted-foreground">Leave empty to accept any non-empty address (min 8 chars). Examples:<br/>
-                          SEI: <span className="text-primary">^sei1[a-z0-9]&#123;38&#125;$</span> · Wave: <span className="text-primary">^[1-9A-Za-z]&#123;25,34&#125;$</span> · NEAR: <span className="text-primary">^[0-9a-f]&#123;64&#125;$</span>
+                        <p className="text-muted-foreground">
+                          One regex per line. Address is valid if it matches <strong>any</strong> line.<br/>
+                          NEAR example (2 formats):<br/>
+                          <span className="text-primary">^[a-z0-9._-]+\.near$</span> (human name)<br/>
+                          <span className="text-primary">^[0-9a-f]&#123;64&#125;$</span> (implicit account / hex)
                         </p>
                       )}
                     </div>

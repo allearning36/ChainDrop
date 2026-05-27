@@ -145,11 +145,14 @@ export async function isValidAddress(
     case "custom": {
       if (!address || address.trim().length === 0) return false;
       if (addressRegex) {
-        try {
-          return new RegExp(addressRegex).test(address);
-        } catch {
-          return address.trim().length > 0;
+        // Support multiple patterns — split by newlines, accept if ANY pattern matches
+        const patterns = addressRegex.split("\n").map(p => p.trim()).filter(Boolean);
+        for (const pattern of patterns) {
+          try {
+            if (new RegExp(pattern).test(address)) return true;
+          } catch { /* skip invalid pattern */ }
         }
+        return false;
       }
       return address.trim().length >= 8;
     }

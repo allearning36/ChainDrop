@@ -627,14 +627,17 @@ export function ChainLibrary() {
                     {form.chainType === "custom" && (
                       <div className="col-span-2 space-y-1.5">
                         <Label className="text-xs">Address Validation Regex <span style={{ color: "rgba(255,255,255,0.4)" }} className="font-normal">(optional)</span></Label>
-                        <Input
+                        <textarea
                           value={(form as any).addressRegex ?? ""}
                           onChange={e => setForm(f => ({ ...f, addressRegex: e.target.value } as any))}
-                          placeholder="e.g. ^sei1[a-z0-9]{38}$ · ^[1-9A-Za-z]{25,34}$ · ^[0-9a-f]{64}$"
-                          className="font-mono text-xs h-9"
+                          placeholder={"^[a-z0-9._-]+\\.near$\n^[0-9a-f]{64}$"}
+                          rows={3}
+                          className="w-full rounded-md px-3 py-2 font-mono text-xs resize-none focus:outline-none focus:ring-1"
+                          style={{ borderColor: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.04)", color: "#fff" }}
                         />
                         <p className="text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.35)" }}>
-                          Leave empty → accept any address ≥8 chars. Examples: SEI: <code>^sei1[a-z0-9]&#123;38&#125;$</code> · Wave: <code>^[1-9A-Za-z]&#123;25,34&#125;$</code>
+                          One regex per line — address valid if it matches <strong>any</strong> line. Leave empty → accept ≥8 chars.<br/>
+                          NEAR example: line 1 = <code>^[a-z0-9._-]+\.near$</code> · line 2 = <code>^[0-9a-f]&#123;64&#125;$</code>
                         </p>
                       </div>
                     )}
