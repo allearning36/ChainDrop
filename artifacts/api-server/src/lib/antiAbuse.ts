@@ -9,20 +9,23 @@ import { eq, and, gte, gt, desc, lt, sql } from "drizzle-orm";
 import { getIpReputation, type IpRepResult } from "./ipReputation";
 import { ethers } from "ethers";
 
-const BLOCK_SCORE     = 15;   // trust < this → block
-const WARN_SCORE      = 35;   // trust < this → log warning
-const STARTING_SCORE  = 50;
+const BLOCK_SCORE     = 10;   // trust < this → block (only genuine bad actors)
+const WARN_SCORE      = 28;   // trust < this → log warning
+const STARTING_SCORE  = 65;   // raised: give users benefit of the doubt
 
 // ── Trust score adjustments ─────────────────────────────────────────────────
+// NOTE: Bangladesh & similar markets use CGNAT (shared mobile IPs) which get
+// misclassified as proxy/datacenter by IP reputation services. Penalties are
+// deliberately lenient to avoid false-positives on legitimate mobile users.
 const PENALTIES = {
-  TOR:           -50,
-  PROXY:         -35,
-  VPN:           -30,
-  DATACENTER:    -20,
-  MANY_WALLETS_SAME_FP:  -20, // >2 wallets from same fingerprint in 24h
-  MANY_CLAIMS_SAME_IP:   -15, // >3 claims from same IP in 1h
-  RAPID_REQUESTS:        -30, // <5s between requests from same fingerprint
-  NO_FINGERPRINT:        -10,
+  TOR:           -50,  // genuine anonymization → still high
+  PROXY:         -20,  // was -35; mobile ISPs often misclassified
+  VPN:           -15,  // was -30; not conclusive on its own
+  DATACENTER:    -10,  // was -20; mobile carrier IPs often look like DC
+  MANY_WALLETS_SAME_FP:  -15, // >4 wallets from same fingerprint in 24h (was >2)
+  MANY_CLAIMS_SAME_IP:   -10, // >8 claims from same IP in 1h (was >3, CGNAT)
+  RAPID_REQUESTS:        -30, // <5s between requests (kept high, clear bot signal)
+  NO_FINGERPRINT:         -5, // was -10; many browsers block fingerprinting
   KNOWN_BAD_FP:          -40,
 };
 const BONUSES = {
@@ -119,8 +122,8 @@ async function analyzeClaimBehavior(ctx: ClaimContext): Promise<{ penalties: str
     .from(claimsTable)
     .where(and(eq(claimsTable.ip, ctx.ip), gte(claimsTable.claimedAt, window1h)));
   const ipClaims = ipClaimsResult[0]?.count ?? 0;
-  if (ipClaims > 3) {
-    delta += PENALTIES.MANY_CLAIMS_SAME_IP * Math.min(3, ipClaims - 3);
+  if (ipClaims > 8) {  // raised from 3 → 8 (CGNAT: many real users share one IP)
+    delta += PENALTIES.MANY_CLAIMS_SAME_IP * Math.min(3, ipClaims - 8);
     penalties.push(`IP_CLAIM_FLOOD:${ipClaims}`);
   }
 
@@ -136,7 +139,7 @@ async function analyzeClaimBehavior(ctx: ClaimContext): Promise<{ penalties: str
         )
       );
     const fpWallets = fpWalletsResult[0]?.count ?? 0;
-    if (fpWallets > 2) {
+    if (fpWallets > 4) {  // raised from 2 → 4 (family/friends share device)
       delta += PENALTIES.MANY_WALLETS_SAME_FP;
       penalties.push(`MULTI_WALLET_FP:${fpWallets}`);
     }
@@ -238,10 +241,15 @@ export async function evaluateClaim(ctx: ClaimContext): Promise<AbuseDecision> {
   score = Math.max(0, Math.min(100, score));
 
   // 6. Auto-ban if score too low
+  // Only ban IP when clearly abusive (score < BLOCK_SCORE).
+  // Only ban fingerprint/address for extreme cases (score < 5) to avoid
+  // collateral damage from CGNAT shared IPs or misclassified mobile ISPs.
   if (score < BLOCK_SCORE) {
-    if (ctx.fingerprint) await applyAutoBan("fingerprint", ctx.fingerprint, flags.join(","), score);
     await applyAutoBan("ip", ctx.ip, flags.join(","), score);
-    if (score < 5) await applyAutoBan("address", ctx.address.toLowerCase(), flags.join(","), score);
+    if (score < 5) {
+      if (ctx.fingerprint) await applyAutoBan("fingerprint", ctx.fingerprint, flags.join(","), score);
+      await applyAutoBan("address", ctx.address.toLowerCase(), flags.join(","), score);
+    }
   }
 
   // 7. Log the attempt
