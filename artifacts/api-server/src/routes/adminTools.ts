@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, and, ilike, count as drizzleCount, sql, gte } from "drizzle-orm";
 import crypto from "crypto";
-import { db, claimsTable, chainsTable, blockedAddressesTable, settingsTable } from "@workspace/db";
+import { db, pool, claimsTable, chainsTable, blockedAddressesTable, settingsTable } from "@workspace/db";
 import { requireAdmin } from "../lib/adminAuth";
 import { getWalletBalance, type ChainType } from "../lib/chains/index";
 import { parseRpcUrls } from "../lib/rpcFailover";
@@ -274,6 +274,65 @@ router.get("/admin/analytics", requireAdmin, async (_req, res): Promise<void> =>
       today: Number(summary!.today),
     },
   });
+});
+
+// ── TEMPORARY: One-time Neon data seed endpoint ─────────────────────────────
+// Remove this after seeding is complete
+const ALLOWED_SEED_TABLES = [
+  "master_chains","master_chain_tokens","chains","exchange_pairs",
+  "settings","payment_networks","banners","announcements",
+  "claims","auto_bans","exchange_orders",
+  "referrals","referral_commissions","referral_claim_requests",
+  "referral_balance_adjustments","support_conversations","support_messages",
+];
+
+const SEED_ONE_TIME_KEY = "neon-migrate-2026-cd7f3a91b2e4";
+
+router.post("/admin/seed-table", async (req, res): Promise<void> => {
+  const key = req.headers["x-seed-key"];
+  if (key !== SEED_ONE_TIME_KEY) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const { table, rows, truncate } = req.body as {
+    table?: string; rows?: Record<string, unknown>[]; truncate?: boolean;
+  };
+  if (!table || !ALLOWED_SEED_TABLES.includes(table)) {
+    res.status(400).json({ error: `Table not allowed: ${table}` });
+    return;
+  }
+  if (!Array.isArray(rows) || rows.length === 0) {
+    res.status(200).json({ inserted: 0 });
+    return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    if (truncate) {
+      await client.query(`TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE`);
+    }
+    let inserted = 0;
+    for (const row of rows) {
+      const cols = Object.keys(row);
+      const vals = cols.map((_, i) => `$${i + 1}`);
+      const values = cols.map((c) => {
+        const v = row[c];
+        return typeof v === "object" && v !== null ? JSON.stringify(v) : v;
+      });
+      await client.query(
+        `INSERT INTO "${table}" (${cols.map((c) => `"${c}"`).join(",")}) VALUES (${vals}) ON CONFLICT DO NOTHING`,
+        values
+      );
+      inserted++;
+    }
+    await client.query("COMMIT");
+    res.json({ inserted });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: String(err) });
+  } finally {
+    client.release();
+  }
 });
 
 export default router;

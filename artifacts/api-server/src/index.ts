@@ -1,4 +1,4 @@
-// v5 — IPv4 forced via --dns-result-order=ipv4first
+// v7 — hardcoded seed key
 import app from "./app";
 import { logger } from "./lib/logger";
 import { runMigrations } from "@workspace/db";
