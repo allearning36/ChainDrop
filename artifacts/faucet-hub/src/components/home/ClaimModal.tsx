@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ChainPublic, useGetFaucetStatus, useClaimFaucet, useRequestAdToken, useClaimFaucetWithAd, getGetChainQueryKey, getGetFaucetStatusQueryKey } from "@workspace/api-client-react";
+import { ChainPublic, useGetFaucetStatus, useClaimFaucet, useRequestAdToken, useClaimFaucetWithAd, getGetChainQueryKey, getGetFaucetStatusQueryKey, getGetFaucetHistoryQueryKey } from "@workspace/api-client-react";
 import { formatCooldown } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, ExternalLink, Clock, Zap, ShoppingCart, CheckCircle2, Copy, Check, AlertCircle, Play } from "lucide-react";
@@ -240,6 +240,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
           );
         } catch {}
         queryClient.invalidateQueries({ queryKey: getGetChainQueryKey(chain.id) });
+        queryClient.invalidateQueries({ queryKey: getGetFaucetHistoryQueryKey() });
         // Register referral (fire-and-forget)
         const pendingRef = sessionStorage.getItem("pendingReferrer");
         if (pendingRef && pendingRef !== debouncedAddress.toLowerCase()) {
@@ -293,6 +294,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
           setAdCountdown(5);
           setStep("ad");
           queryClient.invalidateQueries({ queryKey: getGetChainQueryKey(chain.id) });
+          queryClient.invalidateQueries({ queryKey: getGetFaucetHistoryQueryKey() });
           // Register referral (fire-and-forget)
           const pendingRef = sessionStorage.getItem("pendingReferrer");
           if (pendingRef && pendingRef !== debouncedAddress.toLowerCase()) {

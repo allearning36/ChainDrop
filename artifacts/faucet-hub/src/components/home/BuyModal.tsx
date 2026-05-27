@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   ChainPublic, useGetBuyInfo, useSubmitBuy,
-  getGetBuyInfoQueryKey, PaymentNetwork,
+  getGetBuyInfoQueryKey, PaymentNetwork, getGetFaucetHistoryQueryKey,
 } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Loader2, X, Wallet, CheckCircle2, Copy, Check,
   AlertCircle, ExternalLink, ArrowLeftRight, Zap, ChevronDown, Radio, ArrowRight, History,
@@ -180,6 +181,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
   const [gasReserve, setGasReserve] = useState(0.0005);
 
   const abortRef = useRef<AbortController | null>(null);
+  const queryClient = useQueryClient();
   const submitBuy = useSubmitBuy();
 
   const { data: buyInfo, isLoading: infoLoading, error: infoError } = useGetBuyInfo(
@@ -412,6 +414,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
           setTestnetTxHash(res.testnetTxHash);
           setTestnetAmountSent(res.testnetAmountSent);
           setStep("success");
+          queryClient.invalidateQueries({ queryKey: getGetFaucetHistoryQueryKey() });
         },
         onError: (err: any) => {
           setErrorMsg(err?.data?.error || err.message || "Purchase failed. Contact support with your tx hash.");
