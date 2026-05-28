@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { ChainPublic } from "@workspace/api-client-react";
-import { Gift, X, Loader2, ExternalLink, CheckCircle2, AlertCircle, Link as LinkIcon } from "lucide-react";
+import { Gift, X, Loader2, ExternalLink, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import ReCAPTCHA from "react-google-recaptcha";
+
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
 
 // ── Address helpers ───────────────────────────────────────────────────────────
 function isValidAddressForChain(addr: string, chainType: string, addressRegex?: string | null): boolean {
@@ -45,6 +48,7 @@ interface PromoInfo {
   claimAmount?: string;
   codeLink?: string | null;
   successMessage?: string | null;
+  captchaRequired?: boolean;
 }
 
 interface ClaimResult {
@@ -61,21 +65,25 @@ interface PromoClaimModalProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function PromoClaimModal({ chain, onClose }: PromoClaimModalProps) {
-  const [address, setAddress]   = useState("");
-  const [code, setCode]         = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState("");
-  const [result, setResult]     = useState<ClaimResult | null>(null);
-  const [promoInfo, setPromoInfo] = useState<PromoInfo | null>(null);
-  const overlayRef              = useRef<HTMLDivElement>(null);
+  const [address, setAddress]         = useState("");
+  const [code, setCode]               = useState("");
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState("");
+  const [result, setResult]           = useState<ClaimResult | null>(null);
+  const [promoInfo, setPromoInfo]     = useState<PromoInfo | null>(null);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaExpired, setCaptchaExpired] = useState(false);
+  const overlayRef                    = useRef<HTMLDivElement>(null);
+  const recaptchaRef                  = useRef<ReCAPTCHA>(null);
 
   const chainType    = (chain as unknown as { chainType?: string }).chainType ?? "evm";
   const addressRegex = (chain as unknown as { addressRegex?: string | null }).addressRegex;
   const addressValid = address.length > 0 && isValidAddressForChain(address.trim(), chainType, addressRegex);
   const codeValid    = code.trim().length >= 3;
-  const canSubmit    = addressValid && codeValid && !loading;
+  const needsCaptcha = promoInfo?.captchaRequired !== false;
+  const canSubmit    = addressValid && codeValid && !loading && (!needsCaptcha || !!captchaToken);
 
-  // Load promo info (codeLink, successMessage)
+  // Load promo info
   useEffect(() => {
     fetch(`/api/promo/chain/${chain.id}`)
       .then(r => r.json())
@@ -93,9 +101,10 @@ export function PromoClaimModal({ chain, onClose }: PromoClaimModalProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          chainId: chain.id,
-          address: address.trim(),
-          code:    code.trim().toUpperCase(),
+          chainId:      chain.id,
+          address:      address.trim(),
+          code:         code.trim().toUpperCase(),
+          captchaToken: captchaToken || undefined,
         }),
       });
       const data = await res.json() as {
@@ -104,6 +113,8 @@ export function PromoClaimModal({ chain, onClose }: PromoClaimModalProps) {
       };
       if (!res.ok || !data.success) {
         setError(data.error ?? "Claim failed. Please try again.");
+        recaptchaRef.current?.reset();
+        setCaptchaToken("");
       } else {
         const explorerUrl = data.explorerUrl
           ? `${data.explorerUrl.replace(/\/$/, "")}/tx/${data.txHash}`
@@ -117,6 +128,8 @@ export function PromoClaimModal({ chain, onClose }: PromoClaimModalProps) {
       }
     } catch {
       setError("Network error — please try again.");
+      recaptchaRef.current?.reset();
+      setCaptchaToken("");
     }
     setLoading(false);
   }
@@ -138,15 +151,7 @@ export function PromoClaimModal({ chain, onClose }: PromoClaimModalProps) {
           boxShadow: "0 0 40px rgba(168,85,247,0.15), 0 25px 50px rgba(0,0,0,0.6)",
         }}
       >
-        {/* Close */}
-        <button onClick={onClose}
-          className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center z-10 text-white/40 hover:text-white transition-colors"
-          style={{ background: "rgba(255,255,255,0.07)" }}
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
-
-        {/* Header */}
+        {/* Header — X button is part of flex row, no absolute overlap */}
         <div className="px-5 pt-5 pb-4 flex items-center gap-3"
           style={{ borderBottom: "1px solid rgba(168,85,247,0.15)" }}
         >
@@ -162,13 +167,13 @@ export function PromoClaimModal({ chain, onClose }: PromoClaimModalProps) {
             </p>
           </div>
 
-          {/* Get Code button — only shown if codeLink is set */}
+          {/* Get Code button — 🎁 icon, only if codeLink set */}
           {codeLink && !result && (
             <a
               href={codeLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold shrink-0 transition-all hover:opacity-80"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold shrink-0 transition-all hover:opacity-80"
               style={{
                 background: "rgba(168,85,247,0.2)",
                 border: "1px solid rgba(168,85,247,0.45)",
@@ -177,10 +182,19 @@ export function PromoClaimModal({ chain, onClose }: PromoClaimModalProps) {
               }}
               onClick={e => e.stopPropagation()}
             >
-              <LinkIcon className="w-3 h-3" />
-              Get Code
+              <span className="text-sm leading-none">🎁</span>
+              <span>Get Code</span>
             </a>
           )}
+
+          {/* Close button — in flow, never overlaps */}
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-white/40 hover:text-white transition-colors"
+            style={{ background: "rgba(255,255,255,0.07)" }}
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
 
         <div className="p-5">
@@ -197,9 +211,9 @@ export function PromoClaimModal({ chain, onClose }: PromoClaimModalProps) {
                 <p className="text-xs text-muted-foreground mt-0.5">sent to your wallet!</p>
               </div>
 
-              {/* Custom success message */}
+              {/* Custom success message — centered */}
               {result.successMessage && (
-                <div className="text-xs font-mono text-white/60 bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 leading-relaxed text-left">
+                <div className="text-xs font-mono text-white/70 bg-white/5 border border-white/10 rounded-lg px-4 py-3 leading-relaxed text-center">
                   {result.successMessage}
                 </div>
               )}
@@ -276,6 +290,23 @@ export function PromoClaimModal({ chain, onClose }: PromoClaimModalProps) {
                   spellCheck={false}
                 />
               </div>
+
+              {/* reCAPTCHA */}
+              {needsCaptcha && (
+                <div className="flex flex-col items-center gap-1">
+                  {captchaExpired && (
+                    <p className="text-[10px] font-mono text-yellow-400">CAPTCHA expired — please solve again.</p>
+                  )}
+                  <ReCAPTCHA
+                    ref={recaptchaRef}
+                    sitekey={RECAPTCHA_SITE_KEY}
+                    theme="dark"
+                    size="normal"
+                    onChange={token => { setCaptchaToken(token ?? ""); setCaptchaExpired(false); }}
+                    onExpired={() => { setCaptchaToken(""); setCaptchaExpired(true); }}
+                  />
+                </div>
+              )}
 
               <Button
                 type="submit"

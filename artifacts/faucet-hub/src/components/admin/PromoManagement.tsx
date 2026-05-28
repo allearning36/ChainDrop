@@ -149,6 +149,8 @@ export function PromoManagement() {
   const [loadingClaims, setLoadingClaims] = useState<number | null>(null);
   const [copied, setCopied]             = useState<string | null>(null);
   const [search, setSearch]             = useState("");
+  const [captchaEnabled, setCaptchaEnabled] = useState(true);
+  const [captchaToggling, setCaptchaToggling] = useState(false);
 
   const [form, setForm] = useState({
     code: "", chainId: "", claimAmount: "", maxClaims: "100",
@@ -160,12 +162,14 @@ export function PromoManagement() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [cr, pr] = await Promise.all([
+      const [cr, pr, cfg] = await Promise.all([
         adminFetch("/api/admin/chains"),
         adminFetch("/api/admin/promo"),
+        adminFetch("/api/admin/promo/config"),
       ]);
       if (cr.ok) setChains((await cr.json() as Chain[]).filter(c => c.isEnabled));
       if (pr.ok) setPromos(await pr.json() as PromoCode[]);
+      if (cfg.ok) setCaptchaEnabled(((await cfg.json()) as { captchaEnabled: boolean }).captchaEnabled);
     } catch { /* ignore */ }
     setLoading(false);
   }, []);
@@ -219,6 +223,20 @@ export function PromoManagement() {
     } catch { /* ignore */ }
   }
 
+  async function handleToggleCaptcha() {
+    setCaptchaToggling(true);
+    try {
+      const next = !captchaEnabled;
+      const res = await adminFetch("/api/admin/promo/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ captchaEnabled: next }),
+      });
+      if (res.ok) setCaptchaEnabled(next);
+    } catch { /* ignore */ }
+    setCaptchaToggling(false);
+  }
+
   async function handleDelete(id: number, code: string) {
     if (!window.confirm(`Delete promo code "${code}"? This cannot be undone.`)) return;
     try {
@@ -251,9 +269,28 @@ export function PromoManagement() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div>
-        <h2 className="text-base font-bold font-mono text-white">Promo Codes</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">Create airdrop codes for specific chains. Users enter the code to claim a custom amount.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-base font-bold font-mono text-white">Promo Codes</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Create airdrop codes for specific chains. Users enter the code to claim a custom amount.</p>
+        </div>
+        {/* CAPTCHA toggle */}
+        <div className="flex items-center gap-2 shrink-0 rounded-lg px-3 py-2"
+          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <span className="text-[10px] font-mono uppercase tracking-wider text-white/40 whitespace-nowrap">Claim CAPTCHA</span>
+          <button
+            type="button"
+            disabled={captchaToggling}
+            onClick={handleToggleCaptcha}
+            className="transition-opacity disabled:opacity-50"
+          >
+            {captchaEnabled
+              ? <ToggleRight className="w-7 h-7 text-green-400" />
+              : <ToggleLeft  className="w-7 h-7 text-white/25" />
+            }
+          </button>
+        </div>
       </div>
 
       {/* Create form */}

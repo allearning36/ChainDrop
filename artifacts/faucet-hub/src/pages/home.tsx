@@ -40,10 +40,20 @@ export default function Home() {
   }, []);
 
   const { data: testnetChains = [], isLoading: loadingTestnet } = useGetChains({ type: "testnet" }, {
-    query: { queryKey: getGetChainsQueryKey({ type: "testnet" }) }
+    query: {
+      queryKey: getGetChainsQueryKey({ type: "testnet" }),
+      refetchInterval: 30000,
+      retry: 8,
+      retryDelay: (attempt: number) => Math.min(3000 * (attempt + 1), 30000),
+    }
   });
   const { data: mainnetChains = [], isLoading: loadingMainnet } = useGetChains({ type: "mainnet" }, {
-    query: { queryKey: getGetChainsQueryKey({ type: "mainnet" }) }
+    query: {
+      queryKey: getGetChainsQueryKey({ type: "mainnet" }),
+      refetchInterval: 30000,
+      retry: 8,
+      retryDelay: (attempt: number) => Math.min(3000 * (attempt + 1), 30000),
+    }
   });
 
   const isLoading = loadingTestnet || loadingMainnet;

@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request } from "express";
 import { eq, and, desc } from "drizzle-orm";
-import { db, chainsTable, promoCodesTable, promoClaimsTable, ipBlocksTable } from "@workspace/db";
+import { db, chainsTable, promoCodesTable, promoClaimsTable, ipBlocksTable, settingsTable } from "@workspace/db";
 import { sendTokens, isValidAddress, type ChainType } from "../lib/chains/index";
 import { parseRpcUrls } from "../lib/rpcFailover";
 import { broadcastError } from "../lib/liveEvents";
@@ -17,6 +17,33 @@ function parseId(raw: string | string[] | undefined): number | null {
   if (typeof raw !== "string") return null;
   const n = parseInt(raw);
   return isNaN(n) ? null : n;
+}
+
+const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET_KEY;
+
+async function verifyCaptcha(token: string): Promise<boolean> {
+  if (!RECAPTCHA_SECRET) return false;
+  if (!token) return false;
+  try {
+    const res = await fetch(
+      `https://www.google.com/recaptcha/api/siteverify?secret=${RECAPTCHA_SECRET}&response=${encodeURIComponent(token)}`,
+      { method: "POST" }
+    );
+    const data = await res.json() as { success: boolean };
+    return data.success === true;
+  } catch {
+    return false;
+  }
+}
+
+async function isPromoCaptchaEnabled(): Promise<boolean> {
+  try {
+    const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "promoCaptchaEnabled")).limit(1);
+    if (!row) return true;
+    return row.value !== "false";
+  } catch {
+    return true;
+  }
 }
 
 const router: IRouter = Router();
@@ -41,11 +68,13 @@ router.get("/promo/chain/:chainId", async (req, res): Promise<void> => {
     if (promo.expiresAt && promo.expiresAt < now) { res.json({ active: false }); return; }
     if (promo.usedCount >= promo.maxClaims) { res.json({ active: false }); return; }
 
+    const captchaRequired = await isPromoCaptchaEnabled();
     res.json({
       active: true,
       claimAmount: promo.claimAmount,
       codeLink: promo.codeLink ?? null,
       successMessage: promo.successMessage ?? null,
+      captchaRequired,
     });
   } catch {
     res.json({ active: false });
@@ -82,12 +111,22 @@ router.get("/promo/recent", async (_req, res): Promise<void> => {
 // ── Public: claim with promo code ─────────────────────────────────────────────
 router.post("/promo/claim", async (req, res): Promise<void> => {
   const body = req.body as Record<string, unknown>;
-  const chainId = typeof body["chainId"] === "number" ? body["chainId"] : parseInt(String(body["chainId"] ?? ""));
-  const address  = typeof body["address"] === "string" ? body["address"].trim() : "";
-  const code     = typeof body["code"] === "string" ? body["code"].trim().toUpperCase() : "";
+  const chainId      = typeof body["chainId"] === "number" ? body["chainId"] : parseInt(String(body["chainId"] ?? ""));
+  const address      = typeof body["address"] === "string" ? body["address"].trim() : "";
+  const code         = typeof body["code"] === "string" ? body["code"].trim().toUpperCase() : "";
+  const captchaToken = typeof body["captchaToken"] === "string" ? body["captchaToken"] : "";
 
   if (isNaN(chainId) || chainId <= 0 || !address || !code) {
     res.status(400).json({ error: "Invalid request — chainId, address and code are required." }); return;
+  }
+
+  // CAPTCHA verification
+  const captchaEnabled = await isPromoCaptchaEnabled();
+  if (captchaEnabled) {
+    const captchaValid = await verifyCaptcha(captchaToken);
+    if (!captchaValid) {
+      res.status(400).json({ error: "CAPTCHA verification failed. Please try again." }); return;
+    }
   }
 
   const clientIp = getClientIp(req);
@@ -249,6 +288,24 @@ router.get("/admin/promo/:id/claims", requireAdmin, async (req, res): Promise<vo
     .where(eq(promoClaimsTable.promoId, id))
     .orderBy(desc(promoClaimsTable.claimedAt));
   res.json(claims);
+});
+
+// ── Admin: get promo settings ─────────────────────────────────────────────────
+router.get("/admin/promo/config", requireAdmin, async (_req, res): Promise<void> => {
+  const captchaEnabled = await isPromoCaptchaEnabled();
+  res.json({ captchaEnabled });
+});
+
+// ── Admin: update promo settings ──────────────────────────────────────────────
+router.post("/admin/promo/config", requireAdmin, async (req, res): Promise<void> => {
+  const body = req.body as Record<string, unknown>;
+  if (typeof body["captchaEnabled"] !== "boolean") {
+    res.status(400).json({ error: "captchaEnabled (boolean) required" }); return;
+  }
+  const value = String(body["captchaEnabled"]);
+  await db.insert(settingsTable).values({ key: "promoCaptchaEnabled", value })
+    .onConflictDoUpdate({ target: settingsTable.key, set: { value } });
+  res.json({ captchaEnabled: body["captchaEnabled"] });
 });
 
 export default router;
