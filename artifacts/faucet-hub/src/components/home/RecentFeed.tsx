@@ -1,18 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGetFaucetHistory, getGetFaucetHistoryQueryKey } from "@workspace/api-client-react";
 import { formatDistanceToNow } from "date-fns";
-import { ExternalLink, ShoppingCart, Droplets, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { ExternalLink, ShoppingCart, Droplets, ChevronLeft, ChevronRight, SlidersHorizontal, Gift } from "lucide-react";
 import { formatTokenAmount } from "@/lib/utils";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
-/** Strip invisible/special Unicode characters and trailing slashes from a URL. */
 function cleanUrl(url: string): string {
-  // Remove zero-width, word-joiner, BOM, and other invisible chars, then trim slashes
   return url.replace(/[\u200B-\u200D\uFEFF\u2060\u00AD]/g, "").replace(/\/+$/, "").trim();
 }
 
-/** Returns the TX explorer URL, or null if none is known for this chain. */
 function getExplorerUrl(chainName: string, txHash: string, explorerUrl?: string | null): string | null {
   if (explorerUrl) return `${cleanUrl(explorerUrl)}/tx/${txHash}`;
   const name = chainName.toLowerCase();
@@ -28,6 +25,23 @@ function getExplorerUrl(chainName: string, txHash: string, explorerUrl?: string 
   return null;
 }
 
+interface PromoClaim {
+  id: number;
+  address: string;
+  txHash: string;
+  claimedAt: string;
+  amount: string;
+  chainId: number;
+  chainName: string;
+  symbol: string;
+  logoUrl: string | null;
+  explorerUrl: string | null;
+}
+
+type FeedItem =
+  | { kind: "faucet"; id: number; type: string; chainName: string; symbol: string; logoUrl: string | null; address: string; amount: string; claimedAt: string; txHash: string; explorerUrl: string | null }
+  | { kind: "promo";  id: number; chainName: string; symbol: string; logoUrl: string | null; address: string; amount: string; claimedAt: string; txHash: string; explorerUrl: string | null };
+
 export function RecentFeed() {
   const { data: history = [] } = useGetFaucetHistory({
     query: {
@@ -36,19 +50,60 @@ export function RecentFeed() {
     }
   });
 
+  const [promoClaims, setPromoClaims] = useState<PromoClaim[]>([]);
+
+  // Fetch promo claims once
+  useEffect(() => {
+    fetch("/api/promo/recent")
+      .then(r => r.ok ? r.json() : [])
+      .then((d: PromoClaim[]) => setPromoClaims(d))
+      .catch(() => {});
+  }, []);
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [showSizeMenu, setShowSizeMenu] = useState(false);
 
-  if (history.length === 0) return null;
+  // Merge faucet + promo entries and sort by date desc
+  const faucetItems: FeedItem[] = history.map(r => ({
+    kind: "faucet" as const,
+    id: r.id,
+    type: r.type,
+    chainName: r.chainName,
+    symbol: r.symbol,
+    logoUrl: r.logoUrl ?? null,
+    address: r.address,
+    amount: r.amount,
+    claimedAt: r.claimedAt,
+    txHash: r.txHash,
+    explorerUrl: r.explorerUrl ?? null,
+  }));
 
-  const totalPages = Math.ceil(history.length / pageSize);
+  const promoItems: FeedItem[] = promoClaims.map(p => ({
+    kind: "promo" as const,
+    id: p.id,
+    chainName: p.chainName,
+    symbol: p.symbol,
+    logoUrl: p.logoUrl,
+    address: p.address,
+    amount: p.amount,
+    claimedAt: p.claimedAt,
+    txHash: p.txHash,
+    explorerUrl: p.explorerUrl,
+  }));
+
+  const combined: FeedItem[] = [...faucetItems, ...promoItems].sort(
+    (a, b) => new Date(b.claimedAt).getTime() - new Date(a.claimedAt).getTime()
+  );
+
+  if (combined.length === 0) return null;
+
+  const totalPages = Math.ceil(combined.length / pageSize);
   const safeCurrentPage = Math.min(page, totalPages);
-  const pageItems = history.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
+  const pageItems = combined.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
 
   const goTo = (p: number) => setPage(Math.max(1, Math.min(p, totalPages)));
 
-  // Show max 5 page tabs around current page
   const pageTabs: number[] = [];
   const maxTabs = 5;
   let tabStart = Math.max(1, safeCurrentPage - Math.floor(maxTabs / 2));
@@ -76,14 +131,18 @@ export function RecentFeed() {
       {/* Records list */}
       <div className="flex flex-col gap-2">
         {pageItems.map((record) => {
-          const isBuy = record.type === "buy";
+          const isBuy   = record.kind === "faucet" && record.type === "buy";
+          const isPromo = record.kind === "promo";
+
+          const accentColor = isPromo ? "168,85,247" : isBuy ? "129,140,248" : "34,197,94";
+
           return (
             <div
-              key={`${record.type}-${record.id}`}
+              key={`${record.kind}-${record.id}`}
               className="flex items-center justify-between px-3 py-2 rounded-xl gap-2 transition-all duration-200 hover:translate-y-[-1px]"
               style={{
-                background: isBuy ? "rgba(129,140,248,0.05)" : "rgba(34,197,94,0.04)",
-                border: isBuy ? "1px solid rgba(129,140,248,0.12)" : "1px solid rgba(34,197,94,0.1)",
+                background: `rgba(${accentColor},0.05)`,
+                border: `1px solid rgba(${accentColor},0.12)`,
                 boxShadow: "0 1px 6px rgba(0,0,0,0.18)",
               }}
             >
@@ -101,23 +160,32 @@ export function RecentFeed() {
                   <div
                     className="w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-[9px] font-black"
                     style={{
-                      background: isBuy ? "rgba(129,140,248,0.15)" : "rgba(34,197,94,0.12)",
-                      border: isBuy ? "1px solid rgba(129,140,248,0.2)" : "1px solid rgba(34,197,94,0.2)",
-                      color: isBuy ? "#818cf8" : "#22c55e",
+                      background: `rgba(${accentColor},0.15)`,
+                      border: `1px solid rgba(${accentColor},0.2)`,
+                      color: isPromo ? "#c084fc" : isBuy ? "#818cf8" : "#22c55e",
                     }}
                   >
                     {record.symbol.slice(0, 2)}
                   </div>
                 )}
+
+                {/* Type badge */}
                 <span
                   className="flex items-center gap-0.5 text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
-                  style={isBuy
-                    ? { background: "rgba(129,140,248,0.12)", color: "#a5b4fc", border: "1px solid rgba(129,140,248,0.2)" }
-                    : { background: "rgba(34,197,94,0.1)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)" }
-                  }
+                  style={{
+                    background: `rgba(${accentColor},0.12)`,
+                    color: isPromo ? "#c084fc" : isBuy ? "#a5b4fc" : "#4ade80",
+                    border: `1px solid rgba(${accentColor},0.2)`,
+                  }}
                 >
-                  {isBuy ? <><ShoppingCart className="w-2 h-2" /> BUY</> : <><Droplets className="w-2 h-2" /> CLAIM</>}
+                  {isPromo
+                    ? <><Gift className="w-2 h-2" /> PROMO</>
+                    : isBuy
+                    ? <><ShoppingCart className="w-2 h-2" /> BUY</>
+                    : <><Droplets className="w-2 h-2" /> CLAIM</>
+                  }
                 </span>
+
                 <span className="text-[11px] font-mono truncate" style={{ color: "rgba(255,255,255,0.45)" }}>
                   {record.chainName}
                 </span>
@@ -128,7 +196,10 @@ export function RecentFeed() {
 
               {/* Right */}
               <div className="flex items-center gap-3 shrink-0">
-                <span className="font-mono text-xs font-bold" style={{ color: isBuy ? "#a5b4fc" : "#4ade80" }}>
+                <span
+                  className="font-mono text-xs font-bold"
+                  style={{ color: isPromo ? "#c084fc" : isBuy ? "#a5b4fc" : "#4ade80" }}
+                >
                   +{formatTokenAmount(record.amount)} {record.symbol}
                 </span>
                 <span className="text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.3)" }}>
@@ -153,14 +224,10 @@ export function RecentFeed() {
       {/* Pagination bar */}
       {totalPages > 1 && (
         <div className="mt-5 flex items-center justify-between gap-3 flex-wrap">
-
-          {/* Left: count info + filter */}
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-mono" style={{ color: "rgba(255,255,255,0.3)" }}>
-              {(safeCurrentPage - 1) * pageSize + 1}–{Math.min(safeCurrentPage * pageSize, history.length)} / {history.length}
+              {(safeCurrentPage - 1) * pageSize + 1}–{Math.min(safeCurrentPage * pageSize, combined.length)} / {combined.length}
             </span>
-
-            {/* Per-page filter */}
             <div className="relative">
               <button
                 type="button"
@@ -196,7 +263,6 @@ export function RecentFeed() {
             </div>
           </div>
 
-          {/* Right: prev + page tabs + next */}
           <div className="flex items-center gap-1.5">
             <button
               type="button"

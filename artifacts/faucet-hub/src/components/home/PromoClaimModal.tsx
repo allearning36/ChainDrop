@@ -1,9 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ChainPublic } from "@workspace/api-client-react";
-import { Gift, X, Loader2, ExternalLink, CheckCircle2, AlertCircle } from "lucide-react";
+import { Gift, X, Loader2, ExternalLink, CheckCircle2, AlertCircle, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// ── Address helpers (duplicated from ClaimModal to avoid coupling) ────────────
+// ── Address helpers ───────────────────────────────────────────────────────────
 function isValidAddressForChain(addr: string, chainType: string, addressRegex?: string | null): boolean {
   if (addressRegex) { try { return new RegExp(addressRegex).test(addr); } catch { /* fall through */ } }
   switch (chainType) {
@@ -39,31 +39,49 @@ function getTxExplorerUrl(chainType: string, isTestnet: boolean, txHash: string,
   }
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
-interface PromoClaimModalProps {
-  chain: ChainPublic;
-  onClose: () => void;
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface PromoInfo {
+  active: boolean;
+  claimAmount?: string;
+  codeLink?: string | null;
+  successMessage?: string | null;
 }
 
 interface ClaimResult {
   txHash: string;
   amount: string;
   explorerUrl: string;
+  successMessage: string | null;
 }
 
+interface PromoClaimModalProps {
+  chain: ChainPublic;
+  onClose: () => void;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 export function PromoClaimModal({ chain, onClose }: PromoClaimModalProps) {
   const [address, setAddress]   = useState("");
   const [code, setCode]         = useState("");
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
   const [result, setResult]     = useState<ClaimResult | null>(null);
+  const [promoInfo, setPromoInfo] = useState<PromoInfo | null>(null);
   const overlayRef              = useRef<HTMLDivElement>(null);
 
-  const chainType = (chain as unknown as { chainType?: string }).chainType ?? "evm";
+  const chainType    = (chain as unknown as { chainType?: string }).chainType ?? "evm";
   const addressRegex = (chain as unknown as { addressRegex?: string | null }).addressRegex;
   const addressValid = address.length > 0 && isValidAddressForChain(address.trim(), chainType, addressRegex);
   const codeValid    = code.trim().length >= 3;
   const canSubmit    = addressValid && codeValid && !loading;
+
+  // Load promo info (codeLink, successMessage)
+  useEffect(() => {
+    fetch(`/api/promo/chain/${chain.id}`)
+      .then(r => r.json())
+      .then((d: PromoInfo) => setPromoInfo(d))
+      .catch(() => {});
+  }, [chain.id]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -80,20 +98,30 @@ export function PromoClaimModal({ chain, onClose }: PromoClaimModalProps) {
           code:    code.trim().toUpperCase(),
         }),
       });
-      const data = await res.json() as { success?: boolean; txHash?: string; amount?: string; explorerUrl?: string; error?: string };
+      const data = await res.json() as {
+        success?: boolean; txHash?: string; amount?: string;
+        explorerUrl?: string; error?: string; successMessage?: string | null;
+      };
       if (!res.ok || !data.success) {
         setError(data.error ?? "Claim failed. Please try again.");
       } else {
         const explorerUrl = data.explorerUrl
           ? `${data.explorerUrl.replace(/\/$/, "")}/tx/${data.txHash}`
           : getTxExplorerUrl(chainType, chain.isTestnet, data.txHash!, chain.explorerUrl);
-        setResult({ txHash: data.txHash!, amount: data.amount!, explorerUrl });
+        setResult({
+          txHash:         data.txHash!,
+          amount:         data.amount!,
+          explorerUrl,
+          successMessage: data.successMessage ?? null,
+        });
       }
     } catch {
       setError("Network error — please try again.");
     }
     setLoading(false);
   }
+
+  const codeLink = promoInfo?.codeLink;
 
   return (
     <div
@@ -127,12 +155,32 @@ export function PromoClaimModal({ chain, onClose }: PromoClaimModalProps) {
           >
             <Gift className="w-5 h-5 text-purple-400" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h2 className="font-bold text-white text-sm leading-tight">Promo Airdrop</h2>
             <p className="text-[11px] font-mono mt-0.5" style={{ color: "rgba(168,85,247,0.8)" }}>
               {chain.name} · {chain.symbol}
             </p>
           </div>
+
+          {/* Get Code button — only shown if codeLink is set */}
+          {codeLink && !result && (
+            <a
+              href={codeLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold shrink-0 transition-all hover:opacity-80"
+              style={{
+                background: "rgba(168,85,247,0.2)",
+                border: "1px solid rgba(168,85,247,0.45)",
+                color: "#c084fc",
+                boxShadow: "0 0 12px rgba(168,85,247,0.2)",
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <LinkIcon className="w-3 h-3" />
+              Get Code
+            </a>
+          )}
         </div>
 
         <div className="p-5">
@@ -148,6 +196,14 @@ export function PromoClaimModal({ chain, onClose }: PromoClaimModalProps) {
                 <p className="font-bold text-white text-lg">{result.amount} {chain.symbol}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">sent to your wallet!</p>
               </div>
+
+              {/* Custom success message */}
+              {result.successMessage && (
+                <div className="text-xs font-mono text-white/60 bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 leading-relaxed text-left">
+                  {result.successMessage}
+                </div>
+              )}
+
               <a
                 href={result.explorerUrl}
                 target="_blank" rel="noopener noreferrer"
@@ -185,7 +241,11 @@ export function PromoClaimModal({ chain, onClose }: PromoClaimModalProps) {
                 <input
                   className="w-full bg-background border rounded-xl px-3.5 py-2.5 text-sm font-mono text-white placeholder:text-white/20 focus:outline-none transition-colors"
                   style={{
-                    borderColor: address && !addressValid ? "rgba(239,68,68,0.5)" : address && addressValid ? "rgba(34,197,94,0.4)" : "rgba(255,255,255,0.1)",
+                    borderColor: address && !addressValid
+                      ? "rgba(239,68,68,0.5)"
+                      : address && addressValid
+                      ? "rgba(34,197,94,0.4)"
+                      : "rgba(255,255,255,0.1)",
                   }}
                   placeholder={getAddressPlaceholder(chainType)}
                   value={address}
@@ -203,7 +263,11 @@ export function PromoClaimModal({ chain, onClose }: PromoClaimModalProps) {
                 <input
                   className="w-full bg-background border rounded-xl px-3.5 py-2.5 text-sm font-mono text-white placeholder:text-white/20 focus:outline-none transition-colors uppercase tracking-widest"
                   style={{
-                    borderColor: code && !codeValid ? "rgba(239,68,68,0.5)" : code && codeValid ? "rgba(168,85,247,0.4)" : "rgba(255,255,255,0.1)",
+                    borderColor: code && !codeValid
+                      ? "rgba(239,68,68,0.5)"
+                      : code && codeValid
+                      ? "rgba(168,85,247,0.4)"
+                      : "rgba(255,255,255,0.1)",
                   }}
                   placeholder="ENTER CODE"
                   value={code}

@@ -40,7 +40,39 @@ router.get("/promo/chain/:chainId", async (req, res): Promise<void> => {
   if (promo.expiresAt && promo.expiresAt < now) { res.json({ active: false }); return; }
   if (promo.usedCount >= promo.maxClaims) { res.json({ active: false }); return; }
 
-  res.json({ active: true, claimAmount: promo.claimAmount });
+  res.json({
+    active: true,
+    claimAmount: promo.claimAmount,
+    codeLink: promo.codeLink ?? null,
+    successMessage: promo.successMessage ?? null,
+  });
+});
+
+// ── Public: recent promo claims (for RecentFeed) ──────────────────────────────
+router.get("/promo/recent", async (_req, res): Promise<void> => {
+  try {
+    const rows = await db
+      .select({
+        id:          promoClaimsTable.id,
+        address:     promoClaimsTable.address,
+        txHash:      promoClaimsTable.txHash,
+        claimedAt:   promoClaimsTable.claimedAt,
+        amount:      promoCodesTable.claimAmount,
+        chainId:     promoCodesTable.chainId,
+        chainName:   chainsTable.name,
+        symbol:      chainsTable.symbol,
+        logoUrl:     chainsTable.logoUrl,
+        explorerUrl: chainsTable.explorerUrl,
+      })
+      .from(promoClaimsTable)
+      .innerJoin(promoCodesTable, eq(promoClaimsTable.promoId, promoCodesTable.id))
+      .innerJoin(chainsTable, eq(promoCodesTable.chainId, chainsTable.id))
+      .orderBy(desc(promoClaimsTable.claimedAt))
+      .limit(50);
+    res.json(rows);
+  } catch {
+    res.json([]);
+  }
 });
 
 // ── Public: claim with promo code ─────────────────────────────────────────────
@@ -132,7 +164,13 @@ router.post("/promo/claim", async (req, res): Promise<void> => {
     .set({ usedCount: promo.usedCount + 1 })
     .where(eq(promoCodesTable.id, promo.id));
 
-  res.json({ success: true, txHash, amount: promo.claimAmount, explorerUrl: chain.explorerUrl });
+  res.json({
+    success: true,
+    txHash,
+    amount: promo.claimAmount,
+    explorerUrl: chain.explorerUrl,
+    successMessage: promo.successMessage ?? null,
+  });
 });
 
 // ── Admin: list all promo codes ───────────────────────────────────────────────
@@ -144,12 +182,14 @@ router.get("/admin/promo", requireAdmin, async (_req, res): Promise<void> => {
 // ── Admin: create promo code ───────────────────────────────────────────────────
 router.post("/admin/promo", requireAdmin, async (req, res): Promise<void> => {
   const body = req.body as Record<string, unknown>;
-  const code        = typeof body["code"] === "string" ? body["code"].trim().toUpperCase() : "";
-  const chainId     = typeof body["chainId"] === "number" ? body["chainId"] : parseInt(String(body["chainId"] ?? ""));
-  const claimAmount = typeof body["claimAmount"] === "string" ? body["claimAmount"].trim() : "";
-  const maxClaims   = typeof body["maxClaims"] === "number" ? body["maxClaims"] : parseInt(String(body["maxClaims"] ?? "100"));
-  const note        = typeof body["note"] === "string" ? body["note"].trim() || null : null;
-  const expiresAt   = typeof body["expiresAt"] === "string" && body["expiresAt"] ? new Date(body["expiresAt"]) : null;
+  const code           = typeof body["code"] === "string" ? body["code"].trim().toUpperCase() : "";
+  const chainId        = typeof body["chainId"] === "number" ? body["chainId"] : parseInt(String(body["chainId"] ?? ""));
+  const claimAmount    = typeof body["claimAmount"] === "string" ? body["claimAmount"].trim() : "";
+  const maxClaims      = typeof body["maxClaims"] === "number" ? body["maxClaims"] : parseInt(String(body["maxClaims"] ?? "100"));
+  const note           = typeof body["note"] === "string" ? body["note"].trim() || null : null;
+  const codeLink       = typeof body["codeLink"] === "string" ? body["codeLink"].trim() || null : null;
+  const successMessage = typeof body["successMessage"] === "string" ? body["successMessage"].trim() || null : null;
+  const expiresAt      = typeof body["expiresAt"] === "string" && body["expiresAt"] ? new Date(body["expiresAt"]) : null;
 
   if (!code || code.length < 3 || code.length > 32) { res.status(400).json({ error: "Code must be 3–32 characters." }); return; }
   if (isNaN(chainId) || chainId <= 0) { res.status(400).json({ error: "Invalid chainId." }); return; }
@@ -164,7 +204,7 @@ router.post("/admin/promo", requireAdmin, async (req, res): Promise<void> => {
 
   const [created] = await db.insert(promoCodesTable).values({
     code, chainId, claimAmount, maxClaims,
-    note, expiresAt, isActive: true, usedCount: 0,
+    note, codeLink, successMessage, expiresAt, isActive: true, usedCount: 0,
   }).returning();
 
   res.status(201).json(created);
