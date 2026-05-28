@@ -92,6 +92,12 @@ function classifyError(err: unknown): string {
     (msg.includes("ssl") && msg.includes("error"))
   ) return "SSL_TLS_ERROR";
 
+  // HTTP status code errors — from fetch-based SDKs (TON, Sui, Solana, etc.)
+  // Check these early so a clear status code is never misclassified as UNKNOWN
+  if (msg.includes("status code 429") || msg.includes("http 429") || msg.includes("error 429") || msg.includes(": 429")) return "RPC_RATE_LIMITED";
+  if (msg.includes("status code 401") || msg.includes("status code 403")) return "RPC_AUTH_FAILED";
+  if (/status code [23]\d\d/.test(msg) === false && /status code [45]\d\d/.test(msg)) return "RPC_BAD_RESPONSE";
+
   // Node.js / HTTP network errors
   if (msg.includes("econnreset") || msg.includes("socket hang up")) return "RPC_DISCONNECTED";
   if (msg.includes("econnrefused")) return "RPC_REFUSED";
@@ -149,10 +155,12 @@ function getErrorMeta(cause: string): ErrorMeta {
     BAD_PRIVATE_KEY:         { detail: "Faucet wallet-এর private key invalid বা format ভুল",                         hint: "Admin → Chain Management থেকে private key পুনরায় সেট করুন" },
     INVALID_ADDRESS:         { detail: "Wallet address format সঠিক নয়",                                              hint: "ব্যবহারকারীর address যাচাই করুন" },
     CAPTCHA_FAILED:          { detail: "reCAPTCHA verification ব্যর্থ হয়েছে",                                        hint: "ব্যবহারকারীকে আবার CAPTCHA complete করতে বলুন" },
-    RATE_LIMITED:            { detail: "এই IP থেকে অনেক বেশি request এসেছে",                                        hint: "IP blocking বা rate limit বাড়ানোর কথা বিবেচনা করুন" },
+    RATE_LIMITED:            { detail: "এই IP থেকে অনেক বেশি request এসেছে (faucet rate limit)",                   hint: "IP blocking বা rate limit বাড়ানোর কথা বিবেচনা করুন" },
+    RPC_RATE_LIMITED:        { detail: "RPC সার্ভার HTTP 429 (Too Many Requests) ফিরিয়েছে — একই সময়ে অনেক বেশি request যাচ্ছে বা public RPC-এর free limit শেষ হয়েছে", hint: "Admin → Chain Management থেকে একটি ভিন্ন বা premium RPC endpoint ব্যবহার করুন (যেমন TON-এর জন্য toncenter.com API key সহ URL)" },
+    RPC_AUTH_FAILED:         { detail: "RPC সার্ভার authentication reject করেছে (HTTP 401/403) — API key ভুল বা expire হয়েছে", hint: "Admin → Chain Management থেকে RPC URL-এ API key যাচাই করুন" },
     ADDRESS_BLOCKED:         { detail: "Address বা IP block করা আছে",                                                hint: "Admin → Blocked Addresses দেখুন" },
     COOLDOWN_ACTIVE:         { detail: "Cooldown এখনো শেষ হয়নি",                                                    hint: "ব্যবহারকারীকে পরে আসতে বলুন" },
-    UNKNOWN:                 { detail: "অজানা error — server log দেখুন বিস্তারিত জানতে",                             hint: "API server console log চেক করুন" },
+    UNKNOWN:                 { detail: "অজানা error — নিচের raw error message দেখুন বিস্তারিত জানতে",                hint: "API server console log চেক করুন" },
   };
   return map[cause] ?? { detail: "Unknown error", hint: "Server log দেখুন" };
 }
