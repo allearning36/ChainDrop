@@ -24,28 +24,32 @@ const router: IRouter = Router();
 // ── Public: check if a chain has an active promo ──────────────────────────────
 router.get("/promo/chain/:chainId", async (req, res): Promise<void> => {
   const chainId = parseId(req.params["chainId"]);
-  if (!chainId) { res.status(400).json({ error: "Invalid chainId" }); return; }
+  if (chainId === null || chainId <= 0) { res.status(400).json({ error: "Invalid chainId" }); return; }
 
-  const now = new Date();
-  const [promo] = await db
-    .select()
-    .from(promoCodesTable)
-    .where(and(
-      eq(promoCodesTable.chainId, chainId),
-      eq(promoCodesTable.isActive, true),
-    ))
-    .limit(1);
+  try {
+    const now = new Date();
+    const [promo] = await db
+      .select()
+      .from(promoCodesTable)
+      .where(and(
+        eq(promoCodesTable.chainId, chainId),
+        eq(promoCodesTable.isActive, true),
+      ))
+      .limit(1);
 
-  if (!promo) { res.json({ active: false }); return; }
-  if (promo.expiresAt && promo.expiresAt < now) { res.json({ active: false }); return; }
-  if (promo.usedCount >= promo.maxClaims) { res.json({ active: false }); return; }
+    if (!promo) { res.json({ active: false }); return; }
+    if (promo.expiresAt && promo.expiresAt < now) { res.json({ active: false }); return; }
+    if (promo.usedCount >= promo.maxClaims) { res.json({ active: false }); return; }
 
-  res.json({
-    active: true,
-    claimAmount: promo.claimAmount,
-    codeLink: promo.codeLink ?? null,
-    successMessage: promo.successMessage ?? null,
-  });
+    res.json({
+      active: true,
+      claimAmount: promo.claimAmount,
+      codeLink: promo.codeLink ?? null,
+      successMessage: promo.successMessage ?? null,
+    });
+  } catch {
+    res.json({ active: false });
+  }
 });
 
 // ── Public: recent promo claims (for RecentFeed) ──────────────────────────────

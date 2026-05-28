@@ -134,9 +134,27 @@ function SubTabBar({ tabs, active, onChange }: {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
+// ── Hash helpers ───────────────────────────────────────────────────────────────
+const VALID_SECTIONS: TopSection[] = [
+  "dashboard","live","claims","support","exchange","referral","promo","siteconfig",
+  "chains-group","analytics-group","security-group","content-group",
+];
+function readHashSection(): TopSection {
+  const [sec] = window.location.hash.slice(1).split("/");
+  return VALID_SECTIONS.includes(sec as TopSection) ? (sec as TopSection) : "dashboard";
+}
+function readHashSub(group: string, tabs: SubTab[], fallback: string): string {
+  const [sec, sub] = window.location.hash.slice(1).split("/");
+  if (sec === group && sub && tabs.some(t => t.id === sub)) return sub;
+  return fallback;
+}
+function writeHash(section: TopSection, sub?: string) {
+  window.location.hash = sub ? `${section}/${sub}` : section;
+}
+
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
-  const [activeSection, setActiveSection] = useState<TopSection>("dashboard");
+  const [activeSection, setActiveSection] = useState<TopSection>(readHashSection);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [supportUnread, setSupportUnread] = useState(0);
   const [backingUp, setBackingUp]       = useState(false);
@@ -144,11 +162,16 @@ export default function AdminDashboard() {
   const [restoreResult, setRestoreResult] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sub-tab state per group
-  const [chainsSub,    setChainsSub]    = useState("chains");
-  const [analyticsSub, setAnalyticsSub] = useState("analytics");
-  const [securitySub,  setSecuritySub]  = useState("blocked");
-  const [contentSub,   setContentSub]   = useState("post");
+  // Sub-tab state per group — init from hash
+  const [chainsSub,    _setChainsSub]    = useState(() => readHashSub("chains-group",    CHAINS_TABS,    "chains"));
+  const [analyticsSub, _setAnalyticsSub] = useState(() => readHashSub("analytics-group", ANALYTICS_TABS, "analytics"));
+  const [securitySub,  _setSecuritySub]  = useState(() => readHashSub("security-group",  SECURITY_TABS,  "blocked"));
+  const [contentSub,   _setContentSub]   = useState(() => readHashSub("content-group",   CONTENT_TABS,   "post"));
+
+  const setChainsSub    = (s: string) => { _setChainsSub(s);    writeHash("chains-group",    s); };
+  const setAnalyticsSub = (s: string) => { _setAnalyticsSub(s); writeHash("analytics-group", s); };
+  const setSecuritySub  = (s: string) => { _setSecuritySub(s);  writeHash("security-group",  s); };
+  const setContentSub   = (s: string) => { _setContentSub(s);   writeHash("content-group",   s); };
 
   // Active breadcrumb
   const breadcrumb = (() => {
@@ -215,7 +238,11 @@ export default function AdminDashboard() {
 
   const handleLogout = () => { removeToken(); setLocation("/"); };
 
-  const navigateTo = (section: TopSection) => { setActiveSection(section); setSidebarOpen(false); };
+  const navigateTo = (section: TopSection) => {
+    setActiveSection(section);
+    setSidebarOpen(false);
+    writeHash(section);
+  };
 
   if (!isAuthenticated()) return null;
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { adminFetch } from "@/lib/auth";
 import {
   Loader2, Plus, Trash2, Gift, ChevronDown, ChevronUp, Copy, Check,
-  Search, ToggleLeft, ToggleRight, Link, MessageSquare,
+  Search, ToggleLeft, ToggleRight, Link, MessageSquare, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -87,8 +87,8 @@ function ChainSelect({
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-xl overflow-hidden shadow-2xl"
-          style={{ background: "rgba(12,12,18,0.98)", border: "1px solid rgba(255,255,255,0.1)", maxHeight: "240px" }}
+        <div className="absolute top-full left-0 mt-1 z-50 rounded-xl overflow-hidden shadow-2xl"
+          style={{ background: "rgba(12,12,18,0.98)", border: "1px solid rgba(255,255,255,0.1)", maxHeight: "240px", minWidth: "260px", width: "max-content", maxWidth: "calc(100vw - 32px)" }}
         >
           {/* Search */}
           <div className="p-2 border-b border-white/5">
@@ -117,16 +117,16 @@ function ChainSelect({
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-white/5"
                   style={{ color: String(c.id) === value ? "#4ade80" : "rgba(255,255,255,0.75)" }}
                 >
-                  <span className="flex-1 text-xs font-mono truncate">{c.name}</span>
-                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0"
+                  <span className="flex-1 text-xs font-mono whitespace-nowrap">{c.name}</span>
+                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0 ml-2"
                     style={c.isTestnet
                       ? { background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)" }
                       : { background: "rgba(168,85,247,0.12)", color: "#c084fc", border: "1px solid rgba(168,85,247,0.2)" }
                     }
                   >
-                    {c.isTestnet ? "Testnet" : "Mainnet"}
+                    {c.isTestnet ? "T" : "M"}
                   </span>
-                  <span className="text-[10px] font-mono shrink-0" style={{ color: "rgba(34,197,94,0.5)" }}>{c.symbol}</span>
+                  <span className="text-[10px] font-mono shrink-0 w-10 text-right" style={{ color: "rgba(34,197,94,0.5)" }}>{c.symbol}</span>
                 </button>
               ))
             )}
@@ -154,6 +154,8 @@ export function PromoManagement() {
     code: "", chainId: "", claimAmount: "", maxClaims: "100",
     note: "", expiresAt: "", codeLink: "", successMessage: "",
   });
+  const [showCodeLink,   setShowCodeLink]   = useState(false);
+  const [showSuccessMsg, setShowSuccessMsg] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -336,32 +338,70 @@ export function PromoManagement() {
             />
           </div>
 
-          {/* Get Code link */}
-          <div className="space-y-1 col-span-2">
-            <label className="text-[10px] font-mono uppercase tracking-wider text-white/40 flex items-center gap-1.5">
-              <Link className="w-3 h-3" /> Get Code Link (optional)
-            </label>
-            <input
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-green-500/50"
-              placeholder="https://t.me/... or https://twitter.com/..."
-              value={form.codeLink}
-              onChange={e => setForm(p => ({ ...p, codeLink: e.target.value }))}
-            />
-            <p className="text-[10px] text-white/25">If set, a "Get Code" button will appear in the claim modal linking here (social/website).</p>
+          {/* Get Code link — toggle */}
+          <div className="col-span-2">
+            {!showCodeLink ? (
+              <button
+                type="button"
+                onClick={() => setShowCodeLink(true)}
+                className="flex items-center gap-1.5 text-[11px] font-mono text-white/35 hover:text-white/60 transition-colors px-2.5 py-1.5 rounded-lg border border-white/8 hover:border-white/20"
+              >
+                <Plus className="w-3 h-3" />
+                <Link className="w-3 h-3" />
+                Add Get Code Link
+              </button>
+            ) : (
+              <div className="space-y-1 rounded-lg border border-white/10 p-3" style={{ background: "rgba(255,255,255,0.02)" }}>
+                <label className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-white/40">
+                  <span className="flex items-center gap-1.5"><Link className="w-3 h-3" /> Get Code Link</span>
+                  <button type="button"
+                    onClick={() => { setShowCodeLink(false); setForm(p => ({ ...p, codeLink: "" })); }}
+                    className="text-white/25 hover:text-white/60 transition-colors"
+                  ><X className="w-3.5 h-3.5" /></button>
+                </label>
+                <input
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-green-500/50"
+                  placeholder="https://t.me/... or https://twitter.com/..."
+                  value={form.codeLink}
+                  onChange={e => setForm(p => ({ ...p, codeLink: e.target.value }))}
+                  autoFocus
+                />
+                <p className="text-[10px] text-white/25">A "Get Code" button will appear in the claim modal linking here.</p>
+              </div>
+            )}
           </div>
 
-          {/* Success message */}
-          <div className="space-y-1 col-span-2">
-            <label className="text-[10px] font-mono uppercase tracking-wider text-white/40 flex items-center gap-1.5">
-              <MessageSquare className="w-3 h-3" /> Success Message (optional)
-            </label>
-            <input
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-green-500/50"
-              placeholder="Thank you for participating in our airdrop!"
-              value={form.successMessage}
-              onChange={e => setForm(p => ({ ...p, successMessage: e.target.value }))}
-            />
-            <p className="text-[10px] text-white/25">Shown to the user after a successful claim. Leave blank for default message.</p>
+          {/* Success message — toggle */}
+          <div className="col-span-2">
+            {!showSuccessMsg ? (
+              <button
+                type="button"
+                onClick={() => setShowSuccessMsg(true)}
+                className="flex items-center gap-1.5 text-[11px] font-mono text-white/35 hover:text-white/60 transition-colors px-2.5 py-1.5 rounded-lg border border-white/8 hover:border-white/20"
+              >
+                <Plus className="w-3 h-3" />
+                <MessageSquare className="w-3 h-3" />
+                Add Custom Success Message
+              </button>
+            ) : (
+              <div className="space-y-1 rounded-lg border border-white/10 p-3" style={{ background: "rgba(255,255,255,0.02)" }}>
+                <label className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-white/40">
+                  <span className="flex items-center gap-1.5"><MessageSquare className="w-3 h-3" /> Success Message</span>
+                  <button type="button"
+                    onClick={() => { setShowSuccessMsg(false); setForm(p => ({ ...p, successMessage: "" })); }}
+                    className="text-white/25 hover:text-white/60 transition-colors"
+                  ><X className="w-3.5 h-3.5" /></button>
+                </label>
+                <input
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-green-500/50"
+                  placeholder="Thank you for participating in our airdrop!"
+                  value={form.successMessage}
+                  onChange={e => setForm(p => ({ ...p, successMessage: e.target.value }))}
+                  autoFocus
+                />
+                <p className="text-[10px] text-white/25">Shown after a successful claim. Leave blank for the default message.</p>
+              </div>
+            )}
           </div>
         </div>
 
