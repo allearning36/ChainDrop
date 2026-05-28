@@ -362,6 +362,7 @@ export function PromoManagement() {
           <div className="space-y-1">
             <label className="text-[10px] font-mono uppercase tracking-wider text-white/40">Claim Amount</label>
             <input
+              type="number" min="0" step="any"
               className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-green-500/50"
               placeholder="0.1"
               value={form.claimAmount}
