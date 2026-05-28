@@ -75,6 +75,8 @@ router.get("/promo/chain/:chainId", async (req, res): Promise<void> => {
       codeLink: promo.codeLink ?? null,
       successMessage: promo.successMessage ?? null,
       captchaRequired,
+      usedCount: promo.usedCount,
+      maxClaims: promo.maxClaims,
     });
   } catch {
     res.json({ active: false });
