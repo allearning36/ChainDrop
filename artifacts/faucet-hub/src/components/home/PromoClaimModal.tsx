@@ -49,6 +49,8 @@ interface PromoInfo {
   codeLink?: string | null;
   successMessage?: string | null;
   captchaRequired?: boolean;
+  usedCount?: number;
+  maxClaims?: number;
 }
 
 interface ClaimResult {
@@ -235,9 +237,19 @@ export function PromoClaimModal({ chain, onClose }: PromoClaimModalProps) {
           ) : (
             /* ── Claim form ── */
             <form onSubmit={handleSubmit} className="space-y-3">
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Enter your wallet address and the promo code to receive a free airdrop.
-              </p>
+              {/* Claim count badge — X/Y claimed */}
+              {promoInfo && promoInfo.maxClaims != null && promoInfo.usedCount != null && (
+                <div className="flex items-center justify-between rounded-lg px-3 py-2"
+                  style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.2)" }}
+                >
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-white/40">Claims</span>
+                  <span className="text-xs font-mono font-bold"
+                    style={{ color: promoInfo.usedCount >= promoInfo.maxClaims ? "#f87171" : "#c084fc" }}
+                  >
+                    {promoInfo.usedCount}/{promoInfo.maxClaims}
+                  </span>
+                </div>
+              )}
 
               {/* Error */}
               {error && (

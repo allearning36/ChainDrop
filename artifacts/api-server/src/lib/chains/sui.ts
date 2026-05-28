@@ -7,7 +7,9 @@ const MIST_PER_SUI = 1_000_000_000n;
 const SUI_TIMEOUT_MS = 30_000;
 
 function makeClient(rpcUrl: string): SuiJsonRpcClient {
-  return new SuiJsonRpcClient({ url: rpcUrl });
+  const lower = rpcUrl.toLowerCase();
+  const network = lower.includes("testnet") ? "testnet" : lower.includes("devnet") ? "devnet" : "mainnet";
+  return new SuiJsonRpcClient({ url: rpcUrl, network });
 }
 
 function parsePrivateKey(privateKey: string): Uint8Array | string {

@@ -151,6 +151,8 @@ export function PromoManagement() {
   const [search, setSearch]             = useState("");
   const [captchaEnabled, setCaptchaEnabled] = useState(true);
   const [captchaToggling, setCaptchaToggling] = useState(false);
+  const [balanceWarn, setBalanceWarn]       = useState<string | null>(null);
+  const balanceWarnTimer                    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [form, setForm] = useState({
     code: "", chainId: "", claimAmount: "", maxClaims: "100",
@@ -175,6 +177,32 @@ export function PromoManagement() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  // Balance warning: check if faucet wallet has enough for all claims
+  useEffect(() => {
+    if (balanceWarnTimer.current) clearTimeout(balanceWarnTimer.current);
+    setBalanceWarn(null);
+    const chainId    = parseInt(form.chainId);
+    const amount     = parseFloat(form.claimAmount);
+    const maxClaims  = parseInt(form.maxClaims);
+    if (!chainId || !amount || !maxClaims || maxClaims < 1 || amount <= 0) return;
+    const totalNeeded = amount * maxClaims;
+    balanceWarnTimer.current = setTimeout(async () => {
+      try {
+        const res = await adminFetch(`/api/admin/chains/${chainId}`);
+        if (!res.ok) return;
+        const data = await res.json() as { walletBalanceEth?: string | null; symbol?: string };
+        const balance = parseFloat(data.walletBalanceEth ?? "0");
+        if (!isNaN(balance) && balance < totalNeeded) {
+          const sym = data.symbol ?? "";
+          setBalanceWarn(
+            `Faucet wallet has ${balance.toFixed(4)} ${sym} — needs ${totalNeeded.toFixed(4)} ${sym} for ${maxClaims} claims. Top up before activating.`
+          );
+        }
+      } catch { /* ignore */ }
+    }, 600);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.chainId, form.claimAmount, form.maxClaims]);
 
   async function loadClaims(promoId: number) {
     if (claims[promoId]) { setExpandedId(p => p === promoId ? null : promoId); return; }
@@ -352,6 +380,19 @@ export function PromoManagement() {
               onChange={e => setForm(p => ({ ...p, maxClaims: e.target.value }))}
             />
           </div>
+        </div>
+
+        {/* Balance warning — shown when wallet can't cover all claims */}
+        {balanceWarn && (
+          <div className="flex items-start gap-2 rounded-lg px-3 py-2.5 text-xs font-mono"
+            style={{ background: "rgba(234,179,8,0.08)", border: "1px solid rgba(234,179,8,0.3)", color: "#fbbf24" }}
+          >
+            <span className="shrink-0 mt-0.5">⚠</span>
+            <span>{balanceWarn}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
 
           {/* Expires At */}
           <div className="space-y-1">
