@@ -27,7 +27,7 @@ export async function sendTon(
 
   logger.info({ toAddress, seqno }, "TON transfer submitted — polling for seqno advancement");
 
-  // Poll until the wallet seqno increments, confirming the tx was processed
+  // Poll until the wallet seqno increments, confirming the tx was accepted
   const TON_POLL_INTERVAL_MS = 1_500;
   const TON_POLL_TIMEOUT_MS = 90_000;
   const deadline = Date.now() + TON_POLL_TIMEOUT_MS;
@@ -39,13 +39,31 @@ export async function sendTon(
     } catch { /* keep polling */ }
   }
 
-  // Encode a unique reference from wallet address + seqno + timestamp
-  const txRef = Buffer.from(
-    `${wallet.address.toRawString()}_${seqno}_${Date.now()}`
-  ).toString("hex").slice(0, 64);
+  logger.info({ toAddress, seqno }, "TON seqno advanced — fetching real tx hash");
 
-  logger.info({ txRef, toAddress, seqno }, "TON transfer confirmed (seqno advanced)");
-  return { txHash: txRef };
+  // After seqno advances, the most-recent transaction IS our send tx.
+  // Poll getTransactions to retrieve the actual blockchain hash.
+  let txHash = "";
+  const hashDeadline = Date.now() + 30_000;
+  while (Date.now() < hashDeadline) {
+    await new Promise<void>((r) => setTimeout(r, 2_000));
+    try {
+      const txs = await client.getTransactions(wallet.address, { limit: 1 });
+      if (txs.length > 0) {
+        txHash = Buffer.from(txs[0].hash()).toString("base64");
+        break;
+      }
+    } catch { /* keep polling */ }
+  }
+
+  if (!txHash) {
+    // Should rarely happen; keep a unique fallback so the DB row is still identifiable
+    txHash = `ref_${wallet.address.toRawString().slice(0, 16)}_${seqno}_${Date.now()}`;
+    logger.warn({ toAddress, seqno }, "TON tx hash not available — using seqno-based fallback");
+  }
+
+  logger.info({ txHash, toAddress, seqno }, "TON transfer confirmed");
+  return { txHash };
 }
 
 export async function getTonBalance(rpcUrl: string, address: string): Promise<string> {
