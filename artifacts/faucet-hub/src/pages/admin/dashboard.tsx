@@ -7,7 +7,7 @@ import {
   LogOut, LayoutDashboard, Link as LinkIcon,
   HeadphonesIcon, ClipboardList, ShieldOff, Wallet,
   FileText, Settings2, Globe, Send, Users, Radio, ArrowLeftRight, Network, GitBranch,
-  Download, Upload, Loader2, Megaphone, ShieldAlert, Database, Menu, X, ChevronRight,
+  Download, Upload, Loader2, Megaphone, ShieldAlert, Database, Menu, X, ChevronRight, Gift,
 } from "lucide-react";
 import { DashboardHome } from "@/components/admin/DashboardHome";
 import { ChainManagement } from "@/components/admin/ChainManagement";
@@ -25,6 +25,7 @@ import { LiveMonitor } from "@/components/admin/LiveMonitor";
 import { ExchangeManagement } from "@/components/admin/ExchangeManagement";
 import { PaymentNetworkManagement } from "@/components/admin/PaymentNetworkManagement";
 import { ReferralManagement } from "@/components/admin/ReferralManagement";
+import { PromoManagement } from "@/components/admin/PromoManagement";
 import { ChainLibrary } from "@/components/admin/ChainLibrary";
 import { AdManagement } from "@/components/admin/AdManagement";
 import { AntiAbusePanel } from "@/components/admin/AntiAbusePanel";
@@ -34,7 +35,7 @@ import { AdminTabErrorBoundary } from "@/components/admin/ErrorBoundary";
 
 type TopSection =
   | "dashboard" | "live" | "claims" | "support"
-  | "exchange" | "referral" | "siteconfig"
+  | "exchange" | "referral" | "promo" | "siteconfig"
   | "chains-group" | "analytics-group" | "security-group" | "content-group";
 
 type SubTab = { id: string; label: string; icon: React.ElementType };
@@ -82,6 +83,7 @@ const NAV: NavItem[] = [
   { section: "chains-group",    label: "Chains",        icon: LinkIcon,       subTabs: CHAINS_TABS },
   { section: "exchange",        label: "Exchange",      icon: ArrowLeftRight },
   { section: "referral",        label: "Referral",      icon: GitBranch },
+  { section: "promo",           label: "Promo Codes",   icon: Gift },
   { section: "analytics-group", label: "Analytics",     icon: ShieldOff,      subTabs: ANALYTICS_TABS },
   { section: "security-group",  label: "Security",      icon: ShieldAlert,    subTabs: SECURITY_TABS },
   { section: "content-group",   label: "Content",       icon: Send,           subTabs: CONTENT_TABS },
@@ -352,6 +354,7 @@ export default function AdminDashboard() {
           {activeSection === "support"    && <AdminTabErrorBoundary label="Support"><SupportManagement onUnreadCount={setSupportUnread} /></AdminTabErrorBoundary>}
           {activeSection === "exchange"   && <AdminTabErrorBoundary label="Exchange"><ExchangeManagement /></AdminTabErrorBoundary>}
           {activeSection === "referral"   && <AdminTabErrorBoundary label="Referral"><ReferralManagement /></AdminTabErrorBoundary>}
+          {activeSection === "promo"      && <AdminTabErrorBoundary label="Promo Codes"><PromoManagement /></AdminTabErrorBoundary>}
           {activeSection === "siteconfig" && <AdminTabErrorBoundary label="Settings"><SiteConfig /></AdminTabErrorBoundary>}
 
           {activeSection === "chains-group" && (

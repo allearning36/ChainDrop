@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChainPublic, useGetChain, getGetChainQueryKey } from "@workspace/api-client-react";
-import { Droplet, Wallet, Zap, Clock, Info, Copy, Check, ExternalLink, Plus } from "lucide-react";
+import { Droplet, Wallet, Zap, Clock, Info, Copy, Check, ExternalLink, Plus, Gift, X, Loader2 } from "lucide-react";
 import { formatCooldown, formatTokenAmount } from "@/lib/utils";
+import { PromoClaimModal } from "./PromoClaimModal";
 
 interface ChainCardProps {
   chain: ChainPublic;
@@ -15,6 +16,8 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [addingToWallet, setAddingToWallet] = useState(false);
   const [walletError, setWalletError] = useState("");
+  const [promoActive, setPromoActive] = useState(false);
+  const [promoModal, setPromoModal] = useState(false);
 
   const { data: detail } = useGetChain(chain.id, {
     query: {
@@ -23,6 +26,15 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
       queryKey: getGetChainQueryKey(chain.id),
     }
   });
+
+  // Check if this chain has an active promo
+  useEffect(() => {
+    if (!chain.id) return;
+    fetch(`/api/promo/chain/${chain.id}`)
+      .then(r => r.json())
+      .then((d: { active: boolean }) => setPromoActive(d.active === true))
+      .catch(() => {});
+  }, [chain.id]);
 
   const displayChain = detail || chain;
   const isSoon = displayChain.availableStatus === "SOON";
@@ -81,6 +93,10 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
   }
 
   return (
+    <>
+    {promoModal && (
+      <PromoClaimModal chain={displayChain} onClose={() => setPromoModal(false)} />
+    )}
     <div
       className="chain-card group relative flex flex-col overflow-visible transition-all duration-300"
       style={{
@@ -169,6 +185,24 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
 
           {/* Status dot + Info button */}
           <div className="ml-auto shrink-0 flex items-center gap-2">
+            {/* Promo/Airdrop gift button — shown when active promo exists */}
+            {promoActive && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setInfoOpen(false); setSoonPopover(false); setPromoModal(true); }}
+                className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 relative"
+                style={{
+                  background: "rgba(168,85,247,0.18)",
+                  border: "1px solid rgba(168,85,247,0.5)",
+                  color: "#c084fc",
+                  boxShadow: "0 0 8px rgba(168,85,247,0.3)",
+                }}
+                title="Airdrop promo active!"
+              >
+                <Gift className="w-3.5 h-3.5" />
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-purple-400 animate-ping opacity-75" />
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-purple-400" />
+              </button>
+            )}
             {/* Info button — always visible */}
             <button
               onClick={(e) => { e.stopPropagation(); setSoonPopover(false); setInfoOpen(p => !p); }}
@@ -456,6 +490,7 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
         </div>
       </div>
     </div>
+    </>
   );
 }
 

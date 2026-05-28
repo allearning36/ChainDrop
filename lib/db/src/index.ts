@@ -32,6 +32,35 @@ export const db = drizzle(pool, { schema });
 const DRIZZLE_MIGRATIONS_TABLE = "__drizzle_migrations";
 const BASELINE_HASH = "0000_light_luke_cage";
 
+const PROMO_TABLES_SQL = `
+  CREATE TABLE IF NOT EXISTS "promo_codes" (
+    "id" serial PRIMARY KEY NOT NULL,
+    "code" text NOT NULL UNIQUE,
+    "chain_id" integer NOT NULL,
+    "claim_amount" numeric(18, 8) NOT NULL,
+    "max_claims" integer DEFAULT 100 NOT NULL,
+    "used_count" integer DEFAULT 0 NOT NULL,
+    "is_active" boolean DEFAULT true NOT NULL,
+    "note" text,
+    "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+    "expires_at" timestamp with time zone
+  );
+  CREATE INDEX IF NOT EXISTS "promo_codes_chain_idx" ON "promo_codes" ("chain_id");
+  CREATE INDEX IF NOT EXISTS "promo_codes_code_idx" ON "promo_codes" ("code");
+
+  CREATE TABLE IF NOT EXISTS "promo_claims" (
+    "id" serial PRIMARY KEY NOT NULL,
+    "promo_id" integer NOT NULL,
+    "address" text NOT NULL,
+    "ip" text,
+    "tx_hash" text NOT NULL,
+    "claimed_at" timestamp with time zone DEFAULT now() NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS "promo_claims_promo_idx" ON "promo_claims" ("promo_id");
+  CREATE INDEX IF NOT EXISTS "promo_claims_address_idx" ON "promo_claims" ("address");
+  CREATE INDEX IF NOT EXISTS "promo_claims_ip_idx" ON "promo_claims" ("ip");
+`;
+
 const REFERRAL_TABLES_SQL = `
   CREATE TABLE IF NOT EXISTS "referrals" (
     "id" serial PRIMARY KEY NOT NULL,
@@ -120,9 +149,17 @@ export async function runMigrations(migrationsFolder?: string): Promise<void> {
   try {
     await pool.query(REFERRAL_TABLES_SQL);
   } catch (tblErr) {
-    // Non-fatal — tables may already exist or be partially created
     console.warn(
       `[db] Referral table setup warning: ${tblErr instanceof Error ? tblErr.message : String(tblErr)}`,
+    );
+  }
+
+  // Step 4: ensure promo tables exist (idempotent — safe to run every boot)
+  try {
+    await pool.query(PROMO_TABLES_SQL);
+  } catch (tblErr) {
+    console.warn(
+      `[db] Promo table setup warning: ${tblErr instanceof Error ? tblErr.message : String(tblErr)}`,
     );
   }
 }

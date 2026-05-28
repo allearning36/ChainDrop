@@ -18,3 +18,4 @@ export * from "./antiAbuse";
 export * from "./masterChains";
 export * from "./masterChainTokens";
 export * from "./liveErrorLogs";
+export * from "./promoCodes";
