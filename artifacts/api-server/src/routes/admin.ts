@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { eq, desc, count, gte, and } from "drizzle-orm";
 import { encryptPrivateKey, resolveChainWalletAddress } from "../lib/encryption";
 import { ethers } from "ethers";
-import { db, chainsTable, claimsTable, bannersTable, announcementsTable, settingsTable, paymentNetworksTable, abuseLogsTable, masterChainsTable, masterChainTokensTable, exchangePairsTable, liveErrorLogsTable } from "@workspace/db";
+import { db, pool, chainsTable, claimsTable, bannersTable, announcementsTable, settingsTable, paymentNetworksTable, abuseLogsTable, masterChainsTable, masterChainTokensTable, exchangePairsTable, liveErrorLogsTable } from "@workspace/db";
 import {
   referralsTable,
   referralCommissionsTable,
@@ -952,6 +952,26 @@ router.post("/admin/restore", requireAdmin, async (req, res): Promise<void> => {
     } catch { /* skip */ }
   }
   summary["settings"] = settingsOk;
+
+  // Reset auto-increment sequences so new inserts after restore don't conflict
+  // with the restored IDs. Without this, nextval() starts from 1 and crashes.
+  const sequenceResets = [
+    { seq: "chains_id_seq",                        table: "chains" },
+    { seq: "claims_id_seq",                        table: "claims" },
+    { seq: "banners_id_seq",                       table: "banners" },
+    { seq: "announcements_id_seq",                 table: "announcements" },
+    { seq: "referrals_id_seq",                     table: "referrals" },
+    { seq: "referral_commissions_id_seq",           table: "referral_commissions" },
+    { seq: "referral_claim_requests_id_seq",        table: "referral_claim_requests" },
+    { seq: "referral_balance_adjustments_id_seq",   table: "referral_balance_adjustments" },
+  ];
+  for (const { seq, table } of sequenceResets) {
+    try {
+      await pool.query(
+        `SELECT setval('${seq}', GREATEST(1, (SELECT COALESCE(MAX(id), 0) FROM "${table}")))`
+      );
+    } catch { /* table may not exist yet — safe to ignore */ }
+  }
 
   res.json({ success: true, restored: summary });
 });
