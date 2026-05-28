@@ -193,7 +193,17 @@ router.post("/promo/claim", async (req, res): Promise<void> => {
     txHash = result.txHash;
   } catch (err) {
     broadcastError("claim_error", err, { chainId, chainName: chain.name, address: normalizedAddress, ip: clientIp });
-    res.status(500).json({ error: "Transaction failed. Please try again." });
+    const msg = err instanceof Error ? err.message : "Transaction failed";
+    const userMsg = msg.includes("timed out")
+      ? "Transaction timed out — the RPC node may be slow. Try again."
+      : msg.includes("Insufficient") || msg.includes("insufficient")
+      ? "Faucet wallet has insufficient balance."
+      : msg.includes("private key") || msg.includes("secretKey") || msg.includes("Wrong secretKey")
+      ? "Faucet wallet key is misconfigured — contact admin."
+      : msg.includes("No private key")
+      ? "No private key configured for this chain."
+      : "Transaction failed. Please try again.";
+    res.status(500).json({ error: userMsg });
     return;
   }
 

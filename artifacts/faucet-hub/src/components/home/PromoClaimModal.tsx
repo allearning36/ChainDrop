@@ -239,7 +239,7 @@ export function PromoClaimModal({ chain, onClose }: PromoClaimModalProps) {
             <form onSubmit={handleSubmit} className="space-y-3">
               {/* Claim count badge — X/Y claimed */}
               {promoInfo && promoInfo.maxClaims != null && promoInfo.usedCount != null && (
-                <div className="flex items-center justify-between rounded-lg px-3 py-2"
+                <div className="flex items-center justify-center gap-2 rounded-lg px-3 py-2"
                   style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.2)" }}
                 >
                   <span className="text-[10px] font-mono uppercase tracking-wider text-white/40">Claims</span>

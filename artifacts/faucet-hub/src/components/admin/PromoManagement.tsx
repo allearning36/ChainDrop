@@ -189,10 +189,10 @@ export function PromoManagement() {
     const totalNeeded = amount * maxClaims;
     balanceWarnTimer.current = setTimeout(async () => {
       try {
-        const res = await adminFetch(`/api/admin/chains/${chainId}`);
+        const res = await fetch(`/api/chains/${chainId}`);
         if (!res.ok) return;
         const data = await res.json() as { walletBalanceEth?: string | null; symbol?: string };
-        const balance = parseFloat(data.walletBalanceEth ?? "0");
+        const balance = parseFloat(data.walletBalanceEth ?? "");
         if (!isNaN(balance) && balance < totalNeeded) {
           const sym = data.symbol ?? "";
           setBalanceWarn(
