@@ -2,9 +2,9 @@ import { Router, type IRouter } from "express";
 import { eq, asc, desc } from "drizzle-orm";
 import { db, chainsTable } from "@workspace/db";
 import { GetChainsQueryParams, GetChainParams } from "@workspace/api-zod";
-import { getWalletBalance, type ChainType } from "../lib/chains/index";
+import { getWalletBalance, deriveWalletAddress, type ChainType } from "../lib/chains/index";
 import { parseRpcUrls } from "../lib/rpcFailover";
-import { resolveChainWalletAddress } from "../lib/encryption";
+import { resolveChainWalletAddress, resolveChainPrivateKey } from "../lib/encryption";
 
 const router: IRouter = Router();
 
@@ -71,15 +71,25 @@ router.get("/chains/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  // Resolve wallet address: stored value first, then derive from private key for non-EVM chains
+  let walletAddr = resolveChainWalletAddress(chain.walletAddress);
+  if (!walletAddr && chain.privateKey) {
+    try {
+      const { resolveChainPrivateKey } = await import("../lib/encryption");
+      const pk = resolveChainPrivateKey(chain.privateKey);
+      walletAddr = await deriveWalletAddress(chain.chainType as ChainType, pk);
+    } catch { walletAddr = ""; }
+  }
+
   const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
-  const walletBalanceEth = await Promise.race([
+  const walletBalanceEth = walletAddr ? await Promise.race([
     getWalletBalance(
       chain.chainType as ChainType,
       parseRpcUrls(chain.rpcUrls, chain.rpcUrl),
-      resolveChainWalletAddress(chain.walletAddress)
+      walletAddr
     ),
     timeout,
-  ]);
+  ]) : null;
 
   res.json({
     id: chain.id,

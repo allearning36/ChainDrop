@@ -165,6 +165,50 @@ export async function isValidAddress(
   }
 }
 
+// ── Wallet address derivation ────────────────────────────────────────────────
+/**
+ * Derive the faucet wallet address from a private key, using the correct
+ * method for each chain type.  Falls back to empty string on error.
+ */
+export async function deriveWalletAddress(chainType: ChainType, privateKey: string): Promise<string> {
+  try {
+    switch (chainType) {
+      case "evm":
+      case "custom": {
+        const { ethers } = await import("ethers");
+        const pk = privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`;
+        return new ethers.Wallet(pk).address;
+      }
+      case "solana": {
+        const { Keypair } = await import("@solana/web3.js");
+        const bs58 = await import("bs58");
+        let secret: Uint8Array;
+        try {
+          secret = bs58.default.decode(privateKey);
+        } catch {
+          secret = Buffer.from(privateKey.replace(/^0x/, ""), "hex");
+        }
+        return Keypair.fromSecretKey(secret).publicKey.toBase58();
+      }
+      case "ton": {
+        // TON wallet address derivation requires mnemonic → skip silent fallback
+        return "";
+      }
+      case "sui": {
+        const { getSuiWalletAddress } = await import("./sui");
+        return getSuiWalletAddress(privateKey);
+      }
+      case "aptos": {
+        const { Account, Ed25519PrivateKey } = await import("@aptos-labs/ts-sdk");
+        const account = Account.fromPrivateKey({ privateKey: new Ed25519PrivateKey(privateKey) });
+        return account.accountAddress.toString();
+      }
+    }
+  } catch {
+    return "";
+  }
+}
+
 // ── Explorer URLs ─────────────────────────────────────────────────────────────
 
 export function getTxExplorerUrl(

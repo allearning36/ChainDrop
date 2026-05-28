@@ -3,9 +3,9 @@ import { eq, desc, asc, and, ilike, count as drizzleCount, sql, gte } from "driz
 import crypto from "crypto";
 import { db, claimsTable, chainsTable, blockedAddressesTable, settingsTable } from "@workspace/db";
 import { requireAdmin } from "../lib/adminAuth";
-import { getWalletBalance, type ChainType } from "../lib/chains/index";
+import { getWalletBalance, deriveWalletAddress, type ChainType } from "../lib/chains/index";
 import { parseRpcUrls } from "../lib/rpcFailover";
-import { resolveChainWalletAddress } from "../lib/encryption";
+import { resolveChainWalletAddress, resolveChainPrivateKey } from "../lib/encryption";
 
 const router: IRouter = Router();
 
@@ -188,11 +188,21 @@ router.get("/admin/wallet-health", requireAdmin, async (_req, res): Promise<void
   const results = await Promise.allSettled(
     chains.map(async c => {
       let balance: string | null = null;
+      // Resolve wallet address: use stored value if set, otherwise derive from private key
+      let walletAddr = resolveChainWalletAddress(c.walletAddress);
+      if (!walletAddr) {
+        try {
+          const pk = resolveChainPrivateKey(c.privateKey);
+          walletAddr = await deriveWalletAddress(c.chainType as ChainType, pk);
+        } catch { walletAddr = ""; }
+      }
       try {
-        balance = await withTimeout(
-          getWalletBalance(c.chainType as ChainType, parseRpcUrls(c.rpcUrls, c.rpcUrl), resolveChainWalletAddress(c.walletAddress)),
-          BALANCE_TIMEOUT_MS
-        );
+        if (walletAddr) {
+          balance = await withTimeout(
+            getWalletBalance(c.chainType as ChainType, parseRpcUrls(c.rpcUrls, c.rpcUrl), walletAddr),
+            BALANCE_TIMEOUT_MS
+          );
+        }
       } catch {
         balance = null;
       }
@@ -204,7 +214,7 @@ router.get("/admin/wallet-health", requireAdmin, async (_req, res): Promise<void
         logoUrl: c.logoUrl,
         isTestnet: c.isTestnet,
         isEnabled: c.isEnabled,
-        walletAddress: c.walletAddress,
+        walletAddress: walletAddr || c.walletAddress,
         claimAmount: c.claimAmount,
         balance,
       };

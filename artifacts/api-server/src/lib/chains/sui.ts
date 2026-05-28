@@ -6,7 +6,15 @@ import { logger } from "../logger";
 const MIST_PER_SUI = 1_000_000_000n;
 
 function makeClient(rpcUrl: string): SuiJsonRpcClient {
-  return new SuiJsonRpcClient({ url: rpcUrl, network: "testnet" });
+  // Infer network from URL so balance is fetched from the correct network
+  const url = rpcUrl.toLowerCase();
+  const network = url.includes("testnet") ? "testnet" : url.includes("devnet") ? "devnet" : "mainnet";
+  return new SuiJsonRpcClient({ url: rpcUrl, network });
+}
+
+export function getSuiWalletAddress(privateKey: string): string {
+  const keypair = Ed25519Keypair.fromSecretKey(privateKey);
+  return keypair.toSuiAddress();
 }
 
 export async function sendSui(
