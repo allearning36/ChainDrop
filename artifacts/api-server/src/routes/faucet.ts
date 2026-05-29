@@ -516,8 +516,7 @@ router.get("/faucet/history", async (_req, res): Promise<void> => {
         amount: p.amount!, claimedAt: p.claimedAt.toISOString(), type: "buy" as const,
       })),
   ]
-    .sort((a, b) => new Date(b.claimedAt).getTime() - new Date(a.claimedAt).getTime())
-    .slice(0, 20);
+    .sort((a, b) => new Date(b.claimedAt).getTime() - new Date(a.claimedAt).getTime());
 
   res.json(combined);
 });
