@@ -184,7 +184,7 @@ export function PromoClaimModal({ chain, onClose }: PromoClaimModalProps) {
               }}
               onClick={e => e.stopPropagation()}
             >
-              <span className="text-sm leading-none">🎁</span>
+              <Gift className="w-3.5 h-3.5" />
               <span>Get Code</span>
             </a>
           )}
