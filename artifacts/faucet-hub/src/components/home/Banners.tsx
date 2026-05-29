@@ -37,8 +37,8 @@ export function Banners() {
         className="relative w-full group rounded-xl overflow-hidden border border-white/10"
         style={{ boxShadow: "0 0 24px rgba(34,197,94,0.12), 0 4px 24px rgba(0,0,0,0.5)" }}
       >
-        {/* Aspect-ratio wrapper — max-height keeps banner compact on wide screens */}
-        <div className="relative w-full" style={{ aspectRatio: "1200/600", maxHeight: "220px" }}>
+        {/* Aspect-ratio wrapper — aspect ratio keeps image proportional on all screen sizes */}
+        <div className="relative w-full" style={{ aspectRatio: "1200/600" }}>
 
           {/* Sliding track — all banners side by side */}
           <div
