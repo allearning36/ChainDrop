@@ -18,29 +18,77 @@ import AdminDashboard from "@/pages/admin/dashboard";
 
 import "@/lib/auth";
 
-// ── Custom meta tags injection (from admin Site Verification settings) ────────
-function useCustomMetaTags() {
+interface IntegrationsConfig {
+  googleAds?: { enabled?: boolean; publisherId?: string };
+  googleAnalytics?: { enabled?: boolean; measurementId?: string };
+  googleSearchConsole?: { verificationCode?: string };
+  customMetaTags?: string;
+}
+
+// ── Integrations injection (AdSense, GA4, Search Console, custom meta tags) ──
+function useIntegrations() {
   const injectedRef = useRef<HTMLElement[]>([]);
+
   useEffect(() => {
     fetch("/api/site-config/public")
       .then(r => r.ok ? r.json() : null)
-      .then((d: { integrations?: { customMetaTags?: string } } | null) => {
-        const raw = d?.integrations?.customMetaTags?.trim() ?? "";
-        if (!raw) return;
-        // Remove previously injected elements
+      .then((d: { integrations?: IntegrationsConfig } | null) => {
+        const cfg = d?.integrations ?? {};
+
+        // Remove any previously injected elements
         injectedRef.current.forEach(el => el.remove());
         injectedRef.current = [];
-        // Parse and inject each tag individually
-        const temp = document.createElement("div");
-        temp.innerHTML = raw;
-        Array.from(temp.children).forEach(child => {
-          const tag = child.cloneNode(true) as HTMLElement;
-          tag.setAttribute("data-chaindrop-custom", "1");
-          document.head.appendChild(tag);
-          injectedRef.current.push(tag);
-        });
+
+        function inject(el: HTMLElement) {
+          el.setAttribute("data-chaindrop-injected", "1");
+          document.head.appendChild(el);
+          injectedRef.current.push(el);
+        }
+
+        // ── Google AdSense ──────────────────────────────────────────────────
+        const adsPublisherId = cfg.googleAds?.publisherId?.trim();
+        if (cfg.googleAds?.enabled && adsPublisherId) {
+          const s = document.createElement("script");
+          s.async = true;
+          s.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsPublisherId}`;
+          s.crossOrigin = "anonymous";
+          inject(s);
+        }
+
+        // ── Google Analytics 4 ──────────────────────────────────────────────
+        const gaMeasurementId = cfg.googleAnalytics?.measurementId?.trim();
+        if (cfg.googleAnalytics?.enabled && gaMeasurementId) {
+          const s = document.createElement("script");
+          s.async = true;
+          s.src = `https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`;
+          inject(s);
+
+          const inline = document.createElement("script");
+          inline.textContent = `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${gaMeasurementId}');`;
+          inject(inline);
+        }
+
+        // ── Google Search Console verification ──────────────────────────────
+        const gscCode = cfg.googleSearchConsole?.verificationCode?.trim();
+        if (gscCode) {
+          const meta = document.createElement("meta");
+          meta.name = "google-site-verification";
+          meta.content = gscCode;
+          inject(meta);
+        }
+
+        // ── Custom meta tags (Bitmedia, Coinzilla, Bing, etc.) ──────────────
+        const raw = cfg.customMetaTags?.trim() ?? "";
+        if (raw) {
+          const temp = document.createElement("div");
+          temp.innerHTML = raw;
+          Array.from(temp.children).forEach(child => {
+            inject(child.cloneNode(true) as HTMLElement);
+          });
+        }
       })
       .catch(() => {});
+
     return () => {
       injectedRef.current.forEach(el => el.remove());
       injectedRef.current = [];
@@ -91,7 +139,7 @@ function Router() {
 }
 
 function App() {
-  useCustomMetaTags();
+  useIntegrations();
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
