@@ -144,10 +144,18 @@ app.use("/api", (err: unknown, _req: Request, res: Response, _next: NextFunction
   }
 });
 
-// ── ads.txt — served before static middleware so Railway always finds it ──────
-app.get("/ads.txt", (_req, res) => {
-  res.type("text/plain");
-  res.send("google.com, pub-8741237077271149, DIRECT, f08c47fec0942fa0\n");
+// ── ads.txt — dynamic, reads publisher ID from DB settings ───────────────────
+app.get("/ads.txt", async (_req, res) => {
+  try {
+    const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "integrations")).limit(1);
+    const cfg: { googleAds?: { publisherId?: string } } = row?.value ? JSON.parse(row.value) : {};
+    const pubId = cfg.googleAds?.publisherId?.replace("ca-pub-", "").trim() || "9927771832666022";
+    res.type("text/plain");
+    res.send(`google.com, pub-${pubId}, DIRECT, f08c47fec0942fa0\n`);
+  } catch {
+    res.type("text/plain");
+    res.send("google.com, pub-9927771832666022, DIRECT, f08c47fec0942fa0\n");
+  }
 });
 
 // ── Serve faucet-hub static frontend (production) ────────────────────────────
