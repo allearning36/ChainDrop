@@ -10,7 +10,94 @@ import { ChainCard } from "@/components/home/ChainCard";
 import { RecentFeed } from "@/components/home/RecentFeed";
 import { ClaimModal } from "@/components/home/ClaimModal";
 import { useGetChains, getGetChainsQueryKey, ChainPublic } from "@workspace/api-client-react";
-import { Loader2, Search, X, SlidersHorizontal, Check } from "lucide-react";
+import { Loader2, Search, X, SlidersHorizontal, Check, Heart, Copy, Check as CheckIcon } from "lucide-react";
+
+interface DonationAddress { chain: string; symbol: string; address: string; }
+
+function DonateModal({ addresses, onClose }: { addresses: DonationAddress[]; onClose: () => void }) {
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const copy = (addr: string) => {
+    navigator.clipboard.writeText(addr).then(() => {
+      setCopied(addr);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div
+        className="relative w-full max-w-md rounded-2xl border border-border overflow-hidden"
+        style={{ background: "rgba(10,12,18,0.98)", boxShadow: "0 24px 64px rgba(0,0,0,0.7)" }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl" style={{ background: "rgba(239,68,68,0.15)" }}>
+              <Heart className="w-5 h-5 text-red-400 fill-red-400" />
+            </div>
+            <div>
+              <h2 className="font-bold font-mono text-base text-foreground">Support ChainDrop</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Your donation keeps the faucet running</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/8 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Divider */}
+        <div className="h-px mx-6" style={{ background: "rgba(255,255,255,0.06)" }} />
+
+        {/* Addresses */}
+        <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto">
+          {addresses.length === 0 ? (
+            <p className="text-center text-muted-foreground text-sm font-mono py-4">No donation addresses configured yet.</p>
+          ) : addresses.map((a, i) => (
+            <div
+              key={i}
+              className="rounded-xl border border-border p-4 space-y-2"
+              style={{ background: "rgba(255,255,255,0.02)" }}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-full" style={{ background: "rgba(34,197,94,0.12)", color: "#22c55e" }}>
+                  {a.symbol}
+                </span>
+                <span className="text-sm font-mono text-foreground/80">{a.chain}</span>
+              </div>
+              <div
+                className="flex items-center gap-2 rounded-lg px-3 py-2 cursor-pointer group transition-colors"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
+                onClick={() => copy(a.address)}
+              >
+                <span className="flex-1 font-mono text-xs text-muted-foreground break-all leading-relaxed group-hover:text-foreground transition-colors">
+                  {a.address}
+                </span>
+                {copied === a.address ? (
+                  <CheckIcon className="w-4 h-4 text-green-400 shrink-0" />
+                ) : (
+                  <Copy className="w-4 h-4 text-muted-foreground shrink-0 group-hover:text-foreground transition-colors" />
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 pb-5">
+          <p className="text-center text-xs text-muted-foreground font-mono">
+            Thank you for supporting the community ♥
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   const [networkType, setNetworkType] = useState<"testnet" | "mainnet">("testnet");
@@ -18,6 +105,8 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "YES" | "SOON" | "NO">("all");
   const [filterOpen, setFilterOpen] = useState(false);
+  const [donateOpen, setDonateOpen] = useState(false);
+  const [donationAddresses, setDonationAddresses] = useState<DonationAddress[]>([]);
 
   const STATUS_FILTERS: { value: "all" | "YES" | "SOON" | "NO"; label: string; color: string }[] = [
     { value: "all",  label: "All Chains",   color: "rgba(255,255,255,0.6)" },
@@ -25,6 +114,15 @@ export default function Home() {
     { value: "SOON", label: "Coming Soon",  color: "#f59e0b" },
     { value: "NO",   label: "Offline/Down", color: "#ef4444" },
   ];
+
+  useEffect(() => {
+    fetch("/api/site-config/public")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { donationAddresses?: DonationAddress[] } | null) => {
+        if (Array.isArray(d?.donationAddresses)) setDonationAddresses(d!.donationAddresses);
+      })
+      .catch(() => {});
+  }, []);
 
   // Handle ?ref= referral registration
   useEffect(() => {
@@ -369,6 +467,33 @@ export default function Home() {
         )}
 
         <RecentFeed />
+
+        {/* Support ChainDrop banner — only show if donation addresses are configured */}
+        {donationAddresses.length > 0 && (
+          <div className="mt-8 flex justify-center">
+            <button
+              onClick={() => setDonateOpen(true)}
+              className="group flex items-center gap-3 px-6 py-3 rounded-2xl border transition-all duration-300 hover:scale-[1.02]"
+              style={{
+                background: "rgba(239,68,68,0.06)",
+                border: "1px solid rgba(239,68,68,0.2)",
+                boxShadow: "0 0 20px rgba(239,68,68,0.04)",
+              }}
+            >
+              <Heart
+                className="w-4 h-4 text-red-400 transition-transform duration-300 group-hover:scale-110"
+                style={{ fill: "rgba(239,68,68,0.5)" }}
+              />
+              <span className="font-mono text-sm font-semibold" style={{ color: "rgba(255,255,255,0.75)" }}>
+                Support ChainDrop
+              </span>
+              <span className="font-mono text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(239,68,68,0.12)", color: "rgba(239,68,68,0.8)" }}>
+                Donate
+              </span>
+            </button>
+          </div>
+        )}
+
         <AdSlot id="home-bottom" className="mt-6" />
       </main>
 
@@ -378,6 +503,10 @@ export default function Home() {
         chain={selectedChain} 
         onClose={() => setSelectedChain(null)} 
       />
+
+      {donateOpen && (
+        <DonateModal addresses={donationAddresses} onClose={() => setDonateOpen(false)} />
+      )}
     </div>
   );
 }

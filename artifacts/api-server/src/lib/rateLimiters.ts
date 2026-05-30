@@ -1,4 +1,5 @@
-import rateLimit, { type Request, type Response } from "express-rate-limit";
+import rateLimit from "express-rate-limit";
+import type { Request, Response } from "express";
 
 // ── Per-wallet in-memory rate limiter ────────────────────────────────────────
 // Limits claim attempts per wallet address (independent of IP).

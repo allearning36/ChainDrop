@@ -27,6 +27,7 @@ const DEFAULT_HERO = {
   showStats: true,
 };
 
+const DEFAULT_DONATION_ADDRESSES: { chain: string; symbol: string; address: string }[] = [];
 const DEFAULT_SOCIAL = { twitter: "", telegram: "", discord: "", github: "" };
 const DEFAULT_SEO = { title: "ChainDrop — Multi-Chain Crypto Faucet Hub", description: "Get free testnet crypto tokens from ChainDrop. Supports multiple EVM-compatible chains including Sepolia and more.", ogImage: "" };
 const DEFAULT_MAINTENANCE = { enabled: false, message: "We're currently performing maintenance. Please check back soon." };
@@ -41,12 +42,13 @@ const DEFAULT_INTEGRATIONS = {
 
 // ── Public endpoint (for footer social links, SEO meta, maintenance banner) ────
 router.get("/site-config/public", async (_req, res): Promise<void> => {
-  const [social, seo, maintenance, integrations, heroSection] = await Promise.all([
+  const [social, seo, maintenance, integrations, heroSection, donationAddresses] = await Promise.all([
     getSetting("socialLinks", DEFAULT_SOCIAL),
     getSetting("seoSettings", DEFAULT_SEO),
     getSetting("maintenanceMode", DEFAULT_MAINTENANCE),
     getSetting("integrations", DEFAULT_INTEGRATIONS),
     getSetting("heroSection", DEFAULT_HERO),
+    getSetting("donationAddresses", DEFAULT_DONATION_ADDRESSES),
   ]);
   res.json({
     socialLinks: social,
@@ -57,12 +59,13 @@ router.get("/site-config/public", async (_req, res): Promise<void> => {
     maintenanceMessage: maintenance.message,
     integrations,
     heroSection,
+    donationAddresses,
   });
 });
 
 // ── Admin: get all config ─────────────────────────────────────────────────────
 router.get("/admin/site-config", requireAdmin, async (_req, res): Promise<void> => {
-  const [socialLinks, seoSettings, maintenanceMode, rateLimitConfig, ipClaimConfig, integrations, heroSection] = await Promise.all([
+  const [socialLinks, seoSettings, maintenanceMode, rateLimitConfig, ipClaimConfig, integrations, heroSection, donationAddresses] = await Promise.all([
     getSetting("socialLinks", DEFAULT_SOCIAL),
     getSetting("seoSettings", DEFAULT_SEO),
     getSetting("maintenanceMode", DEFAULT_MAINTENANCE),
@@ -70,8 +73,9 @@ router.get("/admin/site-config", requireAdmin, async (_req, res): Promise<void> 
     getSetting("ipClaimConfig", DEFAULT_IPCLAIMCONFIG),
     getSetting("integrations", DEFAULT_INTEGRATIONS),
     getSetting("heroSection", DEFAULT_HERO),
+    getSetting("donationAddresses", DEFAULT_DONATION_ADDRESSES),
   ]);
-  res.json({ socialLinks, seoSettings, maintenanceMode, rateLimitConfig, ipClaimConfig, integrations, heroSection });
+  res.json({ socialLinks, seoSettings, maintenanceMode, rateLimitConfig, ipClaimConfig, integrations, heroSection, donationAddresses });
 });
 
 // ── Admin: update sections ────────────────────────────────────────────────────
@@ -164,6 +168,21 @@ router.patch("/admin/site-config/heroSection", requireAdmin, async (req, res): P
     subtext:            typeof b.subtext           === "string" ? b.subtext.trim()           : DEFAULT_HERO.subtext,
     showStats:          b.showStats !== false,
   });
+  res.json({ ok: true });
+});
+
+router.patch("/admin/site-config/donationAddresses", requireAdmin, async (req, res): Promise<void> => {
+  const body = req.body;
+  if (!Array.isArray(body)) { res.status(400).json({ error: "Expected an array" }); return; }
+  const cleaned = body
+    .filter((e): e is Record<string, unknown> => typeof e === "object" && e !== null)
+    .map(e => ({
+      chain:   typeof e.chain   === "string" ? e.chain.trim()   : "",
+      symbol:  typeof e.symbol  === "string" ? e.symbol.trim()  : "",
+      address: typeof e.address === "string" ? e.address.trim() : "",
+    }))
+    .filter(e => e.chain && e.symbol && e.address);
+  await setSetting("donationAddresses", cleaned);
   res.json({ ok: true });
 });
 

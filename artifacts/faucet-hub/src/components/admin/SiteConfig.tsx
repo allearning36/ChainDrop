@@ -5,12 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, Globe, Search, Wrench, Shield, AlertTriangle, Puzzle, Paintbrush, KeyRound, Upload, ImageIcon, LayoutTemplate } from "lucide-react";
+import { Loader2, Save, Globe, Search, Wrench, Shield, AlertTriangle, Puzzle, Paintbrush, KeyRound, Upload, ImageIcon, LayoutTemplate, Heart, Plus, Trash2 } from "lucide-react";
 import { LogoManagement } from "./LogoManagement";
 import { ChangePassword } from "./ChangePassword";
 
 
-type Tab = "social" | "seo" | "maintenance" | "ratelimit" | "claimlimits" | "integrations" | "logo" | "password" | "hero";
+type Tab = "social" | "seo" | "maintenance" | "ratelimit" | "claimlimits" | "integrations" | "logo" | "password" | "hero" | "donations";
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "social", label: "Social Links", icon: Globe },
   { id: "seo", label: "SEO Settings", icon: Search },
@@ -19,6 +19,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "claimlimits", label: "Claim Limits", icon: AlertTriangle },
   { id: "integrations", label: "Integrations", icon: Puzzle },
   { id: "hero", label: "Hero Section", icon: LayoutTemplate },
+  { id: "donations", label: "Donations", icon: Heart },
   { id: "logo", label: "Logo", icon: Paintbrush },
   { id: "password", label: "Password", icon: KeyRound },
 ];
@@ -43,7 +44,8 @@ interface HeroConfig {
   subtext: string;
   showStats: boolean;
 }
-interface SiteConfigData { socialLinks: SocialLinks; seoSettings: SEOSettings; maintenanceMode: MaintenanceMode; rateLimitConfig: RateLimitConfig; ipClaimConfig: IpClaimConfig; integrations: IntegrationsConfig; heroSection: HeroConfig; }
+export interface DonationAddress { chain: string; symbol: string; address: string; }
+interface SiteConfigData { socialLinks: SocialLinks; seoSettings: SEOSettings; maintenanceMode: MaintenanceMode; rateLimitConfig: RateLimitConfig; ipClaimConfig: IpClaimConfig; integrations: IntegrationsConfig; heroSection: HeroConfig; donationAddresses: DonationAddress[]; }
 
 const DEFAULT: SiteConfigData = {
   socialLinks: { twitter: "", telegram: "", discord: "", github: "" },
@@ -66,6 +68,7 @@ const DEFAULT: SiteConfigData = {
     subtext: "Claim testnet & mainnet tokens across multiple chains. No registration, no fees — just your wallet address.",
     showStats: true,
   },
+  donationAddresses: [],
 };
 
 type SaveFn = (section: keyof SiteConfigData, value: object) => Promise<void>;
@@ -527,6 +530,79 @@ function HeroTab({ data, onSave, saving }: { data: HeroConfig; onSave: SaveFn; s
   );
 }
 
+function DonationsTab({ data, saving, onSave }: { data: DonationAddress[]; saving: boolean; onSave: (section: keyof SiteConfigData, value: object) => Promise<void> }) {
+  const [items, setItems] = useState<DonationAddress[]>(data);
+  useEffect(() => setItems(data), [data]);
+
+  const add = () => setItems(p => [...p, { chain: "", symbol: "", address: "" }]);
+  const remove = (i: number) => setItems(p => p.filter((_, j) => j !== i));
+  const update = (i: number, key: keyof DonationAddress, val: string) =>
+    setItems(p => p.map((e, j) => j === i ? { ...e, [key]: val } : e));
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+      <p className="text-sm text-muted-foreground">
+        Add wallet addresses for each chain where users can donate to support ChainDrop. These will be shown on the site as a "Support ChainDrop" section.
+      </p>
+
+      {items.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground font-mono">
+          No donation addresses added yet.
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {items.map((item, i) => (
+          <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-border bg-card">
+            <div className="grid grid-cols-3 gap-2 flex-1">
+              <div className="space-y-1">
+                <Label className="font-mono text-xs">Chain Name</Label>
+                <Input
+                  value={item.chain}
+                  onChange={e => update(i, "chain", e.target.value)}
+                  placeholder="e.g. Ethereum"
+                  className="font-mono bg-background border-border text-sm h-8"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="font-mono text-xs">Symbol</Label>
+                <Input
+                  value={item.symbol}
+                  onChange={e => update(i, "symbol", e.target.value)}
+                  placeholder="e.g. ETH"
+                  className="font-mono bg-background border-border text-sm h-8"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="font-mono text-xs">Wallet Address</Label>
+                <Input
+                  value={item.address}
+                  onChange={e => update(i, "address", e.target.value)}
+                  placeholder="0x..."
+                  className="font-mono bg-background border-border text-sm h-8"
+                />
+              </div>
+            </div>
+            <button
+              onClick={() => remove(i)}
+              className="mt-5 p-1.5 rounded-lg text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+              title="Remove"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <Button variant="outline" onClick={add} className="font-mono gap-2">
+        <Plus className="w-4 h-4" /> Add Address
+      </Button>
+
+      <SaveBtn onClick={() => onSave("donationAddresses", items)} saving={saving} />
+    </div>
+  );
+}
+
 export function SiteConfig() {
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>("social");
@@ -538,13 +614,14 @@ export function SiteConfig() {
     adminFetch("/api/admin/site-config")
       .then(r => r.json())
       .then((d: Partial<SiteConfigData>) => setCfg(prev => ({
-        socialLinks:       { ...DEFAULT.socialLinks,       ...(d.socialLinks       ?? {}) },
-        seoSettings:       { ...DEFAULT.seoSettings,       ...(d.seoSettings       ?? {}) },
-        maintenanceMode:   { ...DEFAULT.maintenanceMode,   ...(d.maintenanceMode   ?? {}) },
-        rateLimitConfig:   { ...DEFAULT.rateLimitConfig,   ...(d.rateLimitConfig   ?? {}) },
-        ipClaimConfig:     { ...DEFAULT.ipClaimConfig,     ...(d.ipClaimConfig     ?? {}) },
-        integrations:      { ...prev.integrations,         ...(d.integrations      ?? {}) },
-        heroSection:       { ...DEFAULT.heroSection,       ...(d.heroSection       ?? {}) },
+        socialLinks:         { ...DEFAULT.socialLinks,       ...(d.socialLinks       ?? {}) },
+        seoSettings:         { ...DEFAULT.seoSettings,       ...(d.seoSettings       ?? {}) },
+        maintenanceMode:     { ...DEFAULT.maintenanceMode,   ...(d.maintenanceMode   ?? {}) },
+        rateLimitConfig:     { ...DEFAULT.rateLimitConfig,   ...(d.rateLimitConfig   ?? {}) },
+        ipClaimConfig:       { ...DEFAULT.ipClaimConfig,     ...(d.ipClaimConfig     ?? {}) },
+        integrations:        { ...prev.integrations,         ...(d.integrations      ?? {}) },
+        heroSection:         { ...DEFAULT.heroSection,       ...(d.heroSection       ?? {}) },
+        donationAddresses:   Array.isArray(d.donationAddresses) ? d.donationAddresses : [],
       })))
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -587,6 +664,7 @@ export function SiteConfig() {
       {tab === "claimlimits" && <IpClaimConfigTab data={cfg.ipClaimConfig} onSave={save} saving={saving} />}
       {tab === "integrations" && <IntegrationsTab data={cfg.integrations} onSave={save} saving={saving} />}
       {tab === "hero" && <HeroTab data={cfg.heroSection} onSave={save} saving={saving} />}
+      {tab === "donations" && <DonationsTab data={cfg.donationAddresses} onSave={save} saving={saving} />}
       {tab === "logo" && <LogoManagement />}
       {tab === "password" && <ChangePassword />}
     </div>
