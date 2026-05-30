@@ -49,7 +49,7 @@ router.post("/faucet/claim", claimLimiter, async (req, res): Promise<void> => {
   const walletCheck = checkWalletRateLimit(address);
   if (!walletCheck.allowed) {
     const retryMins = Math.ceil(walletCheck.retryAfterMs / 60000);
-    res.status(429).json({ error: `Too many claim attempts for this wallet. Please wait ${retryMins} minute(s).` });
+    res.status(429).json({ error: `You have reached the claim limit for this wallet. You can claim again in ${retryMins} minute(s).` });
     return;
   }
 

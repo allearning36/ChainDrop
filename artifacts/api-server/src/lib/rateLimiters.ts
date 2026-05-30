@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { type Request, type Response } from "express-rate-limit";
 
 // ── Per-wallet in-memory rate limiter ────────────────────────────────────────
 // Limits claim attempts per wallet address (independent of IP).
@@ -43,7 +43,15 @@ export const claimLimiter = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many claim attempts. Please wait before trying again." },
+  handler: (req: Request, res: Response) => {
+    const retryAfterSec = Math.ceil(
+      Number(res.getHeader("Retry-After") ?? 60)
+    );
+    const retryMins = Math.ceil(retryAfterSec / 60);
+    res.status(429).json({
+      error: `You have reached the claim limit for this session. Please wait ${retryMins} minute(s) before trying again.`,
+    });
+  },
 });
 
 export const supportLimiter = rateLimit({
