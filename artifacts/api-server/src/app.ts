@@ -173,13 +173,20 @@ if (fs.existsSync(frontendDist)) {
     try { indexHtmlTemplate = fs.readFileSync(indexHtmlPath, "utf-8"); } catch { /* ignore */ }
   });
 
-  // 5-minute in-memory cache for SEO settings (avoids a DB round-trip per crawl)
+  // 5-minute in-memory cache for SEO + integrations (avoids a DB round-trip per crawl)
   let seoCache: { title: string; description: string; ogImage: string; ts: number } | null = null;
+  let integrationsCache: {
+    adsenseEnabled: boolean; adsensePublisherId: string;
+    gscCode: string;
+    ts: number;
+  } | null = null;
 
-  // SPA fallback — inject live SEO meta from DB, then serve index.html
+  // SPA fallback — inject live SEO meta + AdSense from DB, then serve index.html
   app.get("/{*path}", async (req: Request, res: Response) => {
     try {
       const now = Date.now();
+
+      // Refresh SEO cache every 5 minutes
       if (!seoCache || now - seoCache.ts > 5 * 60 * 1000) {
         const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "seoSettings")).limit(1);
         const seo: { title?: string; description?: string; ogImage?: string } =
@@ -192,6 +199,21 @@ if (fs.existsSync(frontendDist)) {
         };
       }
 
+      // Refresh integrations cache every 5 minutes
+      if (!integrationsCache || now - integrationsCache.ts > 5 * 60 * 1000) {
+        const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "integrations")).limit(1);
+        const cfg: {
+          googleAds?: { enabled?: boolean; publisherId?: string };
+          googleSearchConsole?: { verificationCode?: string };
+        } = row?.value ? JSON.parse(row.value) : {};
+        integrationsCache = {
+          adsenseEnabled:     cfg.googleAds?.enabled     ?? false,
+          adsensePublisherId: cfg.googleAds?.publisherId ?? "",
+          gscCode:            cfg.googleSearchConsole?.verificationCode ?? "",
+          ts: now,
+        };
+      }
+
       // Ensure og:image is an absolute URL so crawlers can fetch it
       let ogImage = seoCache.ogImage;
       if (ogImage && ogImage.startsWith("/")) {
@@ -200,8 +222,21 @@ if (fs.existsSync(frontendDist)) {
         ogImage = `${proto}://${host}${ogImage}`;
       }
 
+      // Build head injection snippet (AdSense + Search Console)
+      const headInjection: string[] = [];
+      if (integrationsCache.adsenseEnabled && integrationsCache.adsensePublisherId) {
+        headInjection.push(
+          `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${integrationsCache.adsensePublisherId}" crossorigin="anonymous"></script>`
+        );
+      }
+      if (integrationsCache.gscCode) {
+        headInjection.push(
+          `<meta name="google-site-verification" content="${integrationsCache.gscCode}">`
+        );
+      }
+
       const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
-      const html = indexHtmlTemplate
+      let html = indexHtmlTemplate
         .replace(/(<title>)[^<]*(<\/title>)/,                           `$1${esc(seoCache.title)}$2`)
         .replace(/(<meta property="og:title" content=")[^"]*(")/,       `$1${esc(seoCache.title)}$2`)
         .replace(/(<meta property="og:description" content=")[^"]*(")/,  `$1${esc(seoCache.description)}$2`)
@@ -209,6 +244,11 @@ if (fs.existsSync(frontendDist)) {
         .replace(/(<meta name="twitter:title" content=")[^"]*(")/,       `$1${esc(seoCache.title)}$2`)
         .replace(/(<meta name="twitter:description" content=")[^"]*(")/,  `$1${esc(seoCache.description)}$2`)
         .replace(/(<meta name="twitter:image" content=")[^"]*(")/,        `$1${esc(ogImage)}$2`);
+
+      // Inject AdSense + GSC tags before </head>
+      if (headInjection.length > 0) {
+        html = html.replace("</head>", `${headInjection.join("\n")}\n</head>`);
+      }
 
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.setHeader("Cache-Control", "no-cache");
