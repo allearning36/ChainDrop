@@ -131,18 +131,24 @@ export async function sendEvm(
       "sendTransaction"
     );
 
-    logger.info({ txHash: tx.hash, toAddress, gasLimit: GAS_LIMIT.toString() }, "EVM transaction submitted — waiting for confirmation");
+    logger.info({ txHash: tx.hash, toAddress, gasLimit: GAS_LIMIT.toString() }, "EVM transaction submitted");
 
-    const receipt = await withTimeout(tx.wait(1), TX_CONFIRM_TIMEOUT_MS, "waitForConfirmation");
-    if (!receipt || receipt.status !== 1) {
-      throw new Error(`EVM transaction reverted on-chain (txHash: ${tx.hash})`);
-    }
-
-    logger.info({ txHash: tx.hash, toAddress, blockNumber: receipt.blockNumber }, "EVM transaction confirmed");
+    // Fire-and-forget confirmation — return txHash immediately so the user
+    // doesn't have to wait for on-chain inclusion (can take seconds to minutes
+    // depending on network congestion and block time).
+    tx.wait(1).then((receipt) => {
+      if (!receipt || receipt.status !== 1) {
+        logger.warn({ txHash: tx.hash, toAddress }, "EVM transaction may have reverted");
+      } else {
+        logger.info({ txHash: tx.hash, toAddress, blockNumber: receipt.blockNumber }, "EVM transaction confirmed");
+      }
+    }).catch((err) => {
+      logger.warn({ err, txHash: tx.hash }, "EVM confirmation polling failed (tx may still confirm)");
+    }).finally(() => {
+      provider.destroy();
+    });
 
     return { txHash: tx.hash };
-  } finally {
-    provider.destroy();
   }
 }
 

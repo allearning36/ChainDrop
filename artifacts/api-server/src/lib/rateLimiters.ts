@@ -2,9 +2,9 @@ import rateLimit from "express-rate-limit";
 
 // ── Per-wallet in-memory rate limiter ────────────────────────────────────────
 // Limits claim attempts per wallet address (independent of IP).
-// 5 attempts per 15 minutes per wallet.
+// 30 attempts per 15 minutes per wallet (multiple chains in one session).
 const WALLET_WINDOW_MS = 15 * 60 * 1000;
-const WALLET_MAX = 5;
+const WALLET_MAX = 30;
 const walletCounters = new Map<string, { count: number; resetAt: number }>();
 
 // Cleanup expired entries every hour
@@ -40,7 +40,7 @@ export const globalLimiter = rateLimit({
 
 export const claimLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many claim attempts. Please wait before trying again." },
