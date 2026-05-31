@@ -4,7 +4,114 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { ShieldAlert, ShieldCheck, Loader2, Trash2, RefreshCw, Globe, Fingerprint, Wallet } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Loader2, Trash2, RefreshCw, Globe, Fingerprint, Wallet, Settings2 } from "lucide-react";
+
+interface AntiAbuseConfig {
+  enabled: boolean;
+  blockVpn: boolean;
+  blockProxy: boolean;
+  blockTor: boolean;
+  blockDatacenter: boolean;
+}
+
+const DEFAULT_CONFIG: AntiAbuseConfig = {
+  enabled: true, blockVpn: true, blockProxy: true, blockTor: true, blockDatacenter: false,
+};
+
+function Toggle({ checked, onChange, label, description }: { checked: boolean; onChange: (v: boolean) => void; label: string; description?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3 border-b border-border/40 last:border-0">
+      <div>
+        <p className="font-mono text-sm text-foreground">{label}</p>
+        {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
+      </div>
+      <button
+        onClick={() => onChange(!checked)}
+        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${checked ? "bg-red-500" : "bg-muted"}`}
+      >
+        <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${checked ? "translate-x-6" : "translate-x-1"}`} />
+      </button>
+    </div>
+  );
+}
+
+function AbuseSettings() {
+  const { toast } = useToast();
+  const [cfg, setCfg] = useState<AntiAbuseConfig>(DEFAULT_CONFIG);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    adminFetch("/api/admin/site-config/antiAbuseConfig")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: Partial<AntiAbuseConfig> | null) => {
+        if (d) setCfg({ ...DEFAULT_CONFIG, ...d });
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const res = await adminFetch("/api/admin/site-config/antiAbuseConfig", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cfg),
+      });
+      if (!res.ok) throw new Error();
+      toast({ title: "Saved", description: "Anti-abuse settings updated. Takes effect within 60 seconds." });
+    } catch {
+      toast({ title: "Error", description: "Failed to save settings.", variant: "destructive" });
+    } finally { setSaving(false); }
+  }
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="animate-spin w-6 h-6 text-primary" /></div>;
+
+  return (
+    <div className="space-y-5 max-w-lg">
+      <div className="rounded-lg border border-border bg-card/40 px-4 py-1">
+        <Toggle
+          label="Anti-Abuse System"
+          description="Master switch — disabling this allows all claims without any IP checks."
+          checked={cfg.enabled}
+          onChange={v => setCfg(p => ({ ...p, enabled: v }))}
+        />
+        <Toggle
+          label="Block VPN"
+          description="Hard-block claims from detected VPN IPs (detected via ip-api.com)."
+          checked={cfg.blockVpn}
+          onChange={v => setCfg(p => ({ ...p, blockVpn: v }))}
+        />
+        <Toggle
+          label="Block Proxy"
+          description="Hard-block claims from detected proxy IPs."
+          checked={cfg.blockProxy}
+          onChange={v => setCfg(p => ({ ...p, blockProxy: v }))}
+        />
+        <Toggle
+          label="Block TOR"
+          description="Hard-block claims from TOR exit nodes."
+          checked={cfg.blockTor}
+          onChange={v => setCfg(p => ({ ...p, blockTor: v }))}
+        />
+        <Toggle
+          label="Block Datacenter IPs"
+          description="Block hosting/datacenter IPs. May cause false positives — disabled by default."
+          checked={cfg.blockDatacenter}
+          onChange={v => setCfg(p => ({ ...p, blockDatacenter: v }))}
+        />
+      </div>
+      <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs font-mono text-amber-400/80">
+        ⚠ VPN detection uses ip-api.com free tier. Not all VPNs are detected — some IPs may slip through. Changes take effect within 60 seconds.
+      </div>
+      <Button onClick={save} disabled={saving} className="font-mono">
+        {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+        Save Settings
+      </Button>
+    </div>
+  );
+}
 
 interface AutoBan {
   id: number;
@@ -129,9 +236,10 @@ export function AntiAbusePanel() {
 
       <Tabs defaultValue="bans">
         <TabsList className="bg-card border border-border">
-          <TabsTrigger value="bans"    className="font-mono text-xs">Auto-Bans ({bans.length})</TabsTrigger>
+          <TabsTrigger value="bans"       className="font-mono text-xs">Auto-Bans ({bans.length})</TabsTrigger>
           <TabsTrigger value="suspicious" className="font-mono text-xs">Suspicious ({suspicious.length})</TabsTrigger>
-          <TabsTrigger value="logs"    className="font-mono text-xs">All Logs ({logs.length})</TabsTrigger>
+          <TabsTrigger value="logs"       className="font-mono text-xs">All Logs ({logs.length})</TabsTrigger>
+          <TabsTrigger value="settings"   className="font-mono text-xs flex items-center gap-1"><Settings2 className="w-3 h-3" /> Settings</TabsTrigger>
         </TabsList>
 
         {/* ── Auto-Bans tab ── */}
@@ -188,6 +296,11 @@ export function AntiAbusePanel() {
         {/* ── All Logs tab ── */}
         <TabsContent value="logs" className="mt-4">
           <LogTable logs={logs} loading={loadingLogs} onRefresh={fetchLogs} />
+        </TabsContent>
+
+        {/* ── Settings tab ── */}
+        <TabsContent value="settings" className="mt-4">
+          <AbuseSettings />
         </TabsContent>
       </Tabs>
     </div>

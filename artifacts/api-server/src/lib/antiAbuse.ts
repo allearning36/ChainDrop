@@ -9,6 +9,43 @@ import { eq, and, gte, gt, desc, lt, sql } from "drizzle-orm";
 import { getIpReputation, type IpRepResult } from "./ipReputation";
 import { ethers } from "ethers";
 
+// ── Anti-abuse config ─────────────────────────────────────────────────────────
+export interface AntiAbuseConfig {
+  enabled:          boolean;
+  blockVpn:         boolean;
+  blockProxy:       boolean;
+  blockTor:         boolean;
+  blockDatacenter:  boolean;
+}
+
+export const DEFAULT_ANTI_ABUSE_CONFIG: AntiAbuseConfig = {
+  enabled:         true,
+  blockVpn:        true,
+  blockProxy:      true,
+  blockTor:        true,
+  blockDatacenter: false,
+};
+
+let _configCache: { value: AntiAbuseConfig; ts: number } | null = null;
+const CONFIG_CACHE_MS = 60_000; // refresh config every 60s
+
+export async function getAntiAbuseConfig(): Promise<AntiAbuseConfig> {
+  if (_configCache && Date.now() - _configCache.ts < CONFIG_CACHE_MS) {
+    return _configCache.value;
+  }
+  try {
+    const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "antiAbuseConfig")).limit(1);
+    if (row?.value) {
+      const parsed = JSON.parse(row.value) as Partial<AntiAbuseConfig>;
+      const value: AntiAbuseConfig = { ...DEFAULT_ANTI_ABUSE_CONFIG, ...parsed };
+      _configCache = { value, ts: Date.now() };
+      return value;
+    }
+  } catch { /* fallthrough */ }
+  _configCache = { value: DEFAULT_ANTI_ABUSE_CONFIG, ts: Date.now() };
+  return DEFAULT_ANTI_ABUSE_CONFIG;
+}
+
 const BLOCK_SCORE     = 10;   // trust < this → block (only genuine bad actors)
 const WARN_SCORE      = 28;   // trust < this → log warning
 const STARTING_SCORE  = 65;   // raised: give users benefit of the doubt
@@ -192,6 +229,18 @@ export async function evaluateClaim(ctx: ClaimContext): Promise<AbuseDecision> {
   let score = STARTING_SCORE;
   let sigVerified = false;
 
+  // Load admin config (cached, ~60s TTL)
+  const cfg = await getAntiAbuseConfig();
+
+  // 0. Anti-abuse disabled globally
+  if (!cfg.enabled) {
+    return {
+      allowed: true, trustScore: 100, flags: ["ABUSE_CHECK_DISABLED"],
+      ipRep: { country: "Unknown", countryCode: "XX", isp: "", org: "", vpnDetected: false, proxyDetected: false, torDetected: false, datacenterDetected: false, reputationScore: 100 },
+      country: "Unknown", vpnDetected: false, sigVerified: false,
+    };
+  }
+
   // 1. Check IP auto-ban
   const ipBanReason = await isAutoBanned("ip", ctx.ip);
   if (ipBanReason) {
@@ -216,6 +265,39 @@ export async function evaluateClaim(ctx: ClaimContext): Promise<AbuseDecision> {
 
   // 3. IP reputation
   const ipRep = await getIpReputation(ctx.ip);
+
+  // ── Hard blocks based on admin config ─────────────────────────────────────
+  // These bypass the scoring system and immediately block the request.
+  if (cfg.blockTor && ipRep.torDetected) {
+    return {
+      allowed: false, trustScore: 0, flags: ["TOR"],
+      reason: "TOR exit node connections are not allowed on this faucet.",
+      ipRep, country: ipRep.country, vpnDetected: ipRep.vpnDetected, sigVerified: false,
+    };
+  }
+  if (cfg.blockProxy && ipRep.proxyDetected) {
+    return {
+      allowed: false, trustScore: 0, flags: ["PROXY"],
+      reason: "Proxy connections are not allowed on this faucet.",
+      ipRep, country: ipRep.country, vpnDetected: ipRep.vpnDetected, sigVerified: false,
+    };
+  }
+  if (cfg.blockVpn && ipRep.vpnDetected) {
+    return {
+      allowed: false, trustScore: 0, flags: ["VPN"],
+      reason: "VPN connections are not allowed on this faucet. Please disable your VPN and try again.",
+      ipRep, country: ipRep.country, vpnDetected: true, sigVerified: false,
+    };
+  }
+  if (cfg.blockDatacenter && ipRep.datacenterDetected) {
+    return {
+      allowed: false, trustScore: 0, flags: ["DATACENTER"],
+      reason: "Datacenter / hosting IP addresses are not allowed on this faucet.",
+      ipRep, country: ipRep.country, vpnDetected: false, sigVerified: false,
+    };
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
   if (ipRep.torDetected)        { score += PENALTIES.TOR;        flags.push("TOR"); }
   if (ipRep.proxyDetected)      { score += PENALTIES.PROXY;      flags.push("PROXY"); }
   if (ipRep.vpnDetected)        { score += PENALTIES.VPN;        flags.push("VPN"); }

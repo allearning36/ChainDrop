@@ -28,6 +28,7 @@ const DEFAULT_HERO = {
 };
 
 const DEFAULT_DONATION_ADDRESSES: { chain: string; symbol: string; address: string }[] = [];
+const DEFAULT_ANTI_ABUSE_CONFIG = { enabled: true, blockVpn: true, blockProxy: true, blockTor: true, blockDatacenter: false };
 const DEFAULT_SOCIAL = { twitter: "", telegram: "", discord: "", github: "" };
 const DEFAULT_SEO = { title: "ChainDrop — Multi-Chain Crypto Faucet Hub", description: "Get free testnet crypto tokens from ChainDrop. Supports multiple EVM-compatible chains including Sepolia and more.", ogImage: "" };
 const DEFAULT_MAINTENANCE = { enabled: false, message: "We're currently performing maintenance. Please check back soon." };
@@ -167,6 +168,23 @@ router.patch("/admin/site-config/heroSection", requireAdmin, async (req, res): P
     headlineHighlight:  typeof b.headlineHighlight === "string" ? b.headlineHighlight.trim() : DEFAULT_HERO.headlineHighlight,
     subtext:            typeof b.subtext           === "string" ? b.subtext.trim()           : DEFAULT_HERO.subtext,
     showStats:          b.showStats !== false,
+  });
+  res.json({ ok: true });
+});
+
+router.get("/admin/site-config/antiAbuseConfig", requireAdmin, async (_req, res): Promise<void> => {
+  const cfg = await getSetting("antiAbuseConfig", DEFAULT_ANTI_ABUSE_CONFIG);
+  res.json(cfg);
+});
+
+router.patch("/admin/site-config/antiAbuseConfig", requireAdmin, async (req, res): Promise<void> => {
+  const b = req.body as Record<string, unknown>;
+  await setSetting("antiAbuseConfig", {
+    enabled:         b.enabled         !== false,
+    blockVpn:        b.blockVpn        !== false,
+    blockProxy:      b.blockProxy      !== false,
+    blockTor:        b.blockTor        !== false,
+    blockDatacenter: b.blockDatacenter === true,
   });
   res.json({ ok: true });
 });
