@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, CheckCircle2, ExternalLink, Loader2, ChevronRight, Info, Copy, Check } from "lucide-react";
+import {
+  X, CheckCircle2, ExternalLink, Loader2, ChevronRight, Info,
+  Twitter, Send, MessageCircle, Globe,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -49,12 +52,16 @@ function TaskCard({
       <div className="flex items-start gap-3">
         <div
           className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-sm font-mono"
-          style={{ background: stepDone ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.08)", color: stepDone ? "#22c55e" : "rgba(255,255,255,0.5)" }}
+          style={{
+            background: stepDone ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.08)",
+            color: stepDone ? "#22c55e" : "rgba(255,255,255,0.5)",
+          }}
         >
-          {task.stepNumber}
+          {stepDone ? <CheckCircle2 className="w-4 h-4" /> : task.stepNumber}
         </div>
         {hasLogo ? (
-          <img src={task.logoUrl} alt="" className="w-9 h-9 rounded-lg object-contain shrink-0 mt-0.5" style={{ background: "rgba(255,255,255,0.08)" }} />
+          <img src={task.logoUrl} alt="" className="w-9 h-9 rounded-lg object-contain shrink-0 mt-0.5"
+            style={{ background: "rgba(255,255,255,0.08)" }} />
         ) : (
           <div className="w-9 h-9 rounded-lg shrink-0 mt-0.5" style={{ background: "rgba(255,255,255,0.08)" }} />
         )}
@@ -67,22 +74,20 @@ function TaskCard({
               )}
             </div>
             {stepDone ? (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg shrink-0" style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.25)" }}>
-                <CheckCircle2 className="w-3.5 h-3.5" style={{ color: "#22c55e" }} />
-                <span className="text-xs font-mono font-semibold" style={{ color: "#22c55e" }}>Completed</span>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg shrink-0"
+                style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.25)" }}>
+                <span className="text-xs font-mono font-semibold" style={{ color: "#22c55e" }}>Done</span>
               </div>
             ) : hasAction ? (
               <a
                 href={task.actionUrl}
                 target="_blank"
                 rel="noreferrer"
-                onClick={() => setTimeout(() => onComplete(task.stepNumber), 2000)}
+                onClick={() => setTimeout(() => onComplete(task.stepNumber), 1500)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg shrink-0 text-xs font-mono font-semibold transition-colors"
                 style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.85)" }}
-                onMouseEnter={(e: any) => { e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
-                onMouseLeave={(e: any) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
               >
-                {task.actionLabel} <ExternalLink className="w-3 h-3" />
+                {task.actionLabel || "Go"} <ExternalLink className="w-3 h-3" />
               </a>
             ) : (
               <button
@@ -96,34 +101,40 @@ function TaskCard({
           </div>
         </div>
       </div>
-      {stepDone && (
-        <div className="mt-2.5 ml-11 flex items-center gap-1.5 text-xs font-mono" style={{ color: "#22c55e" }}>
-          <CheckCircle2 className="w-3.5 h-3.5" /> Task completed successfully!
-        </div>
-      )}
     </div>
   );
 }
 
 export function EarnDropCampaignModal({ campaign, onClose }: Props) {
+  // Address + promo only needed at claim time
   const [address, setAddress] = useState("");
   const [promoCode, setPromoCode] = useState("");
+
+  // Local task completion tracking (no address needed to check tasks)
+  const [localDone, setLocalDone] = useState<number[]>([]);
+
+  // Server-side progress (loaded when address is entered)
   const [progress, setProgress] = useState<EarnDropProgress | null>(null);
+
   const [claiming, setClaiming] = useState(false);
   const [claimResult, setClaimResult] = useState<{ txHash: string; rewardAmount: string; rewardToken: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showRules, setShowRules] = useState(false);
-  const [copied, setCopied] = useState(false);
   const { d, h, m, s, ended } = useCountdown(campaign.endDate);
 
   const totalTasks = campaign.tasks.length;
-  const completedSteps = progress?.completedSteps ?? [];
+
+  // Merge local + server completed steps
+  const serverSteps = progress?.completedSteps ?? [];
+  const completedSteps = Array.from(new Set([...localDone, ...serverSteps]));
   const completedCount = completedSteps.length;
   const allDone = totalTasks > 0 && completedCount >= totalTasks;
   const alreadyClaimed = progress?.claimed ?? false;
+  const pct = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
 
+  // Load server progress when address is provided
   const loadProgress = useCallback(async (addr: string) => {
-    if (!addr.trim()) return;
+    if (!addr.trim() || addr.length < 10) return;
     try {
       const res = await fetch(`/api/earn-drop/campaigns/${campaign.id}/progress?address=${encodeURIComponent(addr.trim().toLowerCase())}`);
       if (res.ok) setProgress(await res.json() as EarnDropProgress);
@@ -132,47 +143,65 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
 
   useEffect(() => {
     if (address.length >= 10) {
-      const t = setTimeout(() => void loadProgress(address), 500);
+      const t = setTimeout(() => void loadProgress(address), 600);
       return () => clearTimeout(t);
     }
     return undefined;
   }, [address, loadProgress]);
 
-  const handleCompleteTask = async (stepNumber: number) => {
-    if (!address.trim()) { setError("Enter your wallet address first"); return; }
-    try {
-      const res = await fetch(`/api/earn-drop/campaigns/${campaign.id}/complete-task`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: address.trim().toLowerCase(), stepNumber }),
-      });
-      if (res.ok) setProgress(await res.json() as EarnDropProgress);
-    } catch { /* ignore */ }
+  // Mark task done locally — no address needed
+  const handleCompleteTask = (stepNumber: number) => {
+    setLocalDone(prev => prev.includes(stepNumber) ? prev : [...prev, stepNumber]);
+    setError(null);
   };
 
   const handleClaim = async () => {
-    if (!address.trim()) { setError("Enter your wallet address"); return; }
+    if (!address.trim() || address.trim().length < 10) {
+      setError("Enter your wallet address (0x...)");
+      return;
+    }
+    if (!allDone) {
+      setError("Complete all tasks first");
+      return;
+    }
     setError(null);
     setClaiming(true);
     try {
+      // Record any locally-completed steps to the backend first
+      const addr = address.trim().toLowerCase();
+      for (const step of localDone) {
+        if (serverSteps.includes(step)) continue; // already on server
+        await fetch(`/api/earn-drop/campaigns/${campaign.id}/complete-task`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address: addr, stepNumber: step }),
+        }).catch(() => null);
+      }
+
+      // Claim
       const res = await fetch("/api/earn-drop/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           campaignId: campaign.id,
-          address: address.trim().toLowerCase(),
+          address: addr,
           ...(campaign.promoCodeEnabled && promoCode ? { promoCode: promoCode.trim().toUpperCase() } : {}),
         }),
       });
       const data = await res.json() as { txHash: string; rewardAmount: string; rewardToken: string; error?: string };
       if (!res.ok) { setError(data.error ?? "Claim failed"); return; }
       setClaimResult(data);
-      setProgress(p => p ? { ...p, claimed: true, status: "claimed", txHash: data.txHash } : null);
     } catch { setError("Network error. Try again."); }
     finally { setClaiming(false); }
   };
 
-  const pct = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
+  // Social links
+  const socials = [
+    campaign.twitterUrl  ? { icon: <Twitter  className="w-4 h-4" />, url: campaign.twitterUrl,  color: "#1d9bf0", label: "Twitter"  } : null,
+    campaign.telegramUrl ? { icon: <Send     className="w-4 h-4" />, url: campaign.telegramUrl, color: "#229ed9", label: "Telegram" } : null,
+    campaign.discordUrl  ? { icon: <MessageCircle className="w-4 h-4" />, url: campaign.discordUrl,  color: "#5865f2", label: "Discord"  } : null,
+    campaign.websiteUrl  ? { icon: <Globe    className="w-4 h-4" />, url: campaign.websiteUrl,  color: "#22c55e", label: "Website"  } : null,
+  ].filter(Boolean) as { icon: React.ReactNode; url: string; color: string; label: string }[];
 
   if (claimResult) {
     return (
@@ -184,7 +213,8 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
           onClick={e => e.stopPropagation()}
         >
           <div className="p-8 text-center">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)" }}>
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+              style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)" }}>
               <CheckCircle2 className="w-8 h-8" style={{ color: "#22c55e" }} />
             </div>
             <h2 className="text-xl font-bold font-mono text-white mb-2">Reward Claimed!</h2>
@@ -225,21 +255,34 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 shrink-0"
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="flex items-center gap-3">
             {campaign.logoUrl ? (
-              <img src={campaign.logoUrl} alt="" className="w-9 h-9 rounded-full object-contain" style={{ background: "rgba(255,255,255,0.08)" }} />
+              <img src={campaign.logoUrl} alt="" className="w-10 h-10 rounded-full object-contain"
+                style={{ background: "rgba(255,255,255,0.08)" }} />
             ) : (
-              <div className="w-9 h-9 rounded-full" style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.25)" }} />
+              <div className="w-10 h-10 rounded-full"
+                style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.25)" }} />
             )}
             <div>
               <p className="font-bold font-mono text-white text-base leading-tight">{campaign.title}</p>
               <p className="text-xs font-mono font-semibold" style={{ color: "#22c55e" }}>{campaign.rewardToken}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            {/* Social link icons */}
+            {socials.map(s => (
+              <a key={s.label} href={s.url} target="_blank" rel="noreferrer"
+                className="p-2 rounded-lg transition-all"
+                style={{ color: s.color, background: "rgba(255,255,255,0.04)" }}
+                title={s.label}>
+                {s.icon}
+              </a>
+            ))}
             {campaign.rules && (
-              <button onClick={() => setShowRules(v => !v)} className="p-2 rounded-lg transition-colors" style={{ background: showRules ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.05)" }}>
+              <button onClick={() => setShowRules(v => !v)} className="p-2 rounded-lg transition-colors"
+                style={{ background: showRules ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.04)" }}>
                 <Info className="w-4 h-4 text-muted-foreground" />
               </button>
             )}
@@ -251,7 +294,8 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
 
         {/* Rules panel */}
         {showRules && campaign.rules && (
-          <div className="px-5 py-3 shrink-0 text-xs font-mono leading-relaxed text-muted-foreground" style={{ background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="px-5 py-3 shrink-0 text-xs font-mono leading-relaxed text-muted-foreground"
+            style={{ background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
             {campaign.rules}
           </div>
         )}
@@ -289,13 +333,9 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
               </div>
             </div>
             <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
-              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#16a34a,#22c55e)" }} />
+              <div className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${pct}%`, background: "linear-gradient(90deg,#16a34a,#22c55e)" }} />
             </div>
-            {completedCount > 0 && !allDone && (
-              <p className="text-[11px] text-muted-foreground mt-1.5 font-mono">
-                Complete all {totalTasks} steps to unlock the reward.
-              </p>
-            )}
           </div>
         )}
 
@@ -311,12 +351,13 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
           ))}
         </div>
 
-        {/* Claim section */}
-        <div className="px-5 py-4 shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.3)" }}>
+        {/* Claim section — address + promo only here */}
+        <div className="px-5 py-4 shrink-0"
+          style={{ borderTop: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.3)" }}>
           <Input
             placeholder="Your wallet address (0x...)"
             value={address}
-            onChange={e => setAddress(e.target.value)}
+            onChange={e => { setAddress(e.target.value); setError(null); }}
             className="mb-2 font-mono text-xs"
             style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
           />
@@ -332,7 +373,8 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
           {error && <p className="text-xs text-red-400 font-mono mb-2">{error}</p>}
 
           {alreadyClaimed ? (
-            <div className="flex items-center justify-center gap-2 py-3 rounded-xl" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}>
+            <div className="flex items-center justify-center gap-2 py-3 rounded-xl"
+              style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}>
               <CheckCircle2 className="w-4 h-4" style={{ color: "#22c55e" }} />
               <span className="text-sm font-mono font-semibold" style={{ color: "#22c55e" }}>Already Claimed</span>
             </div>
@@ -341,12 +383,20 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
           ) : (
             <Button
               className="w-full font-mono font-bold text-sm py-6"
-              style={{ background: allDone ? "linear-gradient(135deg,#166534,#22c55e)" : "rgba(255,255,255,0.06)", color: allDone ? "#fff" : "rgba(255,255,255,0.35)", cursor: allDone ? "pointer" : "not-allowed" }}
+              style={{
+                background: allDone ? "linear-gradient(135deg,#166534,#22c55e)" : "rgba(255,255,255,0.06)",
+                color: allDone ? "#fff" : "rgba(255,255,255,0.35)",
+                cursor: allDone ? "pointer" : "not-allowed",
+              }}
               disabled={!allDone || claiming}
-              onClick={handleClaim}
+              onClick={() => void handleClaim()}
             >
               {claiming ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              {claiming ? "Processing..." : `Claim ${campaign.rewardAmount} ${campaign.rewardToken}`}
+              {claiming
+                ? "Processing..."
+                : allDone
+                ? `Claim ${campaign.rewardAmount} ${campaign.rewardToken}`
+                : `Complete ${totalTasks - completedCount} more task${totalTasks - completedCount !== 1 ? "s" : ""} to claim`}
             </Button>
           )}
         </div>

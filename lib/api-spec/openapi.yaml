@@ -2712,6 +2712,14 @@ components:
           type: boolean
         totalParticipants:
           type: integer
+        twitterUrl:
+          type: string
+        telegramUrl:
+          type: string
+        discordUrl:
+          type: string
+        websiteUrl:
+          type: string
 
     EarnDropCampaignDetail:
       type: object
@@ -2738,6 +2746,14 @@ components:
           type: boolean
         totalParticipants:
           type: integer
+        twitterUrl:
+          type: string
+        telegramUrl:
+          type: string
+        discordUrl:
+          type: string
+        websiteUrl:
+          type: string
         tasks:
           type: array
           items:

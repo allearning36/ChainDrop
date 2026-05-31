@@ -809,6 +809,10 @@ export interface EarnDropCampaignPublic {
   endDate: string;
   promoCodeEnabled: boolean;
   totalParticipants: number;
+  twitterUrl?: string;
+  telegramUrl?: string;
+  discordUrl?: string;
+  websiteUrl?: string;
 }
 
 export interface EarnDropTaskPublic {
@@ -833,6 +837,10 @@ export interface EarnDropCampaignDetail {
   rules: string;
   promoCodeEnabled: boolean;
   totalParticipants: number;
+  twitterUrl?: string;
+  telegramUrl?: string;
+  discordUrl?: string;
+  websiteUrl?: string;
   tasks: EarnDropTaskPublic[];
 }
 

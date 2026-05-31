@@ -258,43 +258,13 @@ function CampaignForm({ initial, chains, onSave, onCancel }: CampaignFormProps) 
         <Toggle value={isActive} onChange={() => setIsActive(v => !v)} label="Active" />
       </div>
 
-      {/* Inline promo codes (new campaign only) */}
-      {!initial && promoCodeEnabled && (
-        <div className="rounded-lg p-3 space-y-2" style={{ background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.15)" }}>
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold font-mono uppercase tracking-wider" style={{ color: "#22c55e" }}>
-              <Key className="w-3 h-3 inline mr-1" />Promo Codes
-            </p>
-            <button type="button" onClick={addPromoRow}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-mono"
-              style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e" }}>
-              <Plus className="w-3 h-3" /> Add Code
-            </button>
-          </div>
-          {promoCodes.length === 0 && (
-            <p className="text-[10px] text-muted-foreground font-mono">Click "Add Code" to add promo codes for this campaign.</p>
-          )}
-          {promoCodes.map((p, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <input
-                className={`${FIELD} flex-1 uppercase`} style={FS}
-                value={p.code} placeholder="PROMO2025"
-                onChange={e => updatePromoRow(i, "code", e.target.value.toUpperCase())}
-              />
-              <div className="shrink-0">
-                <input
-                  className={`${FIELD} w-24`} style={FS} type="number" min="0"
-                  value={p.maxUses} placeholder="Max uses (0=∞)"
-                  onChange={e => updatePromoRow(i, "maxUses", e.target.value)}
-                  title="Max uses (0 = unlimited)"
-                />
-              </div>
-              <button type="button" onClick={() => removePromoRow(i)} className="text-muted-foreground hover:text-red-400 shrink-0">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
-          <p className="text-[10px] text-muted-foreground font-mono opacity-60">Max uses: 0 = unlimited</p>
+      {/* Promo code note */}
+      {promoCodeEnabled && (
+        <div className="rounded-lg p-3" style={{ background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.15)" }}>
+          <p className="text-[10px] font-mono" style={{ color: "#22c55e" }}>
+            <Key className="w-3 h-3 inline mr-1" />
+            After saving, go to the <strong>Promo Codes</strong> tab to add promo codes for this campaign.
+          </p>
         </div>
       )}
 

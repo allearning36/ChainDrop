@@ -16,4 +16,8 @@ export interface EarnDropCampaignPublic {
   endDate: Date;
   promoCodeEnabled: boolean;
   totalParticipants: number;
+  twitterUrl?: string;
+  telegramUrl?: string;
+  discordUrl?: string;
+  websiteUrl?: string;
 }
