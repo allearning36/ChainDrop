@@ -325,6 +325,29 @@ export function Navbar() {
 
         <div className="flex-1" />
 
+        {/* ── Earn Drop button ── */}
+        <Link
+          href="/earn-drop"
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono font-semibold text-xs shrink-0 transition-all"
+          style={{
+            background: "rgba(34,197,94,0.1)",
+            border: "1px solid rgba(34,197,94,0.25)",
+            color: "#22c55e",
+            textShadow: "0 0 8px rgba(34,197,94,0.4)",
+          }}
+          onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
+            (e.currentTarget as HTMLElement).style.background = "rgba(34,197,94,0.18)";
+            (e.currentTarget as HTMLElement).style.borderColor = "rgba(34,197,94,0.45)";
+          }}
+          onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
+            (e.currentTarget as HTMLElement).style.background = "rgba(34,197,94,0.1)";
+            (e.currentTarget as HTMLElement).style.borderColor = "rgba(34,197,94,0.25)";
+          }}
+        >
+          <Zap className="w-3.5 h-3.5" />
+          Earn Drop
+        </Link>
+
         {/* ── FAR RIGHT: Support + Bell ── */}
         <div className="flex items-center gap-1 shrink-0">
           {/* Support button with unread badge */}
