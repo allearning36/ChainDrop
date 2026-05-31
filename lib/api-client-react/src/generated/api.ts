@@ -26,6 +26,7 @@ import type {
   AdminAdjustBalanceInput,
   AdminAuthInput,
   AdminAuthResult,
+  AdminGetEarnDropParticipantsParams,
   AdminStats,
   Announcement,
   AnnouncementInput,
@@ -46,9 +47,23 @@ import type {
   ClaimRecord,
   ClaimResult,
   ClaimStatus,
+  EarnDropCampaignAdmin,
+  EarnDropCampaignDetail,
+  EarnDropCampaignInput,
+  EarnDropCampaignPublic,
+  EarnDropClaimInput,
+  EarnDropClaimResult,
+  EarnDropCompleteTaskInput,
+  EarnDropParticipantsPage,
+  EarnDropProgress,
+  EarnDropPromoCode,
+  EarnDropPromoCodeInput,
+  EarnDropTask,
+  EarnDropTaskInput,
   ErrorResponse,
   GetAdminReferralClaimRequestsParams,
   GetChainsParams,
+  GetEarnDropProgressParams,
   GetPricesParams,
   HealthStatus,
   PriceItem,
@@ -67,6 +82,7 @@ import type {
   RejectClaimInput,
   RpcHealthResult,
   SiteSettings,
+  SuccessResponse,
   SupportConversation,
   SupportConversationDetail,
   SupportMessage,
@@ -2059,6 +2075,1281 @@ export const useRejectReferralClaimRequest = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getRejectReferralClaimRequestMutationOptions(options));
     }
+
+export const getGetEarnDropCampaignsUrl = () => {
+
+
+
+
+  return `/api/earn-drop/campaigns`
+}
+
+/**
+ * @summary List active earn-drop campaigns
+ */
+export const getEarnDropCampaigns = async ( options?: RequestInit): Promise<EarnDropCampaignPublic[]> => {
+
+  return customFetch<EarnDropCampaignPublic[]>(getGetEarnDropCampaignsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEarnDropCampaignsQueryKey = () => {
+    return [
+    `/api/earn-drop/campaigns`
+    ] as const;
+    }
+
+
+export const getGetEarnDropCampaignsQueryOptions = <TData = Awaited<ReturnType<typeof getEarnDropCampaigns>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEarnDropCampaigns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEarnDropCampaignsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEarnDropCampaigns>>> = ({ signal }) => getEarnDropCampaigns({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEarnDropCampaigns>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEarnDropCampaignsQueryResult = NonNullable<Awaited<ReturnType<typeof getEarnDropCampaigns>>>
+export type GetEarnDropCampaignsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List active earn-drop campaigns
+ */
+
+export function useGetEarnDropCampaigns<TData = Awaited<ReturnType<typeof getEarnDropCampaigns>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEarnDropCampaigns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEarnDropCampaignsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetEarnDropCampaignUrl = (id: number,) => {
+
+
+
+
+  return `/api/earn-drop/campaigns/${id}`
+}
+
+/**
+ * @summary Get campaign with tasks
+ */
+export const getEarnDropCampaign = async (id: number, options?: RequestInit): Promise<EarnDropCampaignDetail> => {
+
+  return customFetch<EarnDropCampaignDetail>(getGetEarnDropCampaignUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEarnDropCampaignQueryKey = (id: number,) => {
+    return [
+    `/api/earn-drop/campaigns/${id}`
+    ] as const;
+    }
+
+
+export const getGetEarnDropCampaignQueryOptions = <TData = Awaited<ReturnType<typeof getEarnDropCampaign>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEarnDropCampaign>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEarnDropCampaignQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEarnDropCampaign>>> = ({ signal }) => getEarnDropCampaign(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEarnDropCampaign>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEarnDropCampaignQueryResult = NonNullable<Awaited<ReturnType<typeof getEarnDropCampaign>>>
+export type GetEarnDropCampaignQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get campaign with tasks
+ */
+
+export function useGetEarnDropCampaign<TData = Awaited<ReturnType<typeof getEarnDropCampaign>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEarnDropCampaign>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEarnDropCampaignQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetEarnDropProgressUrl = (id: number,
+    params: GetEarnDropProgressParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/earn-drop/campaigns/${id}/progress?${stringifiedParams}` : `/api/earn-drop/campaigns/${id}/progress`
+}
+
+/**
+ * @summary Get user progress for a campaign
+ */
+export const getEarnDropProgress = async (id: number,
+    params: GetEarnDropProgressParams, options?: RequestInit): Promise<EarnDropProgress> => {
+
+  return customFetch<EarnDropProgress>(getGetEarnDropProgressUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEarnDropProgressQueryKey = (id: number,
+    params?: GetEarnDropProgressParams,) => {
+    return [
+    `/api/earn-drop/campaigns/${id}/progress`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetEarnDropProgressQueryOptions = <TData = Awaited<ReturnType<typeof getEarnDropProgress>>, TError = ErrorType<unknown>>(id: number,
+    params: GetEarnDropProgressParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEarnDropProgress>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEarnDropProgressQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEarnDropProgress>>> = ({ signal }) => getEarnDropProgress(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEarnDropProgress>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEarnDropProgressQueryResult = NonNullable<Awaited<ReturnType<typeof getEarnDropProgress>>>
+export type GetEarnDropProgressQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get user progress for a campaign
+ */
+
+export function useGetEarnDropProgress<TData = Awaited<ReturnType<typeof getEarnDropProgress>>, TError = ErrorType<unknown>>(
+ id: number,
+    params: GetEarnDropProgressParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEarnDropProgress>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEarnDropProgressQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCompleteEarnDropTaskUrl = (id: number,) => {
+
+
+
+
+  return `/api/earn-drop/campaigns/${id}/complete-task`
+}
+
+/**
+ * @summary Mark a task step as completed
+ */
+export const completeEarnDropTask = async (id: number,
+    earnDropCompleteTaskInput: EarnDropCompleteTaskInput, options?: RequestInit): Promise<EarnDropProgress> => {
+
+  return customFetch<EarnDropProgress>(getCompleteEarnDropTaskUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      earnDropCompleteTaskInput,)
+  }
+);}
+
+
+
+
+export const getCompleteEarnDropTaskMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeEarnDropTask>>, TError,{id: number;data: BodyType<EarnDropCompleteTaskInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeEarnDropTask>>, TError,{id: number;data: BodyType<EarnDropCompleteTaskInput>}, TContext> => {
+
+const mutationKey = ['completeEarnDropTask'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeEarnDropTask>>, {id: number;data: BodyType<EarnDropCompleteTaskInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  completeEarnDropTask(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteEarnDropTaskMutationResult = NonNullable<Awaited<ReturnType<typeof completeEarnDropTask>>>
+    export type CompleteEarnDropTaskMutationBody = BodyType<EarnDropCompleteTaskInput>
+    export type CompleteEarnDropTaskMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Mark a task step as completed
+ */
+export const useCompleteEarnDropTask = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeEarnDropTask>>, TError,{id: number;data: BodyType<EarnDropCompleteTaskInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeEarnDropTask>>,
+        TError,
+        {id: number;data: BodyType<EarnDropCompleteTaskInput>},
+        TContext
+      > => {
+      return useMutation(getCompleteEarnDropTaskMutationOptions(options));
+    }
+
+export const getClaimEarnDropUrl = () => {
+
+
+
+
+  return `/api/earn-drop/claim`
+}
+
+/**
+ * @summary Claim earn-drop reward
+ */
+export const claimEarnDrop = async (earnDropClaimInput: EarnDropClaimInput, options?: RequestInit): Promise<EarnDropClaimResult> => {
+
+  return customFetch<EarnDropClaimResult>(getClaimEarnDropUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      earnDropClaimInput,)
+  }
+);}
+
+
+
+
+export const getClaimEarnDropMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimEarnDrop>>, TError,{data: BodyType<EarnDropClaimInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof claimEarnDrop>>, TError,{data: BodyType<EarnDropClaimInput>}, TContext> => {
+
+const mutationKey = ['claimEarnDrop'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof claimEarnDrop>>, {data: BodyType<EarnDropClaimInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  claimEarnDrop(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClaimEarnDropMutationResult = NonNullable<Awaited<ReturnType<typeof claimEarnDrop>>>
+    export type ClaimEarnDropMutationBody = BodyType<EarnDropClaimInput>
+    export type ClaimEarnDropMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Claim earn-drop reward
+ */
+export const useClaimEarnDrop = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimEarnDrop>>, TError,{data: BodyType<EarnDropClaimInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof claimEarnDrop>>,
+        TError,
+        {data: BodyType<EarnDropClaimInput>},
+        TContext
+      > => {
+      return useMutation(getClaimEarnDropMutationOptions(options));
+    }
+
+export const getAdminGetEarnDropCampaignsUrl = () => {
+
+
+
+
+  return `/api/admin/earn-drop/campaigns`
+}
+
+/**
+ * @summary List all earn-drop campaigns (admin)
+ */
+export const adminGetEarnDropCampaigns = async ( options?: RequestInit): Promise<EarnDropCampaignAdmin[]> => {
+
+  return customFetch<EarnDropCampaignAdmin[]>(getAdminGetEarnDropCampaignsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminGetEarnDropCampaignsQueryKey = () => {
+    return [
+    `/api/admin/earn-drop/campaigns`
+    ] as const;
+    }
+
+
+export const getAdminGetEarnDropCampaignsQueryOptions = <TData = Awaited<ReturnType<typeof adminGetEarnDropCampaigns>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetEarnDropCampaigns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminGetEarnDropCampaignsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminGetEarnDropCampaigns>>> = ({ signal }) => adminGetEarnDropCampaigns({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminGetEarnDropCampaigns>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminGetEarnDropCampaignsQueryResult = NonNullable<Awaited<ReturnType<typeof adminGetEarnDropCampaigns>>>
+export type AdminGetEarnDropCampaignsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all earn-drop campaigns (admin)
+ */
+
+export function useAdminGetEarnDropCampaigns<TData = Awaited<ReturnType<typeof adminGetEarnDropCampaigns>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetEarnDropCampaigns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminGetEarnDropCampaignsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminCreateEarnDropCampaignUrl = () => {
+
+
+
+
+  return `/api/admin/earn-drop/campaigns`
+}
+
+/**
+ * @summary Create earn-drop campaign
+ */
+export const adminCreateEarnDropCampaign = async (earnDropCampaignInput: EarnDropCampaignInput, options?: RequestInit): Promise<EarnDropCampaignAdmin> => {
+
+  return customFetch<EarnDropCampaignAdmin>(getAdminCreateEarnDropCampaignUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      earnDropCampaignInput,)
+  }
+);}
+
+
+
+
+export const getAdminCreateEarnDropCampaignMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateEarnDropCampaign>>, TError,{data: BodyType<EarnDropCampaignInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminCreateEarnDropCampaign>>, TError,{data: BodyType<EarnDropCampaignInput>}, TContext> => {
+
+const mutationKey = ['adminCreateEarnDropCampaign'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminCreateEarnDropCampaign>>, {data: BodyType<EarnDropCampaignInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  adminCreateEarnDropCampaign(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminCreateEarnDropCampaignMutationResult = NonNullable<Awaited<ReturnType<typeof adminCreateEarnDropCampaign>>>
+    export type AdminCreateEarnDropCampaignMutationBody = BodyType<EarnDropCampaignInput>
+    export type AdminCreateEarnDropCampaignMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create earn-drop campaign
+ */
+export const useAdminCreateEarnDropCampaign = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateEarnDropCampaign>>, TError,{data: BodyType<EarnDropCampaignInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminCreateEarnDropCampaign>>,
+        TError,
+        {data: BodyType<EarnDropCampaignInput>},
+        TContext
+      > => {
+      return useMutation(getAdminCreateEarnDropCampaignMutationOptions(options));
+    }
+
+export const getAdminUpdateEarnDropCampaignUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/earn-drop/campaigns/${id}`
+}
+
+/**
+ * @summary Update earn-drop campaign
+ */
+export const adminUpdateEarnDropCampaign = async (id: number,
+    earnDropCampaignInput: EarnDropCampaignInput, options?: RequestInit): Promise<EarnDropCampaignAdmin> => {
+
+  return customFetch<EarnDropCampaignAdmin>(getAdminUpdateEarnDropCampaignUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      earnDropCampaignInput,)
+  }
+);}
+
+
+
+
+export const getAdminUpdateEarnDropCampaignMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateEarnDropCampaign>>, TError,{id: number;data: BodyType<EarnDropCampaignInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminUpdateEarnDropCampaign>>, TError,{id: number;data: BodyType<EarnDropCampaignInput>}, TContext> => {
+
+const mutationKey = ['adminUpdateEarnDropCampaign'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpdateEarnDropCampaign>>, {id: number;data: BodyType<EarnDropCampaignInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  adminUpdateEarnDropCampaign(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminUpdateEarnDropCampaignMutationResult = NonNullable<Awaited<ReturnType<typeof adminUpdateEarnDropCampaign>>>
+    export type AdminUpdateEarnDropCampaignMutationBody = BodyType<EarnDropCampaignInput>
+    export type AdminUpdateEarnDropCampaignMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update earn-drop campaign
+ */
+export const useAdminUpdateEarnDropCampaign = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateEarnDropCampaign>>, TError,{id: number;data: BodyType<EarnDropCampaignInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminUpdateEarnDropCampaign>>,
+        TError,
+        {id: number;data: BodyType<EarnDropCampaignInput>},
+        TContext
+      > => {
+      return useMutation(getAdminUpdateEarnDropCampaignMutationOptions(options));
+    }
+
+export const getAdminDeleteEarnDropCampaignUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/earn-drop/campaigns/${id}`
+}
+
+/**
+ * @summary Delete earn-drop campaign
+ */
+export const adminDeleteEarnDropCampaign = async (id: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getAdminDeleteEarnDropCampaignUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getAdminDeleteEarnDropCampaignMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDeleteEarnDropCampaign>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminDeleteEarnDropCampaign>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['adminDeleteEarnDropCampaign'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminDeleteEarnDropCampaign>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  adminDeleteEarnDropCampaign(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminDeleteEarnDropCampaignMutationResult = NonNullable<Awaited<ReturnType<typeof adminDeleteEarnDropCampaign>>>
+
+    export type AdminDeleteEarnDropCampaignMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete earn-drop campaign
+ */
+export const useAdminDeleteEarnDropCampaign = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDeleteEarnDropCampaign>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminDeleteEarnDropCampaign>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getAdminDeleteEarnDropCampaignMutationOptions(options));
+    }
+
+export const getAdminGetEarnDropTasksUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/earn-drop/campaigns/${id}/tasks`
+}
+
+/**
+ * @summary List tasks for a campaign
+ */
+export const adminGetEarnDropTasks = async (id: number, options?: RequestInit): Promise<EarnDropTask[]> => {
+
+  return customFetch<EarnDropTask[]>(getAdminGetEarnDropTasksUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminGetEarnDropTasksQueryKey = (id: number,) => {
+    return [
+    `/api/admin/earn-drop/campaigns/${id}/tasks`
+    ] as const;
+    }
+
+
+export const getAdminGetEarnDropTasksQueryOptions = <TData = Awaited<ReturnType<typeof adminGetEarnDropTasks>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetEarnDropTasks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminGetEarnDropTasksQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminGetEarnDropTasks>>> = ({ signal }) => adminGetEarnDropTasks(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminGetEarnDropTasks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminGetEarnDropTasksQueryResult = NonNullable<Awaited<ReturnType<typeof adminGetEarnDropTasks>>>
+export type AdminGetEarnDropTasksQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List tasks for a campaign
+ */
+
+export function useAdminGetEarnDropTasks<TData = Awaited<ReturnType<typeof adminGetEarnDropTasks>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetEarnDropTasks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminGetEarnDropTasksQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminCreateEarnDropTaskUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/earn-drop/campaigns/${id}/tasks`
+}
+
+/**
+ * @summary Add task to campaign
+ */
+export const adminCreateEarnDropTask = async (id: number,
+    earnDropTaskInput: EarnDropTaskInput, options?: RequestInit): Promise<EarnDropTask> => {
+
+  return customFetch<EarnDropTask>(getAdminCreateEarnDropTaskUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      earnDropTaskInput,)
+  }
+);}
+
+
+
+
+export const getAdminCreateEarnDropTaskMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateEarnDropTask>>, TError,{id: number;data: BodyType<EarnDropTaskInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminCreateEarnDropTask>>, TError,{id: number;data: BodyType<EarnDropTaskInput>}, TContext> => {
+
+const mutationKey = ['adminCreateEarnDropTask'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminCreateEarnDropTask>>, {id: number;data: BodyType<EarnDropTaskInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  adminCreateEarnDropTask(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminCreateEarnDropTaskMutationResult = NonNullable<Awaited<ReturnType<typeof adminCreateEarnDropTask>>>
+    export type AdminCreateEarnDropTaskMutationBody = BodyType<EarnDropTaskInput>
+    export type AdminCreateEarnDropTaskMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add task to campaign
+ */
+export const useAdminCreateEarnDropTask = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateEarnDropTask>>, TError,{id: number;data: BodyType<EarnDropTaskInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminCreateEarnDropTask>>,
+        TError,
+        {id: number;data: BodyType<EarnDropTaskInput>},
+        TContext
+      > => {
+      return useMutation(getAdminCreateEarnDropTaskMutationOptions(options));
+    }
+
+export const getAdminUpdateEarnDropTaskUrl = (taskId: number,) => {
+
+
+
+
+  return `/api/admin/earn-drop/tasks/${taskId}`
+}
+
+/**
+ * @summary Update task
+ */
+export const adminUpdateEarnDropTask = async (taskId: number,
+    earnDropTaskInput: EarnDropTaskInput, options?: RequestInit): Promise<EarnDropTask> => {
+
+  return customFetch<EarnDropTask>(getAdminUpdateEarnDropTaskUrl(taskId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      earnDropTaskInput,)
+  }
+);}
+
+
+
+
+export const getAdminUpdateEarnDropTaskMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateEarnDropTask>>, TError,{taskId: number;data: BodyType<EarnDropTaskInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminUpdateEarnDropTask>>, TError,{taskId: number;data: BodyType<EarnDropTaskInput>}, TContext> => {
+
+const mutationKey = ['adminUpdateEarnDropTask'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpdateEarnDropTask>>, {taskId: number;data: BodyType<EarnDropTaskInput>}> = (props) => {
+          const {taskId,data} = props ?? {};
+
+          return  adminUpdateEarnDropTask(taskId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminUpdateEarnDropTaskMutationResult = NonNullable<Awaited<ReturnType<typeof adminUpdateEarnDropTask>>>
+    export type AdminUpdateEarnDropTaskMutationBody = BodyType<EarnDropTaskInput>
+    export type AdminUpdateEarnDropTaskMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update task
+ */
+export const useAdminUpdateEarnDropTask = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateEarnDropTask>>, TError,{taskId: number;data: BodyType<EarnDropTaskInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminUpdateEarnDropTask>>,
+        TError,
+        {taskId: number;data: BodyType<EarnDropTaskInput>},
+        TContext
+      > => {
+      return useMutation(getAdminUpdateEarnDropTaskMutationOptions(options));
+    }
+
+export const getAdminDeleteEarnDropTaskUrl = (taskId: number,) => {
+
+
+
+
+  return `/api/admin/earn-drop/tasks/${taskId}`
+}
+
+/**
+ * @summary Delete task
+ */
+export const adminDeleteEarnDropTask = async (taskId: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getAdminDeleteEarnDropTaskUrl(taskId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getAdminDeleteEarnDropTaskMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDeleteEarnDropTask>>, TError,{taskId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminDeleteEarnDropTask>>, TError,{taskId: number}, TContext> => {
+
+const mutationKey = ['adminDeleteEarnDropTask'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminDeleteEarnDropTask>>, {taskId: number}> = (props) => {
+          const {taskId} = props ?? {};
+
+          return  adminDeleteEarnDropTask(taskId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminDeleteEarnDropTaskMutationResult = NonNullable<Awaited<ReturnType<typeof adminDeleteEarnDropTask>>>
+
+    export type AdminDeleteEarnDropTaskMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete task
+ */
+export const useAdminDeleteEarnDropTask = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDeleteEarnDropTask>>, TError,{taskId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminDeleteEarnDropTask>>,
+        TError,
+        {taskId: number},
+        TContext
+      > => {
+      return useMutation(getAdminDeleteEarnDropTaskMutationOptions(options));
+    }
+
+export const getAdminGetEarnDropPromoCodesUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/earn-drop/campaigns/${id}/promo-codes`
+}
+
+/**
+ * @summary List promo codes for campaign
+ */
+export const adminGetEarnDropPromoCodes = async (id: number, options?: RequestInit): Promise<EarnDropPromoCode[]> => {
+
+  return customFetch<EarnDropPromoCode[]>(getAdminGetEarnDropPromoCodesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminGetEarnDropPromoCodesQueryKey = (id: number,) => {
+    return [
+    `/api/admin/earn-drop/campaigns/${id}/promo-codes`
+    ] as const;
+    }
+
+
+export const getAdminGetEarnDropPromoCodesQueryOptions = <TData = Awaited<ReturnType<typeof adminGetEarnDropPromoCodes>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetEarnDropPromoCodes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminGetEarnDropPromoCodesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminGetEarnDropPromoCodes>>> = ({ signal }) => adminGetEarnDropPromoCodes(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminGetEarnDropPromoCodes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminGetEarnDropPromoCodesQueryResult = NonNullable<Awaited<ReturnType<typeof adminGetEarnDropPromoCodes>>>
+export type AdminGetEarnDropPromoCodesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List promo codes for campaign
+ */
+
+export function useAdminGetEarnDropPromoCodes<TData = Awaited<ReturnType<typeof adminGetEarnDropPromoCodes>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetEarnDropPromoCodes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminGetEarnDropPromoCodesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminCreateEarnDropPromoCodeUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/earn-drop/campaigns/${id}/promo-codes`
+}
+
+/**
+ * @summary Create promo code for campaign
+ */
+export const adminCreateEarnDropPromoCode = async (id: number,
+    earnDropPromoCodeInput: EarnDropPromoCodeInput, options?: RequestInit): Promise<EarnDropPromoCode> => {
+
+  return customFetch<EarnDropPromoCode>(getAdminCreateEarnDropPromoCodeUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      earnDropPromoCodeInput,)
+  }
+);}
+
+
+
+
+export const getAdminCreateEarnDropPromoCodeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateEarnDropPromoCode>>, TError,{id: number;data: BodyType<EarnDropPromoCodeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminCreateEarnDropPromoCode>>, TError,{id: number;data: BodyType<EarnDropPromoCodeInput>}, TContext> => {
+
+const mutationKey = ['adminCreateEarnDropPromoCode'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminCreateEarnDropPromoCode>>, {id: number;data: BodyType<EarnDropPromoCodeInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  adminCreateEarnDropPromoCode(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminCreateEarnDropPromoCodeMutationResult = NonNullable<Awaited<ReturnType<typeof adminCreateEarnDropPromoCode>>>
+    export type AdminCreateEarnDropPromoCodeMutationBody = BodyType<EarnDropPromoCodeInput>
+    export type AdminCreateEarnDropPromoCodeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create promo code for campaign
+ */
+export const useAdminCreateEarnDropPromoCode = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateEarnDropPromoCode>>, TError,{id: number;data: BodyType<EarnDropPromoCodeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminCreateEarnDropPromoCode>>,
+        TError,
+        {id: number;data: BodyType<EarnDropPromoCodeInput>},
+        TContext
+      > => {
+      return useMutation(getAdminCreateEarnDropPromoCodeMutationOptions(options));
+    }
+
+export const getAdminDeleteEarnDropPromoCodeUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/earn-drop/promo-codes/${id}`
+}
+
+/**
+ * @summary Delete promo code
+ */
+export const adminDeleteEarnDropPromoCode = async (id: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getAdminDeleteEarnDropPromoCodeUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getAdminDeleteEarnDropPromoCodeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDeleteEarnDropPromoCode>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminDeleteEarnDropPromoCode>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['adminDeleteEarnDropPromoCode'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminDeleteEarnDropPromoCode>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  adminDeleteEarnDropPromoCode(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminDeleteEarnDropPromoCodeMutationResult = NonNullable<Awaited<ReturnType<typeof adminDeleteEarnDropPromoCode>>>
+
+    export type AdminDeleteEarnDropPromoCodeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete promo code
+ */
+export const useAdminDeleteEarnDropPromoCode = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDeleteEarnDropPromoCode>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminDeleteEarnDropPromoCode>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getAdminDeleteEarnDropPromoCodeMutationOptions(options));
+    }
+
+export const getAdminGetEarnDropParticipantsUrl = (id: number,
+    params?: AdminGetEarnDropParticipantsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/earn-drop/campaigns/${id}/participants?${stringifiedParams}` : `/api/admin/earn-drop/campaigns/${id}/participants`
+}
+
+/**
+ * @summary List participants for campaign
+ */
+export const adminGetEarnDropParticipants = async (id: number,
+    params?: AdminGetEarnDropParticipantsParams, options?: RequestInit): Promise<EarnDropParticipantsPage> => {
+
+  return customFetch<EarnDropParticipantsPage>(getAdminGetEarnDropParticipantsUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminGetEarnDropParticipantsQueryKey = (id: number,
+    params?: AdminGetEarnDropParticipantsParams,) => {
+    return [
+    `/api/admin/earn-drop/campaigns/${id}/participants`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getAdminGetEarnDropParticipantsQueryOptions = <TData = Awaited<ReturnType<typeof adminGetEarnDropParticipants>>, TError = ErrorType<unknown>>(id: number,
+    params?: AdminGetEarnDropParticipantsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetEarnDropParticipants>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminGetEarnDropParticipantsQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminGetEarnDropParticipants>>> = ({ signal }) => adminGetEarnDropParticipants(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminGetEarnDropParticipants>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminGetEarnDropParticipantsQueryResult = NonNullable<Awaited<ReturnType<typeof adminGetEarnDropParticipants>>>
+export type AdminGetEarnDropParticipantsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List participants for campaign
+ */
+
+export function useAdminGetEarnDropParticipants<TData = Awaited<ReturnType<typeof adminGetEarnDropParticipants>>, TError = ErrorType<unknown>>(
+ id: number,
+    params?: AdminGetEarnDropParticipantsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetEarnDropParticipants>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminGetEarnDropParticipantsQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getAdminAuthUrl = () => {
 

@@ -630,6 +630,352 @@ export const RejectReferralClaimRequestResponse = zod.object({
 
 
 /**
+ * @summary List active earn-drop campaigns
+ */
+export const GetEarnDropCampaignsResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "logoUrl": zod.string(),
+  "rewardAmount": zod.string(),
+  "rewardToken": zod.string(),
+  "chainId": zod.number(),
+  "endDate": zod.coerce.date(),
+  "promoCodeEnabled": zod.boolean(),
+  "totalParticipants": zod.number()
+})
+export const GetEarnDropCampaignsResponse = zod.array(GetEarnDropCampaignsResponseItem)
+
+
+/**
+ * @summary Get campaign with tasks
+ */
+export const GetEarnDropCampaignParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetEarnDropCampaignResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "logoUrl": zod.string(),
+  "rewardAmount": zod.string(),
+  "rewardToken": zod.string(),
+  "chainId": zod.number(),
+  "endDate": zod.coerce.date(),
+  "rules": zod.string(),
+  "promoCodeEnabled": zod.boolean(),
+  "totalParticipants": zod.number(),
+  "tasks": zod.array(zod.object({
+  "id": zod.number(),
+  "stepNumber": zod.number(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "logoUrl": zod.string(),
+  "actionType": zod.string(),
+  "actionUrl": zod.string(),
+  "actionLabel": zod.string()
+}))
+})
+
+
+/**
+ * @summary Get user progress for a campaign
+ */
+export const GetEarnDropProgressParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetEarnDropProgressQueryParams = zod.object({
+  "address": zod.coerce.string()
+})
+
+export const GetEarnDropProgressResponse = zod.object({
+  "campaignId": zod.number(),
+  "address": zod.string(),
+  "completedSteps": zod.array(zod.number()),
+  "claimed": zod.boolean(),
+  "status": zod.string(),
+  "txHash": zod.string().nullish()
+})
+
+
+/**
+ * @summary Mark a task step as completed
+ */
+export const CompleteEarnDropTaskParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const CompleteEarnDropTaskBody = zod.object({
+  "address": zod.string(),
+  "stepNumber": zod.number()
+})
+
+export const CompleteEarnDropTaskResponse = zod.object({
+  "campaignId": zod.number(),
+  "address": zod.string(),
+  "completedSteps": zod.array(zod.number()),
+  "claimed": zod.boolean(),
+  "status": zod.string(),
+  "txHash": zod.string().nullish()
+})
+
+
+/**
+ * @summary Claim earn-drop reward
+ */
+export const ClaimEarnDropBody = zod.object({
+  "campaignId": zod.number(),
+  "address": zod.string(),
+  "promoCode": zod.string().optional()
+})
+
+export const ClaimEarnDropResponse = zod.object({
+  "txHash": zod.string(),
+  "rewardAmount": zod.string(),
+  "rewardToken": zod.string()
+})
+
+
+/**
+ * @summary List all earn-drop campaigns (admin)
+ */
+export const AdminGetEarnDropCampaignsResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "logoUrl": zod.string(),
+  "rewardAmount": zod.string(),
+  "rewardToken": zod.string(),
+  "chainId": zod.number(),
+  "endDate": zod.coerce.date(),
+  "rules": zod.string(),
+  "promoCodeEnabled": zod.boolean(),
+  "isActive": zod.boolean(),
+  "totalParticipants": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+export const AdminGetEarnDropCampaignsResponse = zod.array(AdminGetEarnDropCampaignsResponseItem)
+
+
+/**
+ * @summary Create earn-drop campaign
+ */
+export const AdminCreateEarnDropCampaignBody = zod.object({
+  "title": zod.string(),
+  "logoUrl": zod.string().optional(),
+  "rewardAmount": zod.string(),
+  "rewardToken": zod.string(),
+  "chainId": zod.number(),
+  "endDate": zod.coerce.date(),
+  "rules": zod.string().optional(),
+  "promoCodeEnabled": zod.boolean().optional(),
+  "isActive": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Update earn-drop campaign
+ */
+export const AdminUpdateEarnDropCampaignParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminUpdateEarnDropCampaignBody = zod.object({
+  "title": zod.string(),
+  "logoUrl": zod.string().optional(),
+  "rewardAmount": zod.string(),
+  "rewardToken": zod.string(),
+  "chainId": zod.number(),
+  "endDate": zod.coerce.date(),
+  "rules": zod.string().optional(),
+  "promoCodeEnabled": zod.boolean().optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const AdminUpdateEarnDropCampaignResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "logoUrl": zod.string(),
+  "rewardAmount": zod.string(),
+  "rewardToken": zod.string(),
+  "chainId": zod.number(),
+  "endDate": zod.coerce.date(),
+  "rules": zod.string(),
+  "promoCodeEnabled": zod.boolean(),
+  "isActive": zod.boolean(),
+  "totalParticipants": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete earn-drop campaign
+ */
+export const AdminDeleteEarnDropCampaignParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminDeleteEarnDropCampaignResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary List tasks for a campaign
+ */
+export const AdminGetEarnDropTasksParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminGetEarnDropTasksResponseItem = zod.object({
+  "id": zod.number(),
+  "campaignId": zod.number(),
+  "stepNumber": zod.number(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "logoUrl": zod.string(),
+  "actionType": zod.string(),
+  "actionUrl": zod.string(),
+  "actionLabel": zod.string()
+})
+export const AdminGetEarnDropTasksResponse = zod.array(AdminGetEarnDropTasksResponseItem)
+
+
+/**
+ * @summary Add task to campaign
+ */
+export const AdminCreateEarnDropTaskParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminCreateEarnDropTaskBody = zod.object({
+  "stepNumber": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "logoUrl": zod.string().optional(),
+  "actionType": zod.string().optional(),
+  "actionUrl": zod.string().optional(),
+  "actionLabel": zod.string().optional()
+})
+
+
+/**
+ * @summary Update task
+ */
+export const AdminUpdateEarnDropTaskParams = zod.object({
+  "taskId": zod.coerce.number()
+})
+
+export const AdminUpdateEarnDropTaskBody = zod.object({
+  "stepNumber": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "logoUrl": zod.string().optional(),
+  "actionType": zod.string().optional(),
+  "actionUrl": zod.string().optional(),
+  "actionLabel": zod.string().optional()
+})
+
+export const AdminUpdateEarnDropTaskResponse = zod.object({
+  "id": zod.number(),
+  "campaignId": zod.number(),
+  "stepNumber": zod.number(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "logoUrl": zod.string(),
+  "actionType": zod.string(),
+  "actionUrl": zod.string(),
+  "actionLabel": zod.string()
+})
+
+
+/**
+ * @summary Delete task
+ */
+export const AdminDeleteEarnDropTaskParams = zod.object({
+  "taskId": zod.coerce.number()
+})
+
+export const AdminDeleteEarnDropTaskResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary List promo codes for campaign
+ */
+export const AdminGetEarnDropPromoCodesParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminGetEarnDropPromoCodesResponseItem = zod.object({
+  "id": zod.number(),
+  "campaignId": zod.number(),
+  "code": zod.string(),
+  "maxUses": zod.number(),
+  "usedCount": zod.number(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+export const AdminGetEarnDropPromoCodesResponse = zod.array(AdminGetEarnDropPromoCodesResponseItem)
+
+
+/**
+ * @summary Create promo code for campaign
+ */
+export const AdminCreateEarnDropPromoCodeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminCreateEarnDropPromoCodeBody = zod.object({
+  "code": zod.string(),
+  "maxUses": zod.number().optional()
+})
+
+
+/**
+ * @summary Delete promo code
+ */
+export const AdminDeleteEarnDropPromoCodeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminDeleteEarnDropPromoCodeResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary List participants for campaign
+ */
+export const AdminGetEarnDropParticipantsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminGetEarnDropParticipantsQueryParams = zod.object({
+  "page": zod.coerce.number().optional(),
+  "limit": zod.coerce.number().optional()
+})
+
+export const AdminGetEarnDropParticipantsResponse = zod.object({
+  "participants": zod.array(zod.object({
+  "id": zod.number(),
+  "campaignId": zod.number(),
+  "address": zod.string(),
+  "completedSteps": zod.array(zod.number()),
+  "promoCode": zod.string().nullish(),
+  "status": zod.string(),
+  "txHash": zod.string().nullish(),
+  "claimedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number(),
+  "pages": zod.number()
+})
+
+
+/**
  * @summary Admin login
  */
 export const AdminAuthBody = zod.object({

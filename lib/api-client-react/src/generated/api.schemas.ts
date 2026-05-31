@@ -795,6 +795,161 @@ export interface RejectClaimInput {
   note: string;
 }
 
+export interface SuccessResponse {
+  success: boolean;
+}
+
+export interface EarnDropCampaignPublic {
+  id: number;
+  title: string;
+  logoUrl: string;
+  rewardAmount: string;
+  rewardToken: string;
+  chainId: number;
+  endDate: string;
+  promoCodeEnabled: boolean;
+  totalParticipants: number;
+}
+
+export interface EarnDropTaskPublic {
+  id: number;
+  stepNumber: number;
+  title: string;
+  description: string;
+  logoUrl: string;
+  actionType: string;
+  actionUrl: string;
+  actionLabel: string;
+}
+
+export interface EarnDropCampaignDetail {
+  id: number;
+  title: string;
+  logoUrl: string;
+  rewardAmount: string;
+  rewardToken: string;
+  chainId: number;
+  endDate: string;
+  rules: string;
+  promoCodeEnabled: boolean;
+  totalParticipants: number;
+  tasks: EarnDropTaskPublic[];
+}
+
+export interface EarnDropProgress {
+  campaignId: number;
+  address: string;
+  completedSteps: number[];
+  claimed: boolean;
+  status: string;
+  /** @nullable */
+  txHash?: string | null;
+}
+
+export interface EarnDropCompleteTaskInput {
+  address: string;
+  stepNumber: number;
+}
+
+export interface EarnDropClaimInput {
+  campaignId: number;
+  address: string;
+  promoCode?: string;
+}
+
+export interface EarnDropClaimResult {
+  txHash: string;
+  rewardAmount: string;
+  rewardToken: string;
+}
+
+export interface EarnDropCampaignAdmin {
+  id: number;
+  title: string;
+  logoUrl: string;
+  rewardAmount: string;
+  rewardToken: string;
+  chainId: number;
+  endDate: string;
+  rules: string;
+  promoCodeEnabled: boolean;
+  isActive: boolean;
+  totalParticipants: number;
+  createdAt: string;
+}
+
+export interface EarnDropCampaignInput {
+  title: string;
+  logoUrl?: string;
+  rewardAmount: string;
+  rewardToken: string;
+  chainId: number;
+  endDate: string;
+  rules?: string;
+  promoCodeEnabled?: boolean;
+  isActive?: boolean;
+}
+
+export interface EarnDropTask {
+  id: number;
+  campaignId: number;
+  stepNumber: number;
+  title: string;
+  description: string;
+  logoUrl: string;
+  actionType: string;
+  actionUrl: string;
+  actionLabel: string;
+}
+
+export interface EarnDropTaskInput {
+  stepNumber: number;
+  title: string;
+  description?: string;
+  logoUrl?: string;
+  actionType?: string;
+  actionUrl?: string;
+  actionLabel?: string;
+}
+
+export interface EarnDropPromoCode {
+  id: number;
+  campaignId: number;
+  code: string;
+  maxUses: number;
+  usedCount: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface EarnDropPromoCodeInput {
+  code: string;
+  maxUses?: number;
+}
+
+export interface EarnDropParticipant {
+  id: number;
+  campaignId: number;
+  address: string;
+  completedSteps: number[];
+  /** @nullable */
+  promoCode?: string | null;
+  status: string;
+  /** @nullable */
+  txHash?: string | null;
+  /** @nullable */
+  claimedAt?: string | null;
+  createdAt: string;
+}
+
+export interface EarnDropParticipantsPage {
+  participants: EarnDropParticipant[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
+
 export type GetChainsParams = {
 type?: GetChainsType;
 };
@@ -826,6 +981,15 @@ export const GetAdminReferralClaimRequestsStatus = {
   approved: 'approved',
   rejected: 'rejected',
 } as const;
+
+export type GetEarnDropProgressParams = {
+address: string;
+};
+
+export type AdminGetEarnDropParticipantsParams = {
+page?: number;
+limit?: number;
+};
 
 export type UpdateSupportConversationBodyStatus = typeof UpdateSupportConversationBodyStatus[keyof typeof UpdateSupportConversationBodyStatus];
 

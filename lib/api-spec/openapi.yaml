@@ -18,6 +18,7 @@ tags:
   - name: support
   - name: settings
   - name: referral
+  - name: earn-drop
 
 paths:
   /healthz:
@@ -593,6 +594,374 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ReferralClaimRequestAdmin"
+
+  # ── Earn Drop (public) ──────────────────────────────────────────────────────
+
+  /earn-drop/campaigns:
+    get:
+      operationId: getEarnDropCampaigns
+      tags: [earn-drop]
+      summary: List active earn-drop campaigns
+      responses:
+        "200":
+          description: List of campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EarnDropCampaignPublic"
+
+  /earn-drop/campaigns/{id}:
+    get:
+      operationId: getEarnDropCampaign
+      tags: [earn-drop]
+      summary: Get campaign with tasks
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Campaign with tasks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarnDropCampaignDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /earn-drop/campaigns/{id}/progress:
+    get:
+      operationId: getEarnDropProgress
+      tags: [earn-drop]
+      summary: Get user progress for a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: address
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarnDropProgress"
+
+  /earn-drop/campaigns/{id}/complete-task:
+    post:
+      operationId: completeEarnDropTask
+      tags: [earn-drop]
+      summary: Mark a task step as completed
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EarnDropCompleteTaskInput"
+      responses:
+        "200":
+          description: Updated progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarnDropProgress"
+
+  /earn-drop/claim:
+    post:
+      operationId: claimEarnDrop
+      tags: [earn-drop]
+      summary: Claim earn-drop reward
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EarnDropClaimInput"
+      responses:
+        "200":
+          description: Claim result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarnDropClaimResult"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Earn Drop (admin) ────────────────────────────────────────────────────────
+
+  /admin/earn-drop/campaigns:
+    get:
+      operationId: adminGetEarnDropCampaigns
+      tags: [admin]
+      summary: List all earn-drop campaigns (admin)
+      responses:
+        "200":
+          description: All campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EarnDropCampaignAdmin"
+    post:
+      operationId: adminCreateEarnDropCampaign
+      tags: [admin]
+      summary: Create earn-drop campaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EarnDropCampaignInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarnDropCampaignAdmin"
+
+  /admin/earn-drop/campaigns/{id}:
+    put:
+      operationId: adminUpdateEarnDropCampaign
+      tags: [admin]
+      summary: Update earn-drop campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EarnDropCampaignInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarnDropCampaignAdmin"
+    delete:
+      operationId: adminDeleteEarnDropCampaign
+      tags: [admin]
+      summary: Delete earn-drop campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /admin/earn-drop/campaigns/{id}/tasks:
+    get:
+      operationId: adminGetEarnDropTasks
+      tags: [admin]
+      summary: List tasks for a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Tasks list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EarnDropTask"
+    post:
+      operationId: adminCreateEarnDropTask
+      tags: [admin]
+      summary: Add task to campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EarnDropTaskInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarnDropTask"
+
+  /admin/earn-drop/tasks/{taskId}:
+    put:
+      operationId: adminUpdateEarnDropTask
+      tags: [admin]
+      summary: Update task
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EarnDropTaskInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarnDropTask"
+    delete:
+      operationId: adminDeleteEarnDropTask
+      tags: [admin]
+      summary: Delete task
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /admin/earn-drop/campaigns/{id}/promo-codes:
+    get:
+      operationId: adminGetEarnDropPromoCodes
+      tags: [admin]
+      summary: List promo codes for campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Promo codes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EarnDropPromoCode"
+    post:
+      operationId: adminCreateEarnDropPromoCode
+      tags: [admin]
+      summary: Create promo code for campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EarnDropPromoCodeInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarnDropPromoCode"
+
+  /admin/earn-drop/promo-codes/{id}:
+    delete:
+      operationId: adminDeleteEarnDropPromoCode
+      tags: [admin]
+      summary: Delete promo code
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /admin/earn-drop/campaigns/{id}/participants:
+    get:
+      operationId: adminGetEarnDropParticipants
+      tags: [admin]
+      summary: List participants for campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Participants
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarnDropParticipantsPage"
 
   /admin/auth:
     post:
@@ -2310,3 +2679,307 @@ components:
       properties:
         note:
           type: string
+
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+
+    # ── Earn Drop Schemas ────────────────────────────────────────────────────
+
+    EarnDropCampaignPublic:
+      type: object
+      required: [id, title, logoUrl, rewardAmount, rewardToken, chainId, endDate, promoCodeEnabled, totalParticipants]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        logoUrl:
+          type: string
+        rewardAmount:
+          type: string
+        rewardToken:
+          type: string
+        chainId:
+          type: integer
+        endDate:
+          type: string
+          format: date-time
+        promoCodeEnabled:
+          type: boolean
+        totalParticipants:
+          type: integer
+
+    EarnDropCampaignDetail:
+      type: object
+      required: [id, title, logoUrl, rewardAmount, rewardToken, chainId, endDate, rules, promoCodeEnabled, totalParticipants, tasks]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        logoUrl:
+          type: string
+        rewardAmount:
+          type: string
+        rewardToken:
+          type: string
+        chainId:
+          type: integer
+        endDate:
+          type: string
+          format: date-time
+        rules:
+          type: string
+        promoCodeEnabled:
+          type: boolean
+        totalParticipants:
+          type: integer
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/EarnDropTaskPublic"
+
+    EarnDropTaskPublic:
+      type: object
+      required: [id, stepNumber, title, description, logoUrl, actionType, actionUrl, actionLabel]
+      properties:
+        id:
+          type: integer
+        stepNumber:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        logoUrl:
+          type: string
+        actionType:
+          type: string
+        actionUrl:
+          type: string
+        actionLabel:
+          type: string
+
+    EarnDropProgress:
+      type: object
+      required: [campaignId, address, completedSteps, claimed, status]
+      properties:
+        campaignId:
+          type: integer
+        address:
+          type: string
+        completedSteps:
+          type: array
+          items:
+            type: integer
+        claimed:
+          type: boolean
+        status:
+          type: string
+        txHash:
+          type: ["string", "null"]
+
+    EarnDropCompleteTaskInput:
+      type: object
+      required: [address, stepNumber]
+      properties:
+        address:
+          type: string
+        stepNumber:
+          type: integer
+
+    EarnDropClaimInput:
+      type: object
+      required: [campaignId, address]
+      properties:
+        campaignId:
+          type: integer
+        address:
+          type: string
+        promoCode:
+          type: string
+
+    EarnDropClaimResult:
+      type: object
+      required: [txHash, rewardAmount, rewardToken]
+      properties:
+        txHash:
+          type: string
+        rewardAmount:
+          type: string
+        rewardToken:
+          type: string
+
+    EarnDropCampaignAdmin:
+      type: object
+      required: [id, title, logoUrl, rewardAmount, rewardToken, chainId, endDate, rules, promoCodeEnabled, isActive, totalParticipants, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        logoUrl:
+          type: string
+        rewardAmount:
+          type: string
+        rewardToken:
+          type: string
+        chainId:
+          type: integer
+        endDate:
+          type: string
+          format: date-time
+        rules:
+          type: string
+        promoCodeEnabled:
+          type: boolean
+        isActive:
+          type: boolean
+        totalParticipants:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    EarnDropCampaignInput:
+      type: object
+      required: [title, rewardAmount, rewardToken, chainId, endDate]
+      properties:
+        title:
+          type: string
+        logoUrl:
+          type: string
+        rewardAmount:
+          type: string
+        rewardToken:
+          type: string
+        chainId:
+          type: integer
+        endDate:
+          type: string
+          format: date-time
+        rules:
+          type: string
+        promoCodeEnabled:
+          type: boolean
+        isActive:
+          type: boolean
+
+    EarnDropTask:
+      type: object
+      required: [id, campaignId, stepNumber, title, description, logoUrl, actionType, actionUrl, actionLabel]
+      properties:
+        id:
+          type: integer
+        campaignId:
+          type: integer
+        stepNumber:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        logoUrl:
+          type: string
+        actionType:
+          type: string
+        actionUrl:
+          type: string
+        actionLabel:
+          type: string
+
+    EarnDropTaskInput:
+      type: object
+      required: [stepNumber, title]
+      properties:
+        stepNumber:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        logoUrl:
+          type: string
+        actionType:
+          type: string
+        actionUrl:
+          type: string
+        actionLabel:
+          type: string
+
+    EarnDropPromoCode:
+      type: object
+      required: [id, campaignId, code, maxUses, usedCount, isActive, createdAt]
+      properties:
+        id:
+          type: integer
+        campaignId:
+          type: integer
+        code:
+          type: string
+        maxUses:
+          type: integer
+        usedCount:
+          type: integer
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    EarnDropPromoCodeInput:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+        maxUses:
+          type: integer
+
+    EarnDropParticipant:
+      type: object
+      required: [id, campaignId, address, completedSteps, status, createdAt]
+      properties:
+        id:
+          type: integer
+        campaignId:
+          type: integer
+        address:
+          type: string
+        completedSteps:
+          type: array
+          items:
+            type: integer
+        promoCode:
+          type: ["string", "null"]
+        status:
+          type: string
+        txHash:
+          type: ["string", "null"]
+        claimedAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    EarnDropParticipantsPage:
+      type: object
+      required: [participants, total, page, limit, pages]
+      properties:
+        participants:
+          type: array
+          items:
+            $ref: "#/components/schemas/EarnDropParticipant"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        pages:
+          type: integer

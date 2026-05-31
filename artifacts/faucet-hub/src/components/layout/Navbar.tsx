@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
-import { Bell, MessageCircle, ChevronDown, ChevronRight, Megaphone, ArrowLeftRight, Users, LayoutList } from "lucide-react";
+import { Bell, MessageCircle, ChevronDown, ChevronRight, Megaphone, ArrowLeftRight, Users, LayoutList, Zap } from "lucide-react";
 import { LogoIcon, isDefaultLogo } from "@/components/ui/LogoIcon";
 import { useGetAnnouncements, getGetAnnouncementsQueryKey, useGetReferralSettings, getGetReferralSettingsQueryKey } from "@workspace/api-client-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -269,6 +269,18 @@ export function Navbar() {
                   </div>
                   <span className="font-mono font-semibold text-sm">Listing</span>
                 </button>
+                <Link href="/earn-drop"
+                  onClick={() => setMenuOpen(false)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors"
+                  style={{ color: "rgba(255,255,255,0.75)" }}
+                  onMouseEnter={(e: any) => (e.currentTarget.style.background = "rgba(34,197,94,0.08)")}
+                  onMouseLeave={(e: any) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)" }}>
+                    <Zap className="w-3.5 h-3.5" style={{ color: "#22c55e" }} />
+                  </div>
+                  <span className="font-mono font-semibold text-sm">Earn Drop</span>
+                </Link>
               </div>
             </div>
           )}
