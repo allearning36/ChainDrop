@@ -264,9 +264,12 @@ router.get("/admin/earn-drop/campaigns", requireAdmin, async (_req, res): Promis
 // ── Admin: create campaign ────────────────────────────────────────────────────
 
 router.post("/admin/earn-drop/campaigns", requireAdmin, async (req, res): Promise<void> => {
-  const { title, logoUrl, rewardAmount, rewardToken, chainId, endDate, rules, promoCodeEnabled, isActive } = req.body as {
+  const { title, logoUrl, rewardAmount, rewardToken, chainId, endDate, rules,
+          twitterUrl, telegramUrl, discordUrl, websiteUrl, promoCodeEnabled, isActive } = req.body as {
     title: string; logoUrl?: string; rewardAmount: string; rewardToken: string;
-    chainId: number; endDate: string; rules?: string; promoCodeEnabled?: boolean; isActive?: boolean;
+    chainId: number; endDate: string; rules?: string;
+    twitterUrl?: string; telegramUrl?: string; discordUrl?: string; websiteUrl?: string;
+    promoCodeEnabled?: boolean; isActive?: boolean;
   };
   if (!title || !rewardAmount || !rewardToken || !chainId || !endDate) {
     res.status(400).json({ error: "Missing required fields" }); return;
@@ -274,7 +277,10 @@ router.post("/admin/earn-drop/campaigns", requireAdmin, async (req, res): Promis
   const [created] = await db.insert(earnDropCampaignsTable).values({
     title, logoUrl: logoUrl ?? "", rewardAmount, rewardToken,
     chainId: Number(chainId), endDate: new Date(endDate),
-    rules: rules ?? "", promoCodeEnabled: promoCodeEnabled ?? false,
+    rules: rules ?? "",
+    twitterUrl: twitterUrl ?? "", telegramUrl: telegramUrl ?? "",
+    discordUrl: discordUrl ?? "", websiteUrl: websiteUrl ?? "",
+    promoCodeEnabled: promoCodeEnabled ?? false,
     isActive: isActive !== undefined ? isActive : true,
   }).returning();
   res.status(201).json({ ...created!, endDate: created!.endDate.toISOString(), createdAt: created!.createdAt.toISOString(), totalParticipants: 0 });
@@ -285,9 +291,12 @@ router.post("/admin/earn-drop/campaigns", requireAdmin, async (req, res): Promis
 router.put("/admin/earn-drop/campaigns/:id", requireAdmin, async (req, res): Promise<void> => {
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
-  const { title, logoUrl, rewardAmount, rewardToken, chainId, endDate, rules, promoCodeEnabled, isActive } = req.body as {
+  const { title, logoUrl, rewardAmount, rewardToken, chainId, endDate, rules,
+          twitterUrl, telegramUrl, discordUrl, websiteUrl, promoCodeEnabled, isActive } = req.body as {
     title?: string; logoUrl?: string; rewardAmount?: string; rewardToken?: string;
-    chainId?: number; endDate?: string; rules?: string; promoCodeEnabled?: boolean; isActive?: boolean;
+    chainId?: number; endDate?: string; rules?: string;
+    twitterUrl?: string; telegramUrl?: string; discordUrl?: string; websiteUrl?: string;
+    promoCodeEnabled?: boolean; isActive?: boolean;
   };
   const patch: Record<string, unknown> = {};
   if (title !== undefined) patch.title = title;
@@ -297,6 +306,10 @@ router.put("/admin/earn-drop/campaigns/:id", requireAdmin, async (req, res): Pro
   if (chainId !== undefined) patch.chainId = Number(chainId);
   if (endDate !== undefined) patch.endDate = new Date(endDate);
   if (rules !== undefined) patch.rules = rules;
+  if (twitterUrl !== undefined) patch.twitterUrl = twitterUrl;
+  if (telegramUrl !== undefined) patch.telegramUrl = telegramUrl;
+  if (discordUrl !== undefined) patch.discordUrl = discordUrl;
+  if (websiteUrl !== undefined) patch.websiteUrl = websiteUrl;
   if (promoCodeEnabled !== undefined) patch.promoCodeEnabled = promoCodeEnabled;
   if (isActive !== undefined) patch.isActive = isActive;
 
