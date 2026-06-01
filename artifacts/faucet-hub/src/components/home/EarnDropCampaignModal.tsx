@@ -342,7 +342,7 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
               </p>
             </div>
             <a
-              href={`https://etherscan.io/tx/${claimResult.txHash}`}
+              href={`${(campaign as { explorerUrl?: string | null }).explorerUrl?.replace(/\/$/, "") ?? "https://etherscan.io"}/tx/${claimResult.txHash}`}
               target="_blank" rel="noreferrer"
               className="flex items-center justify-center gap-1.5 text-xs font-mono mb-6"
               style={{ color: "#60a5fa" }}

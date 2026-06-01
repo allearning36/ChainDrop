@@ -2726,6 +2726,9 @@ components:
           type: string
           format: date-time
           nullable: true
+        explorerUrl:
+          type: string
+          nullable: true
 
     EarnDropCampaignDetail:
       type: object
@@ -2765,6 +2768,9 @@ components:
         promoScheduleAt:
           type: string
           format: date-time
+          nullable: true
+        explorerUrl:
+          type: string
           nullable: true
         tasks:
           type: array

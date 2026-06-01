@@ -815,6 +815,7 @@ export interface EarnDropCampaignPublic {
   websiteUrl?: string;
   promoScheduleEnabled?: boolean;
   promoScheduleAt?: string | null;
+  explorerUrl?: string | null;
 }
 
 export interface EarnDropTaskPublic {
@@ -845,6 +846,7 @@ export interface EarnDropCampaignDetail {
   websiteUrl?: string;
   promoScheduleEnabled?: boolean;
   promoScheduleAt?: string | null;
+  explorerUrl?: string | null;
   tasks: EarnDropTaskPublic[];
 }
 

@@ -60,23 +60,28 @@ router.get("/earn-drop/campaigns", async (_req, res): Promise<void> => {
     ))
     .orderBy(desc(earnDropCampaignsTable.createdAt));
 
-  const results = await Promise.all(campaigns.map(async c => ({
-    id: c.id,
-    title: c.title,
-    logoUrl: c.logoUrl,
-    rewardAmount: c.rewardAmount,
-    rewardToken: c.rewardToken,
-    chainId: c.chainId,
-    endDate: c.endDate.toISOString(),
-    promoCodeEnabled: c.promoCodeEnabled,
-    promoScheduleEnabled: c.promoScheduleEnabled,
-    promoScheduleAt: c.promoScheduleAt?.toISOString() ?? null,
-    twitterUrl: c.twitterUrl,
-    telegramUrl: c.telegramUrl,
-    discordUrl: c.discordUrl,
-    websiteUrl: c.websiteUrl,
-    totalParticipants: await getParticipantCount(c.id),
-  })));
+  const results = await Promise.all(campaigns.map(async c => {
+    const [chain] = await db.select({ explorerUrl: chainsTable.explorerUrl })
+      .from(chainsTable).where(eq(chainsTable.id, c.chainId)).limit(1);
+    return {
+      id: c.id,
+      title: c.title,
+      logoUrl: c.logoUrl,
+      rewardAmount: c.rewardAmount,
+      rewardToken: c.rewardToken,
+      chainId: c.chainId,
+      endDate: c.endDate.toISOString(),
+      promoCodeEnabled: c.promoCodeEnabled,
+      promoScheduleEnabled: c.promoScheduleEnabled,
+      promoScheduleAt: c.promoScheduleAt?.toISOString() ?? null,
+      twitterUrl: c.twitterUrl,
+      telegramUrl: c.telegramUrl,
+      discordUrl: c.discordUrl,
+      websiteUrl: c.websiteUrl,
+      explorerUrl: chain?.explorerUrl ?? null,
+      totalParticipants: await getParticipantCount(c.id),
+    };
+  }));
 
   res.json(results);
 });
@@ -95,6 +100,9 @@ router.get("/earn-drop/campaigns/:id", async (req, res): Promise<void> => {
     .where(eq(earnDropTasksTable.campaignId, id))
     .orderBy(earnDropTasksTable.stepNumber);
 
+  const [chain] = await db.select({ explorerUrl: chainsTable.explorerUrl })
+    .from(chainsTable).where(eq(chainsTable.id, campaign.chainId)).limit(1);
+
   res.json({
     id: campaign.id,
     title: campaign.title,
@@ -111,6 +119,7 @@ router.get("/earn-drop/campaigns/:id", async (req, res): Promise<void> => {
     telegramUrl: campaign.telegramUrl,
     discordUrl: campaign.discordUrl,
     websiteUrl: campaign.websiteUrl,
+    explorerUrl: chain?.explorerUrl ?? null,
     totalParticipants: await getParticipantCount(campaign.id),
     tasks: tasks.map(t => ({
       id: t.id,

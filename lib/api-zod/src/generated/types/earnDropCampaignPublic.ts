@@ -22,4 +22,5 @@ export interface EarnDropCampaignPublic {
   websiteUrl?: string;
   promoScheduleEnabled?: boolean;
   promoScheduleAt?: Date | null;
+  explorerUrl?: string | null;
 }
