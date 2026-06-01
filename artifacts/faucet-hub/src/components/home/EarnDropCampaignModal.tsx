@@ -169,6 +169,15 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
 
   const lsKey = `earn_drop_steps_${campaign.id}`;
 
+  // Persistent anonymous session ID — used to count participants without address
+  const sessionId = (() => {
+    try {
+      let sid = localStorage.getItem("earn_drop_sid");
+      if (!sid) { sid = crypto.randomUUID(); localStorage.setItem("earn_drop_sid", sid); }
+      return sid;
+    } catch { return "anon"; }
+  })();
+
   // localStorage-persisted completed steps
   const [localDone, setLocalDone] = useState<number[]>(() => {
     try {
@@ -180,6 +189,19 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
   useEffect(() => {
     try { localStorage.setItem(lsKey, JSON.stringify(localDone)); } catch { /* ignore */ }
   }, [localDone, lsKey]);
+
+  // Fire-and-forget join when first task is completed
+  const joinedRef = useRef(false);
+  useEffect(() => {
+    if (localDone.length >= 1 && !joinedRef.current) {
+      joinedRef.current = true;
+      fetch(`/api/earn-drop/campaigns/${campaign.id}/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      }).catch(() => null);
+    }
+  }, [localDone.length, campaign.id, sessionId]);
 
   const [progress, setProgress] = useState<EarnDropProgress | null>(null);
   const [claiming, setClaiming] = useState(false);

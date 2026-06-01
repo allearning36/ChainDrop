@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, numeric, integer, boolean, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, numeric, integer, boolean, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const earnDropCampaignsTable = pgTable("earn_drop_campaigns", {
   id:                serial("id").primaryKey(),
@@ -66,7 +66,19 @@ export const earnDropParticipantsTable = pgTable("earn_drop_participants", {
   index("earn_drop_participants_address_idx").on(t.address),
 ]);
 
+// Anonymous join tracking — session-ID based (no address needed)
+export const earnDropJoinsTable = pgTable("earn_drop_joins", {
+  id:         serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  sessionId:  text("session_id").notNull(),
+  createdAt:  timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("earn_drop_joins_campaign_idx").on(t.campaignId),
+  uniqueIndex("earn_drop_joins_unique_idx").on(t.campaignId, t.sessionId),
+]);
+
 export type EarnDropCampaign      = typeof earnDropCampaignsTable.$inferSelect;
 export type EarnDropTask          = typeof earnDropTasksTable.$inferSelect;
 export type EarnDropPromoCode     = typeof earnDropPromoCodesTable.$inferSelect;
 export type EarnDropParticipant   = typeof earnDropParticipantsTable.$inferSelect;
+export type EarnDropJoin          = typeof earnDropJoinsTable.$inferSelect;

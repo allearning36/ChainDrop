@@ -3,6 +3,7 @@ import { eq, and, desc, count as drizzleCount, sql } from "drizzle-orm";
 import {
   db, chainsTable,
   earnDropCampaignsTable, earnDropTasksTable, earnDropPromoCodesTable, earnDropParticipantsTable,
+  earnDropJoinsTable,
 } from "@workspace/db";
 import { requireAdmin } from "../lib/adminAuth";
 import { sendTokens, isValidAddress, type ChainType } from "../lib/chains/index";
@@ -42,8 +43,8 @@ function now() { return new Date(); }
 async function getParticipantCount(campaignId: number): Promise<number> {
   const [row] = await db
     .select({ cnt: drizzleCount() })
-    .from(earnDropParticipantsTable)
-    .where(eq(earnDropParticipantsTable.campaignId, campaignId));
+    .from(earnDropJoinsTable)
+    .where(eq(earnDropJoinsTable.campaignId, campaignId));
   return Number(row?.cnt ?? 0);
 }
 
@@ -122,6 +123,22 @@ router.get("/earn-drop/campaigns/:id", async (req, res): Promise<void> => {
       actionLabel: t.actionLabel,
     })),
   });
+});
+
+// ── Public: anonymous join (first task done — no address needed) ──────────────
+
+router.post("/earn-drop/campaigns/:id/join", async (req, res): Promise<void> => {
+  const campaignId = parseInt(req.params.id as string);
+  const sessionId = (req.body.sessionId as string | undefined)?.trim();
+  if (isNaN(campaignId) || !sessionId || sessionId.length < 8) {
+    res.json({ ok: true }); return;
+  }
+  try {
+    await db.insert(earnDropJoinsTable)
+      .values({ campaignId, sessionId })
+      .onConflictDoNothing();
+  } catch { /* ignore — duplicate silently */ }
+  res.json({ ok: true });
 });
 
 // ── Public: get user progress ─────────────────────────────────────────────────
