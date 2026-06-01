@@ -645,7 +645,9 @@ export const GetEarnDropCampaignsResponseItem = zod.object({
   "twitterUrl": zod.string().optional(),
   "telegramUrl": zod.string().optional(),
   "discordUrl": zod.string().optional(),
-  "websiteUrl": zod.string().optional()
+  "websiteUrl": zod.string().optional(),
+  "promoScheduleEnabled": zod.boolean().optional(),
+  "promoScheduleAt": zod.coerce.date().nullish()
 })
 export const GetEarnDropCampaignsResponse = zod.array(GetEarnDropCampaignsResponseItem)
 
@@ -672,6 +674,8 @@ export const GetEarnDropCampaignResponse = zod.object({
   "telegramUrl": zod.string().optional(),
   "discordUrl": zod.string().optional(),
   "websiteUrl": zod.string().optional(),
+  "promoScheduleEnabled": zod.boolean().optional(),
+  "promoScheduleAt": zod.coerce.date().nullish(),
   "tasks": zod.array(zod.object({
   "id": zod.number(),
   "stepNumber": zod.number(),

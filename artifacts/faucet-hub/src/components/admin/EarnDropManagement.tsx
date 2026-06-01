@@ -17,8 +17,8 @@ interface Campaign {
   rewardAmount: string; rewardToken: string; chainId: number;
   endDate: string; rules: string;
   twitterUrl: string; telegramUrl: string; discordUrl: string; websiteUrl: string;
-  promoCodeEnabled: boolean; isActive: boolean;
-  totalParticipants: number; createdAt: string;
+  promoCodeEnabled: boolean; promoScheduleEnabled: boolean; promoScheduleAt: string | null;
+  isActive: boolean; totalParticipants: number; createdAt: string;
 }
 interface Task {
   id: number; campaignId: number; stepNumber: number; title: string;
@@ -99,6 +99,8 @@ function CampaignForm({ initial, chains, onSave, onCancel }: CampaignFormProps) 
   const [rewardAmount, setRewardAmount] = useState(initial?.rewardAmount ?? "");
   const [rewardToken, setRewardToken] = useState(initial?.rewardToken ?? "");
   const [chainId, setChainId] = useState(String(initial?.chainId ?? (chains[0]?.id ?? "")));
+  const [chainSearch, setChainSearch] = useState("");
+  const [chainDropOpen, setChainDropOpen] = useState(false);
   const [endDate, setEndDate] = useState(initial?.endDate ? initial.endDate.slice(0, 16) : "");
   const [rules, setRules] = useState(initial?.rules ?? "");
   const [twitterUrl, setTwitterUrl] = useState(initial?.twitterUrl ?? "");
@@ -106,6 +108,10 @@ function CampaignForm({ initial, chains, onSave, onCancel }: CampaignFormProps) 
   const [discordUrl, setDiscordUrl] = useState(initial?.discordUrl ?? "");
   const [websiteUrl, setWebsiteUrl] = useState(initial?.websiteUrl ?? "");
   const [promoCodeEnabled, setPromoCodeEnabled] = useState(initial?.promoCodeEnabled ?? false);
+  const [promoScheduleEnabled, setPromoScheduleEnabled] = useState(initial?.promoScheduleEnabled ?? false);
+  const [promoScheduleAt, setPromoScheduleAt] = useState(
+    initial?.promoScheduleAt ? initial.promoScheduleAt.slice(0, 16) : ""
+  );
   const [isActive, setIsActive] = useState(initial?.isActive !== false);
   // inline promo codes for new campaign
   const [promoCodes, setPromoCodes] = useState<{ code: string; maxUses: string }[]>([]);
@@ -133,7 +139,12 @@ function CampaignForm({ initial, chains, onSave, onCancel }: CampaignFormProps) 
           rewardToken: rewardToken.trim(), chainId: Number(chainId),
           endDate: new Date(endDate).toISOString(),
           rules, twitterUrl, telegramUrl, discordUrl, websiteUrl,
-          promoCodeEnabled, isActive,
+          promoCodeEnabled,
+          promoScheduleEnabled,
+          promoScheduleAt: promoCodeEnabled && promoScheduleEnabled && promoScheduleAt
+            ? new Date(promoScheduleAt).toISOString()
+            : null,
+          isActive,
         }),
       });
       if (!res.ok) {
@@ -197,15 +208,68 @@ function CampaignForm({ initial, chains, onSave, onCancel }: CampaignFormProps) 
         </div>
       </div>
 
-      {/* Chain dropdown */}
-      <div>
+      {/* Chain dropdown — searchable */}
+      <div className="relative">
         <label className="text-[10px] text-muted-foreground font-mono">Reward Chain * (rewards sent from this chain)</label>
-        <select className={`${FIELD} mt-1`} style={FS} value={chainId} onChange={e => setChainId(e.target.value)}>
-          <option value="">— Select chain —</option>
-          {chains.map(c => (
-            <option key={c.id} value={c.id}>{c.name} ({c.symbol})</option>
-          ))}
-        </select>
+        <div
+          className={`${FIELD} mt-1 cursor-pointer flex items-center justify-between`}
+          style={FS}
+          onClick={() => setChainDropOpen(v => !v)}
+        >
+          <span style={{ color: chainId ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.3)" }}>
+            {chains.find(c => String(c.id) === chainId)
+              ? `${chains.find(c => String(c.id) === chainId)!.name} (${chains.find(c => String(c.id) === chainId)!.symbol})`
+              : "— Select chain —"}
+          </span>
+          <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 10 }}>▼</span>
+        </div>
+        {chainDropOpen && (
+          <div
+            className="absolute z-50 w-full top-full left-0 mt-0.5 rounded-lg overflow-hidden"
+            style={{ background: "#0c1018", border: "1px solid rgba(255,255,255,0.14)", maxHeight: 220, overflowY: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}
+          >
+            <div className="p-1.5 sticky top-0" style={{ background: "#0c1018", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <input
+                autoFocus
+                value={chainSearch}
+                onChange={e => setChainSearch(e.target.value)}
+                placeholder="Search chains…"
+                className="w-full px-2 py-1 text-xs font-mono outline-none rounded"
+                style={{ background: "rgba(255,255,255,0.05)", color: "#fff", border: "1px solid rgba(255,255,255,0.08)" }}
+                onClick={e => e.stopPropagation()}
+              />
+            </div>
+            {chains
+              .filter(c =>
+                chainSearch.trim() === "" ||
+                c.name.toLowerCase().includes(chainSearch.toLowerCase()) ||
+                c.symbol.toLowerCase().includes(chainSearch.toLowerCase())
+              )
+              .map(c => (
+                <div
+                  key={c.id}
+                  onClick={() => { setChainId(String(c.id)); setChainDropOpen(false); setChainSearch(""); }}
+                  className="px-3 py-2 text-xs font-mono cursor-pointer transition-colors"
+                  style={{
+                    color: String(c.id) === chainId ? "#22c55e" : "rgba(255,255,255,0.8)",
+                    background: String(c.id) === chainId ? "rgba(34,197,94,0.08)" : "transparent",
+                  }}
+                  onMouseEnter={e => { if (String(c.id) !== chainId) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.06)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = String(c.id) === chainId ? "rgba(34,197,94,0.08)" : "transparent"; }}
+                >
+                  {c.name} ({c.symbol})
+                </div>
+              ))
+            }
+            {chains.filter(c =>
+              chainSearch.trim() === "" ||
+              c.name.toLowerCase().includes(chainSearch.toLowerCase()) ||
+              c.symbol.toLowerCase().includes(chainSearch.toLowerCase())
+            ).length === 0 && (
+              <div className="px-3 py-2 text-xs text-muted-foreground font-mono">No chains found</div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* End date */}
@@ -258,13 +322,32 @@ function CampaignForm({ initial, chains, onSave, onCancel }: CampaignFormProps) 
         <Toggle value={isActive} onChange={() => setIsActive(v => !v)} label="Active" />
       </div>
 
-      {/* Promo code note */}
+      {/* Promo schedule — only when promoCodeEnabled */}
       {promoCodeEnabled && (
-        <div className="rounded-lg p-3" style={{ background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.15)" }}>
+        <div className="space-y-3 rounded-lg p-3" style={{ background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.15)" }}>
           <p className="text-[10px] font-mono" style={{ color: "#22c55e" }}>
             <Key className="w-3 h-3 inline mr-1" />
-            After saving, go to the <strong>Promo Codes</strong> tab to add promo codes for this campaign.
+            After saving, go to the <strong>Promo Codes</strong> tab to add codes for this campaign.
           </p>
+          <Toggle
+            value={promoScheduleEnabled}
+            onChange={() => setPromoScheduleEnabled(v => !v)}
+            label="Schedule Promo Code Unlock"
+          />
+          {promoScheduleEnabled && (
+            <div>
+              <label className="text-[10px] text-muted-foreground font-mono">
+                Unlock Time — until this time, a countdown is shown instead of the claim form
+              </label>
+              <input
+                type="datetime-local"
+                className={`${FIELD} mt-1`}
+                style={FS}
+                value={promoScheduleAt}
+                onChange={e => setPromoScheduleAt(e.target.value)}
+              />
+            </div>
+          )}
         </div>
       )}
 

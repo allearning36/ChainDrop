@@ -813,6 +813,8 @@ export interface EarnDropCampaignPublic {
   telegramUrl?: string;
   discordUrl?: string;
   websiteUrl?: string;
+  promoScheduleEnabled?: boolean;
+  promoScheduleAt?: string | null;
 }
 
 export interface EarnDropTaskPublic {
@@ -841,6 +843,8 @@ export interface EarnDropCampaignDetail {
   telegramUrl?: string;
   discordUrl?: string;
   websiteUrl?: string;
+  promoScheduleEnabled?: boolean;
+  promoScheduleAt?: string | null;
   tasks: EarnDropTaskPublic[];
 }
 

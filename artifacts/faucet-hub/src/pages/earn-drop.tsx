@@ -76,7 +76,7 @@ function CampaignCard({ campaign, onOpen }: { campaign: EarnDropCampaignPublic; 
 
         {showInfo && (
           <div className="mt-3 rounded-xl px-3 py-2 text-xs font-mono text-muted-foreground" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-            Complete tasks to earn {campaign.rewardAmount} {campaign.rewardToken}. Click Claim to see all tasks.
+            Complete tasks to earn {parseFloat(campaign.rewardAmount)} {campaign.rewardToken}. Click Claim to see all tasks.
           </div>
         )}
       </div>
@@ -106,7 +106,7 @@ function CampaignCard({ campaign, onOpen }: { campaign: EarnDropCampaignPublic; 
             <span>Reward</span>
           </div>
           <span className="text-xs font-bold font-mono" style={{ color: "#22c55e" }}>
-            {campaign.rewardAmount} {campaign.rewardToken}
+            {parseFloat(campaign.rewardAmount)} {campaign.rewardToken}
           </span>
         </div>
 
@@ -136,7 +136,7 @@ function CampaignCard({ campaign, onOpen }: { campaign: EarnDropCampaignPublic; 
           onMouseEnter={(e: any) => { if (!ended) e.currentTarget.style.boxShadow = "0 6px 28px rgba(34,197,94,0.45)"; }}
           onMouseLeave={(e: any) => { if (!ended) e.currentTarget.style.boxShadow = "0 4px 20px rgba(34,197,94,0.3)"; }}
         >
-          {ended ? "Drop Ended" : `Claim ${campaign.rewardAmount} ${campaign.rewardToken}`}
+          {ended ? "Drop Ended" : `Claim ${parseFloat(campaign.rewardAmount)} ${campaign.rewardToken}`}
         </button>
       </div>
     </div>

@@ -11,6 +11,30 @@ import { resolveChainPrivateKey } from "../lib/encryption";
 
 const router: IRouter = Router();
 
+// ── Captcha ───────────────────────────────────────────────────────────────────
+
+const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET_KEY ?? "";
+
+async function verifyCaptcha(token: string): Promise<boolean> {
+  if (!RECAPTCHA_SECRET) return true; // dev mode — skip
+  try {
+    const r = await fetch(
+      `https://www.google.com/recaptcha/api/siteverify?secret=${RECAPTCHA_SECRET}&response=${encodeURIComponent(token)}`,
+      { method: "POST" },
+    );
+    const d = await r.json() as { success: boolean };
+    return d.success;
+  } catch { return false; }
+}
+
+// ── Extract client IP ─────────────────────────────────────────────────────────
+
+function getClientIp(req: import("express").Request): string {
+  const fwd = req.headers["x-forwarded-for"];
+  return (typeof fwd === "string" ? fwd.split(",")[0] : Array.isArray(fwd) ? fwd[0] : req.ip ?? "unknown")
+    .trim().replace(/^::ffff:/, "");
+}
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function now() { return new Date(); }
@@ -44,6 +68,12 @@ router.get("/earn-drop/campaigns", async (_req, res): Promise<void> => {
     chainId: c.chainId,
     endDate: c.endDate.toISOString(),
     promoCodeEnabled: c.promoCodeEnabled,
+    promoScheduleEnabled: c.promoScheduleEnabled,
+    promoScheduleAt: c.promoScheduleAt?.toISOString() ?? null,
+    twitterUrl: c.twitterUrl,
+    telegramUrl: c.telegramUrl,
+    discordUrl: c.discordUrl,
+    websiteUrl: c.websiteUrl,
     totalParticipants: await getParticipantCount(c.id),
   })));
 
@@ -74,6 +104,12 @@ router.get("/earn-drop/campaigns/:id", async (req, res): Promise<void> => {
     endDate: campaign.endDate.toISOString(),
     rules: campaign.rules,
     promoCodeEnabled: campaign.promoCodeEnabled,
+    promoScheduleEnabled: campaign.promoScheduleEnabled,
+    promoScheduleAt: campaign.promoScheduleAt?.toISOString() ?? null,
+    twitterUrl: campaign.twitterUrl,
+    telegramUrl: campaign.telegramUrl,
+    discordUrl: campaign.discordUrl,
+    websiteUrl: campaign.websiteUrl,
     totalParticipants: await getParticipantCount(campaign.id),
     tasks: tasks.map(t => ({
       id: t.id,
@@ -161,16 +197,26 @@ router.post("/earn-drop/claim", async (req, res): Promise<void> => {
   const campaignId = parseInt(req.body.campaignId);
   const address = (req.body.address as string)?.toLowerCase().trim();
   const promoCode = (req.body.promoCode as string | undefined)?.trim();
+  const captchaToken = (req.body.captchaToken as string | undefined) ?? "";
 
   if (isNaN(campaignId) || !address) {
     res.status(400).json({ error: "Invalid params" }); return;
   }
+
+  // reCAPTCHA verification
+  const captchaOk = await verifyCaptcha(captchaToken);
+  if (!captchaOk) { res.status(400).json({ error: "CAPTCHA verification failed" }); return; }
 
   const [campaign] = await db.select().from(earnDropCampaignsTable)
     .where(eq(earnDropCampaignsTable.id, campaignId)).limit(1);
   if (!campaign) { res.status(400).json({ error: "Campaign not found" }); return; }
   if (!campaign.isActive || campaign.endDate < now()) {
     res.status(400).json({ error: "Campaign has ended" }); return;
+  }
+
+  // Promo schedule: not claimable yet
+  if (campaign.promoScheduleEnabled && campaign.promoScheduleAt && campaign.promoScheduleAt > now()) {
+    res.status(400).json({ error: "Drop not yet claimable — schedule pending" }); return;
   }
 
   const chain = await db.select().from(chainsTable)
@@ -181,6 +227,21 @@ router.post("/earn-drop/claim", async (req, res): Promise<void> => {
 
   const validAddr = await isValidAddress(chain.chainType as ChainType, address, chain.addressRegex);
   if (!validAddr) { res.status(400).json({ error: "Invalid wallet address" }); return; }
+
+  // IP-based duplicate check
+  const clientIp = getClientIp(req);
+  if (clientIp && clientIp !== "unknown") {
+    const [ipClaim] = await db.select({ id: earnDropParticipantsTable.id })
+      .from(earnDropParticipantsTable)
+      .where(and(
+        eq(earnDropParticipantsTable.campaignId, campaignId),
+        eq(earnDropParticipantsTable.claimedFromIp, clientIp),
+        eq(earnDropParticipantsTable.status, "claimed"),
+      )).limit(1);
+    if (ipClaim) {
+      res.status(400).json({ error: "This drop has already been claimed from your network" }); return;
+    }
+  }
 
   const tasks = await db.select().from(earnDropTasksTable)
     .where(eq(earnDropTasksTable.campaignId, campaignId));
@@ -207,7 +268,7 @@ router.post("/earn-drop/claim", async (req, res): Promise<void> => {
     const [codeRow] = await db.select().from(earnDropPromoCodesTable)
       .where(and(
         eq(earnDropPromoCodesTable.campaignId, campaignId),
-        eq(earnDropPromoCodesTable.code, promoCode),
+        eq(earnDropPromoCodesTable.code, promoCode.toUpperCase()),
         eq(earnDropPromoCodesTable.isActive, true),
       )).limit(1);
     if (!codeRow) { res.status(400).json({ error: "Invalid promo code" }); return; }
@@ -234,12 +295,12 @@ router.post("/earn-drop/claim", async (req, res): Promise<void> => {
 
   if (participant) {
     await db.update(earnDropParticipantsTable)
-      .set({ status: "claimed", txHash, claimedAt: new Date(), promoCode: promoCode ?? null })
+      .set({ status: "claimed", txHash, claimedAt: new Date(), promoCode: promoCode ?? null, claimedFromIp: clientIp })
       .where(eq(earnDropParticipantsTable.id, participant.id));
   } else {
     await db.insert(earnDropParticipantsTable).values({
       campaignId, address, completedSteps: allTaskNums,
-      promoCode: promoCode ?? null, status: "claimed", txHash, claimedAt: new Date(),
+      promoCode: promoCode ?? null, status: "claimed", txHash, claimedAt: new Date(), claimedFromIp: clientIp,
     });
   }
 
@@ -265,11 +326,13 @@ router.get("/admin/earn-drop/campaigns", requireAdmin, async (_req, res): Promis
 
 router.post("/admin/earn-drop/campaigns", requireAdmin, async (req, res): Promise<void> => {
   const { title, logoUrl, rewardAmount, rewardToken, chainId, endDate, rules,
-          twitterUrl, telegramUrl, discordUrl, websiteUrl, promoCodeEnabled, isActive } = req.body as {
+          twitterUrl, telegramUrl, discordUrl, websiteUrl,
+          promoCodeEnabled, promoScheduleEnabled, promoScheduleAt, isActive } = req.body as {
     title: string; logoUrl?: string; rewardAmount: string; rewardToken: string;
     chainId: number; endDate: string; rules?: string;
     twitterUrl?: string; telegramUrl?: string; discordUrl?: string; websiteUrl?: string;
-    promoCodeEnabled?: boolean; isActive?: boolean;
+    promoCodeEnabled?: boolean; promoScheduleEnabled?: boolean; promoScheduleAt?: string | null;
+    isActive?: boolean;
   };
   if (!title || !rewardAmount || !rewardToken || !chainId || !endDate) {
     res.status(400).json({ error: "Missing required fields" }); return;
@@ -281,6 +344,8 @@ router.post("/admin/earn-drop/campaigns", requireAdmin, async (req, res): Promis
     twitterUrl: twitterUrl ?? "", telegramUrl: telegramUrl ?? "",
     discordUrl: discordUrl ?? "", websiteUrl: websiteUrl ?? "",
     promoCodeEnabled: promoCodeEnabled ?? false,
+    promoScheduleEnabled: promoScheduleEnabled ?? false,
+    promoScheduleAt: promoScheduleAt ? new Date(promoScheduleAt) : null,
     isActive: isActive !== undefined ? isActive : true,
   }).returning();
   res.status(201).json({ ...created!, endDate: created!.endDate.toISOString(), createdAt: created!.createdAt.toISOString(), totalParticipants: 0 });
@@ -292,11 +357,13 @@ router.put("/admin/earn-drop/campaigns/:id", requireAdmin, async (req, res): Pro
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   const { title, logoUrl, rewardAmount, rewardToken, chainId, endDate, rules,
-          twitterUrl, telegramUrl, discordUrl, websiteUrl, promoCodeEnabled, isActive } = req.body as {
+          twitterUrl, telegramUrl, discordUrl, websiteUrl,
+          promoCodeEnabled, promoScheduleEnabled, promoScheduleAt, isActive } = req.body as {
     title?: string; logoUrl?: string; rewardAmount?: string; rewardToken?: string;
     chainId?: number; endDate?: string; rules?: string;
     twitterUrl?: string; telegramUrl?: string; discordUrl?: string; websiteUrl?: string;
-    promoCodeEnabled?: boolean; isActive?: boolean;
+    promoCodeEnabled?: boolean; promoScheduleEnabled?: boolean; promoScheduleAt?: string | null;
+    isActive?: boolean;
   };
   const patch: Record<string, unknown> = {};
   if (title !== undefined) patch.title = title;
@@ -311,6 +378,8 @@ router.put("/admin/earn-drop/campaigns/:id", requireAdmin, async (req, res): Pro
   if (discordUrl !== undefined) patch.discordUrl = discordUrl;
   if (websiteUrl !== undefined) patch.websiteUrl = websiteUrl;
   if (promoCodeEnabled !== undefined) patch.promoCodeEnabled = promoCodeEnabled;
+  if (promoScheduleEnabled !== undefined) patch.promoScheduleEnabled = promoScheduleEnabled;
+  if (promoScheduleAt !== undefined) patch.promoScheduleAt = promoScheduleAt ? new Date(promoScheduleAt) : null;
   if (isActive !== undefined) patch.isActive = isActive;
 
   const [updated] = await db.update(earnDropCampaignsTable).set(patch).where(eq(earnDropCampaignsTable.id, id)).returning();

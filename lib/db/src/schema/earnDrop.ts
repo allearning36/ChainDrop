@@ -13,9 +13,11 @@ export const earnDropCampaignsTable = pgTable("earn_drop_campaigns", {
   telegramUrl:       text("telegram_url").notNull().default(""),
   discordUrl:        text("discord_url").notNull().default(""),
   websiteUrl:        text("website_url").notNull().default(""),
-  promoCodeEnabled:  boolean("promo_code_enabled").notNull().default(false),
-  isActive:          boolean("is_active").notNull().default(true),
-  createdAt:         timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  promoCodeEnabled:      boolean("promo_code_enabled").notNull().default(false),
+  promoScheduleEnabled:  boolean("promo_schedule_enabled").notNull().default(false),
+  promoScheduleAt:       timestamp("promo_schedule_at", { withTimezone: true }),
+  isActive:              boolean("is_active").notNull().default(true),
+  createdAt:             timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("earn_drop_campaigns_active_idx").on(t.isActive),
 ]);
@@ -57,6 +59,7 @@ export const earnDropParticipantsTable = pgTable("earn_drop_participants", {
   status:         text("status").notNull().default("pending"),
   txHash:         text("tx_hash"),
   claimedAt:      timestamp("claimed_at", { withTimezone: true }),
+  claimedFromIp:  text("claimed_from_ip"),
   createdAt:      timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("earn_drop_participants_campaign_idx").on(t.campaignId),

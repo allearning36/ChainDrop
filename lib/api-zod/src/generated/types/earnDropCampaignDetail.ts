@@ -22,5 +22,7 @@ export interface EarnDropCampaignDetail {
   telegramUrl?: string;
   discordUrl?: string;
   websiteUrl?: string;
+  promoScheduleEnabled?: boolean;
+  promoScheduleAt?: Date | null;
   tasks: EarnDropTaskPublic[];
 }

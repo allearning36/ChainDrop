@@ -2720,6 +2720,12 @@ components:
           type: string
         websiteUrl:
           type: string
+        promoScheduleEnabled:
+          type: boolean
+        promoScheduleAt:
+          type: string
+          format: date-time
+          nullable: true
 
     EarnDropCampaignDetail:
       type: object
@@ -2754,6 +2760,12 @@ components:
           type: string
         websiteUrl:
           type: string
+        promoScheduleEnabled:
+          type: boolean
+        promoScheduleAt:
+          type: string
+          format: date-time
+          nullable: true
         tasks:
           type: array
           items:
