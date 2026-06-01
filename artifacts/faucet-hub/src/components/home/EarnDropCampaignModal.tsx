@@ -1,22 +1,29 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   X, CheckCircle2, ExternalLink, Loader2, ChevronRight, Info,
-  Twitter, Send, MessageCircle, Globe,
+  Twitter, Send, MessageCircle, Globe, Clock,
 } from "lucide-react";
+import ReCAPTCHA from "react-google-recaptcha";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   EarnDropCampaignDetail, EarnDropTaskPublic, EarnDropProgress,
 } from "@workspace/api-client-react";
 
+const RECAPTCHA_SITE_KEY =
+  (import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined) ||
+  "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"; // Google test key fallback
+
 interface Props {
   campaign: EarnDropCampaignDetail;
   onClose: () => void;
 }
 
-function useCountdown(endDate: string) {
+// ── Countdown hook ────────────────────────────────────────────────────────────
+
+function useCountdown(targetDate: string) {
   const calc = () => {
-    const diff = Math.max(0, new Date(endDate).getTime() - Date.now());
+    const diff = Math.max(0, new Date(targetDate).getTime() - Date.now());
     const d = Math.floor(diff / 86400000);
     const h = Math.floor((diff % 86400000) / 3600000);
     const m = Math.floor((diff % 3600000) / 60000);
@@ -27,17 +34,41 @@ function useCountdown(endDate: string) {
   useEffect(() => {
     const id = setInterval(() => setT(calc()), 1000);
     return () => clearInterval(id);
-  }, [endDate]);
+  }, [targetDate]);
   return t;
 }
 
+// ── Task card ─────────────────────────────────────────────────────────────────
+
 function TaskCard({
-  task, stepDone, onComplete,
+  task,
+  stepDone,
+  onComplete,
 }: {
   task: EarnDropTaskPublic;
   stepDone: boolean;
   onComplete: (stepNumber: number) => void;
 }) {
+  const [counting, setCounting] = useState(false);
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    if (!counting) return;
+    if (seconds <= 0) {
+      setCounting(false);
+      onComplete(task.stepNumber);
+      return;
+    }
+    const id = setTimeout(() => setSeconds(s => s - 1), 1000);
+    return () => clearTimeout(id);
+  }, [counting, seconds, task.stepNumber, onComplete]);
+
+  const startCountdown = () => {
+    if (counting || stepDone) return;
+    setSeconds(10);
+    setCounting(true);
+  };
+
   const hasAction = task.actionType === "link" && task.actionUrl;
   const hasLogo = task.logoUrl && task.logoUrl.trim() !== "";
 
@@ -78,12 +109,20 @@ function TaskCard({
                 style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.25)" }}>
                 <span className="text-xs font-mono font-semibold" style={{ color: "#22c55e" }}>Done</span>
               </div>
+            ) : counting ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg shrink-0"
+                style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)" }}>
+                <Clock className="w-3 h-3" style={{ color: "#f59e0b" }} />
+                <span className="text-xs font-mono font-semibold tabular-nums" style={{ color: "#f59e0b" }}>
+                  {seconds}s
+                </span>
+              </div>
             ) : hasAction ? (
               <a
                 href={task.actionUrl}
                 target="_blank"
                 rel="noreferrer"
-                onClick={() => setTimeout(() => onComplete(task.stepNumber), 1500)}
+                onClick={startCountdown}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg shrink-0 text-xs font-mono font-semibold transition-colors"
                 style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.85)" }}
               >
@@ -91,7 +130,7 @@ function TaskCard({
               </a>
             ) : (
               <button
-                onClick={() => onComplete(task.stepNumber)}
+                onClick={startCountdown}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg shrink-0 text-xs font-mono font-semibold transition-colors"
                 style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e" }}
               >
@@ -105,17 +144,44 @@ function TaskCard({
   );
 }
 
+// ── Promo schedule countdown display ─────────────────────────────────────────
+
+function PromoScheduleCountdown({ promoScheduleAt }: { promoScheduleAt: string }) {
+  const { d, h, m, s, ended } = useCountdown(promoScheduleAt);
+  if (ended) return null;
+  return (
+    <div className="rounded-xl p-4 text-center" style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.2)" }}>
+      <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">Promo Code Unlocks In</p>
+      <p className="text-2xl font-black font-mono tabular-nums" style={{ color: "#f59e0b" }}>
+        {String(d).padStart(2, "0")}D {String(h).padStart(2, "0")}H {String(m).padStart(2, "0")}M {String(s).padStart(2, "0")}S
+      </p>
+    </div>
+  );
+}
+
+// ── Main modal ────────────────────────────────────────────────────────────────
+
 export function EarnDropCampaignModal({ campaign, onClose }: Props) {
-  // Address + promo only needed at claim time
   const [address, setAddress] = useState("");
   const [promoCode, setPromoCode] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<ReCAPTCHA | null>(null);
 
-  // Local task completion tracking (no address needed to check tasks)
-  const [localDone, setLocalDone] = useState<number[]>([]);
+  const lsKey = `earn_drop_steps_${campaign.id}`;
 
-  // Server-side progress (loaded when address is entered)
+  // localStorage-persisted completed steps
+  const [localDone, setLocalDone] = useState<number[]>(() => {
+    try {
+      const raw = localStorage.getItem(lsKey);
+      return raw ? (JSON.parse(raw) as number[]) : [];
+    } catch { return []; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(lsKey, JSON.stringify(localDone)); } catch { /* ignore */ }
+  }, [localDone, lsKey]);
+
   const [progress, setProgress] = useState<EarnDropProgress | null>(null);
-
   const [claiming, setClaiming] = useState(false);
   const [claimResult, setClaimResult] = useState<{ txHash: string; rewardAmount: string; rewardToken: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -123,14 +189,21 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
   const { d, h, m, s, ended } = useCountdown(campaign.endDate);
 
   const totalTasks = campaign.tasks.length;
-
-  // Merge local + server completed steps
   const serverSteps = progress?.completedSteps ?? [];
   const completedSteps = Array.from(new Set([...localDone, ...serverSteps]));
   const completedCount = completedSteps.length;
   const allDone = totalTasks > 0 && completedCount >= totalTasks;
   const alreadyClaimed = progress?.claimed ?? false;
   const pct = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
+
+  // Promo schedule — show countdown instead of claim if not yet unlocked
+  const promoScheduleLocked =
+    !!(campaign as EarnDropCampaignDetail & { promoScheduleEnabled?: boolean; promoScheduleAt?: string | null })
+      .promoScheduleEnabled &&
+    !!(campaign as EarnDropCampaignDetail & { promoScheduleAt?: string | null }).promoScheduleAt &&
+    new Date((campaign as EarnDropCampaignDetail & { promoScheduleAt?: string | null }).promoScheduleAt!).getTime() > Date.now();
+
+  const promoScheduleAt = (campaign as EarnDropCampaignDetail & { promoScheduleAt?: string | null }).promoScheduleAt ?? null;
 
   // Load server progress when address is provided
   const loadProgress = useCallback(async (addr: string) => {
@@ -149,11 +222,10 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
     return undefined;
   }, [address, loadProgress]);
 
-  // Mark task done locally — no address needed
-  const handleCompleteTask = (stepNumber: number) => {
+  const handleCompleteTask = useCallback((stepNumber: number) => {
     setLocalDone(prev => prev.includes(stepNumber) ? prev : [...prev, stepNumber]);
     setError(null);
-  };
+  }, []);
 
   const handleClaim = async () => {
     if (!address.trim() || address.trim().length < 10) {
@@ -164,13 +236,22 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
       setError("Complete all tasks first");
       return;
     }
+    if (!captchaToken) {
+      setError("Please complete the CAPTCHA");
+      return;
+    }
+    if (promoScheduleLocked) {
+      setError("Drop is not yet claimable — wait for the schedule");
+      return;
+    }
     setError(null);
     setClaiming(true);
     try {
-      // Record any locally-completed steps to the backend first
       const addr = address.trim().toLowerCase();
+
+      // Sync locally completed steps to backend
       for (const step of localDone) {
-        if (serverSteps.includes(step)) continue; // already on server
+        if (serverSteps.includes(step)) continue;
         await fetch(`/api/earn-drop/campaigns/${campaign.id}/complete-task`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -178,30 +259,44 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
         }).catch(() => null);
       }
 
-      // Claim
       const res = await fetch("/api/earn-drop/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           campaignId: campaign.id,
           address: addr,
+          captchaToken,
           ...(campaign.promoCodeEnabled && promoCode ? { promoCode: promoCode.trim().toUpperCase() } : {}),
         }),
       });
       const data = await res.json() as { txHash: string; rewardAmount: string; rewardToken: string; error?: string };
-      if (!res.ok) { setError(data.error ?? "Claim failed"); return; }
+      if (!res.ok) {
+        setError(data.error ?? "Claim failed");
+        captchaRef.current?.reset();
+        setCaptchaToken(null);
+        return;
+      }
+      // Clear localStorage on success
+      try { localStorage.removeItem(lsKey); } catch { /* ignore */ }
       setClaimResult(data);
-    } catch { setError("Network error. Try again."); }
-    finally { setClaiming(false); }
+    } catch {
+      setError("Network error. Try again.");
+      captchaRef.current?.reset();
+      setCaptchaToken(null);
+    } finally {
+      setClaiming(false);
+    }
   };
 
   // Social links
   const socials = [
-    campaign.twitterUrl  ? { icon: <Twitter  className="w-4 h-4" />, url: campaign.twitterUrl,  color: "#1d9bf0", label: "Twitter"  } : null,
-    campaign.telegramUrl ? { icon: <Send     className="w-4 h-4" />, url: campaign.telegramUrl, color: "#229ed9", label: "Telegram" } : null,
-    campaign.discordUrl  ? { icon: <MessageCircle className="w-4 h-4" />, url: campaign.discordUrl,  color: "#5865f2", label: "Discord"  } : null,
-    campaign.websiteUrl  ? { icon: <Globe    className="w-4 h-4" />, url: campaign.websiteUrl,  color: "#22c55e", label: "Website"  } : null,
+    campaign.twitterUrl  ? { icon: <Twitter className="w-4 h-4" />, url: campaign.twitterUrl,  color: "#1d9bf0", label: "Twitter"  } : null,
+    campaign.telegramUrl ? { icon: <Send className="w-4 h-4" />,    url: campaign.telegramUrl, color: "#229ed9", label: "Telegram" } : null,
+    campaign.discordUrl  ? { icon: <MessageCircle className="w-4 h-4" />, url: campaign.discordUrl, color: "#5865f2", label: "Discord" } : null,
+    campaign.websiteUrl  ? { icon: <Globe className="w-4 h-4" />,   url: campaign.websiteUrl,  color: "#22c55e", label: "Website"  } : null,
   ].filter(Boolean) as { icon: React.ReactNode; url: string; color: string; label: string }[];
+
+  // ── Success screen ──────────────────────────────────────────────────────────
 
   if (claimResult) {
     return (
@@ -221,7 +316,7 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
             <p className="text-muted-foreground text-sm mb-4">Your reward has been sent to your wallet</p>
             <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}>
               <p className="text-2xl font-black font-mono" style={{ color: "#22c55e" }}>
-                {claimResult.rewardAmount} {claimResult.rewardToken}
+                {parseFloat(claimResult.rewardAmount)} {claimResult.rewardToken}
               </p>
             </div>
             <a
@@ -240,6 +335,8 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
       </div>
     );
   }
+
+  // ── Main modal ──────────────────────────────────────────────────────────────
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
@@ -271,7 +368,6 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {/* Social link icons */}
             {socials.map(s => (
               <a key={s.label} href={s.url} target="_blank" rel="noreferrer"
                 className="p-2 rounded-lg transition-all"
@@ -314,7 +410,9 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
           )}
           <div className="flex items-center justify-between text-xs font-mono mt-1.5">
             <span className="text-muted-foreground">Reward</span>
-            <span className="font-bold" style={{ color: "#22c55e" }}>{campaign.rewardAmount} {campaign.rewardToken}</span>
+            <span className="font-bold" style={{ color: "#22c55e" }}>
+              {parseFloat(campaign.rewardAmount)} {campaign.rewardToken}
+            </span>
           </div>
           <div className="flex items-center justify-between text-xs font-mono mt-1">
             <span className="text-muted-foreground">Total Participants</span>
@@ -322,7 +420,7 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
           </div>
         </div>
 
-        {/* Overall progress */}
+        {/* Overall progress bar */}
         {totalTasks > 0 && (
           <div className="px-5 py-3 shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
             <div className="flex items-center justify-between mb-1.5">
@@ -351,53 +449,84 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
           ))}
         </div>
 
-        {/* Claim section — address + promo only here */}
+        {/* Claim section */}
         <div className="px-5 py-4 shrink-0"
           style={{ borderTop: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.3)" }}>
-          <Input
-            placeholder="Your wallet address (0x...)"
-            value={address}
-            onChange={e => { setAddress(e.target.value); setError(null); }}
-            className="mb-2 font-mono text-xs"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
-          />
-          {campaign.promoCodeEnabled && (
-            <Input
-              placeholder="Promo code (required)"
-              value={promoCode}
-              onChange={e => setPromoCode(e.target.value.toUpperCase())}
-              className="mb-2 font-mono text-xs uppercase"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
-            />
-          )}
-          {error && <p className="text-xs text-red-400 font-mono mb-2">{error}</p>}
 
-          {alreadyClaimed ? (
-            <div className="flex items-center justify-center gap-2 py-3 rounded-xl"
-              style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}>
-              <CheckCircle2 className="w-4 h-4" style={{ color: "#22c55e" }} />
-              <span className="text-sm font-mono font-semibold" style={{ color: "#22c55e" }}>Already Claimed</span>
+          {/* Promo schedule: show countdown instead of claim form */}
+          {promoScheduleLocked && promoScheduleAt ? (
+            <div className="space-y-3">
+              <PromoScheduleCountdown promoScheduleAt={promoScheduleAt} />
+              <p className="text-[10px] font-mono text-center text-muted-foreground">
+                Complete tasks above and return when the countdown ends to claim your reward
+              </p>
             </div>
-          ) : ended ? (
-            <div className="text-center py-2 text-xs text-red-400 font-mono">This drop has ended</div>
           ) : (
-            <Button
-              className="w-full font-mono font-bold text-sm py-6"
-              style={{
-                background: allDone ? "linear-gradient(135deg,#166534,#22c55e)" : "rgba(255,255,255,0.06)",
-                color: allDone ? "#fff" : "rgba(255,255,255,0.35)",
-                cursor: allDone ? "pointer" : "not-allowed",
-              }}
-              disabled={!allDone || claiming}
-              onClick={() => void handleClaim()}
-            >
-              {claiming ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              {claiming
-                ? "Processing..."
-                : allDone
-                ? `Claim ${campaign.rewardAmount} ${campaign.rewardToken}`
-                : `Complete ${totalTasks - completedCount} more task${totalTasks - completedCount !== 1 ? "s" : ""} to claim`}
-            </Button>
+            <>
+              <Input
+                placeholder="Your wallet address (0x...)"
+                value={address}
+                onChange={e => { setAddress(e.target.value); setError(null); }}
+                className="mb-2 font-mono text-xs"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
+              />
+              {campaign.promoCodeEnabled && (
+                <Input
+                  placeholder="Promo code (required)"
+                  value={promoCode}
+                  onChange={e => setPromoCode(e.target.value.toUpperCase())}
+                  className="mb-2 font-mono text-xs uppercase"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
+                />
+              )}
+
+              {/* reCAPTCHA — shown only when all tasks done */}
+              {allDone && !alreadyClaimed && !ended && (
+                <div className="mb-2 flex justify-center">
+                  <ReCAPTCHA
+                    ref={captchaRef}
+                    sitekey={RECAPTCHA_SITE_KEY}
+                    theme="dark"
+                    onChange={token => setCaptchaToken(token)}
+                    onExpired={() => setCaptchaToken(null)}
+                  />
+                </div>
+              )}
+
+              {error && <p className="text-xs text-red-400 font-mono mb-2">{error}</p>}
+
+              {alreadyClaimed ? (
+                <div className="flex items-center justify-center gap-2 py-3 rounded-xl"
+                  style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}>
+                  <CheckCircle2 className="w-4 h-4" style={{ color: "#22c55e" }} />
+                  <span className="text-sm font-mono font-semibold" style={{ color: "#22c55e" }}>Already Claimed</span>
+                </div>
+              ) : ended ? (
+                <div className="text-center py-2 text-xs text-red-400 font-mono">This drop has ended</div>
+              ) : (
+                <Button
+                  className="w-full font-mono font-bold text-sm py-6"
+                  style={{
+                    background: allDone && captchaToken
+                      ? "linear-gradient(135deg,#166534,#22c55e)"
+                      : "rgba(255,255,255,0.06)",
+                    color: allDone && captchaToken ? "#fff" : "rgba(255,255,255,0.35)",
+                    cursor: allDone && captchaToken ? "pointer" : "not-allowed",
+                  }}
+                  disabled={!allDone || !captchaToken || claiming}
+                  onClick={() => void handleClaim()}
+                >
+                  {claiming ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  {claiming
+                    ? "Processing..."
+                    : !allDone
+                    ? `Complete ${totalTasks - completedCount} more task${totalTasks - completedCount !== 1 ? "s" : ""} to claim`
+                    : !captchaToken
+                    ? "Complete CAPTCHA to claim"
+                    : `Claim ${parseFloat(campaign.rewardAmount)} ${campaign.rewardToken}`}
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
