@@ -1,6 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
+import compression from "compression";
 import pinoHttp from "pino-http";
 import path from "path";
 import fs from "fs";
@@ -32,6 +33,9 @@ const app: Express = express();
 // Without this, express-rate-limit cannot identify real client IPs and throws
 // ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
 app.set("trust proxy", 1);
+
+// ── Compression — reduces Railway bandwidth ~60% for JSON/text responses ──────
+app.use(compression());
 
 // ── Security headers ──────────────────────────────────────────────────────────
 app.use(helmet({

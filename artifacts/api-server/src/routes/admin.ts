@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import fs from "fs";
 import crypto from "crypto";
 import { eq, desc, count, gte, and } from "drizzle-orm";
+import { getCached, setCached, invalidateCache } from "../lib/cache";
 import { encryptPrivateKey, resolveChainWalletAddress } from "../lib/encryption";
 import { ethers } from "ethers";
 import { db, pool, chainsTable, claimsTable, bannersTable, announcementsTable, settingsTable, paymentNetworksTable, abuseLogsTable, masterChainsTable, masterChainTokensTable, exchangePairsTable, liveErrorLogsTable } from "@workspace/db";
@@ -172,6 +173,9 @@ router.post("/admin/rpc-health-check", requireAdmin, async (req, res): Promise<v
 // Returns last 7 days of claim successes + errors + blocked abuse events.
 // Errors are persisted to DB so admin can review them even days later.
 router.get("/admin/live-history", requireAdmin, async (_req, res): Promise<void> => {
+  const lhCached = getCached<object[]>("admin:live-history");
+  if (lhCached) { res.json(lhCached); return; }
+
   const since7d  = new Date(Date.now() - 7  * 24 * 60 * 60 * 1000);
   const since72h = new Date(Date.now() - 72 * 60 * 60 * 1000);
 
@@ -251,6 +255,7 @@ router.get("/admin/live-history", requireAdmin, async (_req, res): Promise<void>
     })),
   ].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()).slice(0, 400);
 
+  setCached("admin:live-history", events, 30_000); // 30 seconds
   res.json(events);
 });
 

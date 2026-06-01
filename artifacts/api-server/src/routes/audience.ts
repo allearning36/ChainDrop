@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request } from "express";
 import { desc, sql, gte, count, countDistinct } from "drizzle-orm";
 import { db, pageViewsTable } from "@workspace/db";
 import { requireAdmin } from "../lib/adminAuth";
+import { getCached, setCached } from "../lib/cache";
 import { trackLimiter } from "../lib/rateLimiters";
 import geoip from "geoip-lite";
 
@@ -79,6 +80,9 @@ router.post("/track", trackLimiter, async (req, res): Promise<void> => {
 
 // ── GET /api/admin/audience ───────────────────────────────────────────────────
 router.get("/admin/audience", requireAdmin, async (_req, res): Promise<void> => {
+  const audienceCached = getCached<object>("admin:audience");
+  if (audienceCached) { res.json(audienceCached); return; }
+
   const now = new Date();
   const startOfToday   = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const startOf7Days   = new Date(Date.now() - 7  * 24 * 60 * 60 * 1000);
@@ -174,7 +178,7 @@ router.get("/admin/audience", requireAdmin, async (_req, res): Promise<void> => 
   // Total visits for country percentage calculation
   const totalCountryVisits = countryRows.reduce((s, r) => s + Number(r.unique), 0);
 
-  res.json({
+  const audienceResult = {
     summary: {
       allTime:  Number(totalRow[0]?.count ?? 0),
       today:    Number(todayRow[0]?.count ?? 0),
@@ -217,7 +221,9 @@ router.get("/admin/audience", requireAdmin, async (_req, res): Promise<void> => 
       deviceType:  r.deviceType ?? "desktop",
       visitedAt:   r.visitedAt.toISOString(),
     })),
-  });
+  };
+  setCached("admin:audience", audienceResult, 5 * 60_000); // 5 minutes
+  res.json(audienceResult);
 });
 
 export default router;

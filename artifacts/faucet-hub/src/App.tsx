@@ -1,21 +1,25 @@
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
-import { useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+
+// Always-eager: visited most often, must render instantly
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
-import AboutPage from "@/pages/about";
-import ContactPage from "@/pages/contact";
-import PrivacyPage from "@/pages/privacy";
-import TermsPage from "@/pages/terms";
-import FAQPage from "@/pages/faq";
-import LookupPage from "@/pages/lookup";
-import StatusPage from "@/pages/status";
-import ExchangePage from "@/pages/exchange";
-import EarnDropPage from "@/pages/earn-drop";
-import AdminLogin from "@/pages/admin/login";
-import AdminDashboard from "@/pages/admin/dashboard";
+
+// Lazy-loaded: heavy pages or rarely visited → smaller initial bundle
+const AboutPage      = lazy(() => import("@/pages/about"));
+const ContactPage    = lazy(() => import("@/pages/contact"));
+const PrivacyPage    = lazy(() => import("@/pages/privacy"));
+const TermsPage      = lazy(() => import("@/pages/terms"));
+const FAQPage        = lazy(() => import("@/pages/faq"));
+const LookupPage     = lazy(() => import("@/pages/lookup"));
+const StatusPage     = lazy(() => import("@/pages/status"));
+const ExchangePage   = lazy(() => import("@/pages/exchange"));
+const EarnDropPage   = lazy(() => import("@/pages/earn-drop"));
+const AdminLogin     = lazy(() => import("@/pages/admin/login"));
+const AdminDashboard = lazy(() => import("@/pages/admin/dashboard"));
 
 import "@/lib/auth";
 
@@ -122,21 +126,24 @@ function usePageTracking() {
 function Router() {
   usePageTracking();
   return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/about" component={AboutPage} />
-      <Route path="/contact" component={ContactPage} />
-      <Route path="/privacy" component={PrivacyPage} />
-      <Route path="/terms" component={TermsPage} />
-      <Route path="/faq" component={FAQPage} />
-      <Route path="/lookup" component={LookupPage} />
-      <Route path="/status" component={StatusPage} />
-      <Route path="/exchange" component={ExchangePage} />
-      <Route path="/earn-drop" component={EarnDropPage} />
-      <Route path="/admin/login" component={AdminLogin} />
-      <Route path="/admin" component={AdminDashboard} />
-      <Route component={NotFound} />
-    </Switch>
+    // Single Suspense wraps all lazy routes — shows blank bg while chunk loads
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/about" component={AboutPage} />
+        <Route path="/contact" component={ContactPage} />
+        <Route path="/privacy" component={PrivacyPage} />
+        <Route path="/terms" component={TermsPage} />
+        <Route path="/faq" component={FAQPage} />
+        <Route path="/lookup" component={LookupPage} />
+        <Route path="/status" component={StatusPage} />
+        <Route path="/exchange" component={ExchangePage} />
+        <Route path="/earn-drop" component={EarnDropPage} />
+        <Route path="/admin/login" component={AdminLogin} />
+        <Route path="/admin" component={AdminDashboard} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 

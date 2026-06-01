@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, desc, count as drizzleCount, sql } from "drizzle-orm";
+import { eq, and, desc, count as drizzleCount, sql, inArray } from "drizzle-orm";
 import {
   db, chainsTable,
   earnDropCampaignsTable, earnDropTasksTable, earnDropPromoCodesTable, earnDropParticipantsTable,
@@ -60,27 +60,40 @@ router.get("/earn-drop/campaigns", async (_req, res): Promise<void> => {
     ))
     .orderBy(desc(earnDropCampaignsTable.createdAt));
 
-  const results = await Promise.all(campaigns.map(async c => {
-    const [chain] = await db.select({ explorerUrl: chainsTable.explorerUrl })
-      .from(chainsTable).where(eq(chainsTable.id, c.chainId)).limit(1);
-    return {
-      id: c.id,
-      title: c.title,
-      logoUrl: c.logoUrl,
-      rewardAmount: c.rewardAmount,
-      rewardToken: c.rewardToken,
-      chainId: c.chainId,
-      endDate: c.endDate.toISOString(),
-      promoCodeEnabled: c.promoCodeEnabled,
-      promoScheduleEnabled: c.promoScheduleEnabled,
-      promoScheduleAt: c.promoScheduleAt?.toISOString() ?? null,
-      twitterUrl: c.twitterUrl,
-      telegramUrl: c.telegramUrl,
-      discordUrl: c.discordUrl,
-      websiteUrl: c.websiteUrl,
-      explorerUrl: chain?.explorerUrl ?? null,
-      totalParticipants: await getParticipantCount(c.id),
-    };
+  // Batch: one query for all chains, one GROUP BY for all participant counts
+  const chainIds = [...new Set(campaigns.map(c => c.chainId))];
+  const [chainRows, countRows] = await Promise.all([
+    chainIds.length > 0
+      ? db.select({ id: chainsTable.id, explorerUrl: chainsTable.explorerUrl })
+          .from(chainsTable).where(inArray(chainsTable.id, chainIds))
+      : Promise.resolve([]),
+    campaigns.length > 0
+      ? db.select({ campaignId: earnDropJoinsTable.campaignId, cnt: drizzleCount() })
+          .from(earnDropJoinsTable)
+          .where(inArray(earnDropJoinsTable.campaignId, campaigns.map(c => c.id)))
+          .groupBy(earnDropJoinsTable.campaignId)
+      : Promise.resolve([]),
+  ]);
+  const chainMap = Object.fromEntries(chainRows.map(r => [r.id, r]));
+  const countMap = Object.fromEntries(countRows.map(r => [r.campaignId, Number(r.cnt)]));
+
+  const results = campaigns.map(c => ({
+    id: c.id,
+    title: c.title,
+    logoUrl: c.logoUrl,
+    rewardAmount: c.rewardAmount,
+    rewardToken: c.rewardToken,
+    chainId: c.chainId,
+    endDate: c.endDate.toISOString(),
+    promoCodeEnabled: c.promoCodeEnabled,
+    promoScheduleEnabled: c.promoScheduleEnabled,
+    promoScheduleAt: c.promoScheduleAt?.toISOString() ?? null,
+    twitterUrl: c.twitterUrl,
+    telegramUrl: c.telegramUrl,
+    discordUrl: c.discordUrl,
+    websiteUrl: c.websiteUrl,
+    explorerUrl: chainMap[c.chainId]?.explorerUrl ?? null,
+    totalParticipants: countMap[c.id] ?? 0,
   }));
 
   res.json(results);
