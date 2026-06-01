@@ -10,9 +10,10 @@ export function PriceMarquee({ coinIds }: { coinIds: string[] }) {
   const { data: prices } = useGetPrices(
     { ids: idsString },
     { 
-      query: { 
-        enabled: idsString.length > 0, 
-        refetchInterval: 60000,
+      query: {
+        enabled: idsString.length > 0,
+        refetchInterval: 120_000,
+        staleTime: 60_000,
         queryKey: getGetPricesQueryKey({ ids: idsString })
       } 
     }

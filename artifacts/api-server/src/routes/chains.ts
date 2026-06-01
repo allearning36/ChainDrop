@@ -5,18 +5,27 @@ import { GetChainsQueryParams, GetChainParams } from "@workspace/api-zod";
 import { getWalletBalance, deriveWalletAddress, type ChainType } from "../lib/chains/index";
 import { parseRpcUrls } from "../lib/rpcFailover";
 import { resolveChainWalletAddress, resolveChainPrivateKey } from "../lib/encryption";
+import { getCached, setCached } from "../lib/cache";
 
 const router: IRouter = Router();
+
+type ChainRow = typeof chainsTable.$inferSelect;
 
 router.get("/chains", async (req, res): Promise<void> => {
   const query = GetChainsQueryParams.safeParse(req.query);
 
-  let rows = await db
-    .select()
-    .from(chainsTable)
-    .where(eq(chainsTable.isEnabled, true))
-    .orderBy(desc(chainsTable.isPinned), asc(chainsTable.sortOrder), asc(chainsTable.id));
+  // Serve all enabled chains from cache (60s TTL) — filter by type in memory
+  let allRows = getCached<ChainRow[]>("chains:enabled");
+  if (!allRows) {
+    allRows = await db
+      .select()
+      .from(chainsTable)
+      .where(eq(chainsTable.isEnabled, true))
+      .orderBy(desc(chainsTable.isPinned), asc(chainsTable.sortOrder), asc(chainsTable.id));
+    setCached("chains:enabled", allRows, 60_000);
+  }
 
+  let rows = allRows;
   if (query.success && query.data.type) {
     const isTestnet = query.data.type === "testnet";
     rows = rows.filter((c) => c.isTestnet === isTestnet);

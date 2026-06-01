@@ -147,7 +147,7 @@ function CampaignCard({ campaign, onOpen }: { campaign: EarnDropCampaignPublic; 
 
 export default function EarnDropPage() {
   const { data: campaigns, isLoading } = useGetEarnDropCampaigns({
-    query: { queryKey: getGetEarnDropCampaignsQueryKey(), refetchInterval: 30000 }
+    query: { queryKey: getGetEarnDropCampaignsQueryKey(), refetchInterval: 120_000, staleTime: 60_000 }
   });
   const [selected, setSelected] = useState<EarnDropCampaignDetail | null>(null);
 

@@ -9,6 +9,7 @@ import { broadcast, broadcastError, classifyError, getErrorMeta } from "../lib/l
 import { resolveChainPrivateKey } from "../lib/encryption";
 import { creditCommissions, getReferralSettings } from "../lib/referral";
 import { evaluateClaim, verifyWalletSignature } from "../lib/antiAbuse";
+import { getCached, setCached } from "../lib/cache";
 
 function getClientIp(req: Request): string {
   const fwd = req.headers["x-forwarded-for"];
@@ -463,6 +464,9 @@ router.get("/faucet/status/:chainId/:address", async (req, res): Promise<void> =
 });
 
 router.get("/faucet/history", async (_req, res): Promise<void> => {
+  const historyCached = getCached<object[]>("faucet:history");
+  if (historyCached) { res.json(historyCached); return; }
+
   const [claims, purchases] = await Promise.all([
     db.select({
       id: claimsTable.id,
@@ -518,6 +522,7 @@ router.get("/faucet/history", async (_req, res): Promise<void> => {
   ]
     .sort((a, b) => new Date(b.claimedAt).getTime() - new Date(a.claimedAt).getTime());
 
+  setCached("faucet:history", combined, 30_000); // 30 seconds
   res.json(combined);
 });
 

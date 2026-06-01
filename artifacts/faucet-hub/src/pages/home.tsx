@@ -140,7 +140,8 @@ export default function Home() {
   const { data: testnetChains = [], isLoading: loadingTestnet } = useGetChains({ type: "testnet" }, {
     query: {
       queryKey: getGetChainsQueryKey({ type: "testnet" }),
-      refetchInterval: 30000,
+      refetchInterval: 300_000,
+      staleTime: 60_000,
       retry: 8,
       retryDelay: (attempt: number) => Math.min(3000 * (attempt + 1), 30000),
     }
@@ -148,7 +149,8 @@ export default function Home() {
   const { data: mainnetChains = [], isLoading: loadingMainnet } = useGetChains({ type: "mainnet" }, {
     query: {
       queryKey: getGetChainsQueryKey({ type: "mainnet" }),
-      refetchInterval: 30000,
+      refetchInterval: 300_000,
+      staleTime: 60_000,
       retry: 8,
       retryDelay: (attempt: number) => Math.min(3000 * (attempt + 1), 30000),
     }

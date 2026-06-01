@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db, settingsTable, ipBlocksTable } from "@workspace/db";
 import { requireAdmin } from "../lib/adminAuth";
+import { getCached, setCached, invalidateCache } from "../lib/cache";
 
 const router: IRouter = Router();
 
@@ -12,9 +13,23 @@ async function getSetting<T>(key: string, fallback: T): Promise<T> {
   try { return JSON.parse(row.value) as T; } catch { return fallback; }
 }
 
+// Batch: fetch multiple settings keys in one query
+async function getSettingsBatch(keysWithDefaults: [string, unknown][]): Promise<Record<string, unknown>> {
+  const keys = keysWithDefaults.map(([k]) => k);
+  const rows = await db.select({ key: settingsTable.key, value: settingsTable.value })
+    .from(settingsTable).where(inArray(settingsTable.key, keys));
+  const found = Object.fromEntries(rows.map(r => [r.key, r.value]));
+  return Object.fromEntries(keysWithDefaults.map(([k, def]) => {
+    const raw = found[k];
+    if (!raw) return [k, def];
+    try { return [k, JSON.parse(raw)]; } catch { return [k, def]; }
+  }));
+}
+
 async function setSetting(key: string, value: object) {
   await db.insert(settingsTable).values({ key, value: JSON.stringify(value) })
     .onConflictDoUpdate({ target: settingsTable.key, set: { value: JSON.stringify(value), updatedAt: new Date() } });
+  invalidateCache("site-config:public"); // bust public cache on any setting change
 }
 
 const DEFAULT_HERO = {
@@ -43,15 +58,27 @@ const DEFAULT_INTEGRATIONS = {
 
 // ── Public endpoint (for footer social links, SEO meta, maintenance banner) ────
 router.get("/site-config/public", async (_req, res): Promise<void> => {
-  const [social, seo, maintenance, integrations, heroSection, donationAddresses] = await Promise.all([
-    getSetting("socialLinks", DEFAULT_SOCIAL),
-    getSetting("seoSettings", DEFAULT_SEO),
-    getSetting("maintenanceMode", DEFAULT_MAINTENANCE),
-    getSetting("integrations", DEFAULT_INTEGRATIONS),
-    getSetting("heroSection", DEFAULT_HERO),
-    getSetting("donationAddresses", DEFAULT_DONATION_ADDRESSES),
+  const cached = getCached<object>("site-config:public");
+  if (cached) { res.json(cached); return; }
+
+  // Single batched query instead of 6 separate getSetting() calls
+  const settings = await getSettingsBatch([
+    ["socialLinks",       DEFAULT_SOCIAL],
+    ["seoSettings",       DEFAULT_SEO],
+    ["maintenanceMode",   DEFAULT_MAINTENANCE],
+    ["integrations",      DEFAULT_INTEGRATIONS],
+    ["heroSection",       DEFAULT_HERO],
+    ["donationAddresses", DEFAULT_DONATION_ADDRESSES],
   ]);
-  res.json({
+
+  const social      = settings["socialLinks"]       as typeof DEFAULT_SOCIAL;
+  const seo         = settings["seoSettings"]       as typeof DEFAULT_SEO;
+  const maintenance = settings["maintenanceMode"]   as typeof DEFAULT_MAINTENANCE;
+  const integrations    = settings["integrations"];
+  const heroSection     = settings["heroSection"];
+  const donationAddresses = settings["donationAddresses"];
+
+  const result = {
     socialLinks: social,
     seoTitle: seo.title,
     seoDescription: seo.description,
@@ -61,7 +88,10 @@ router.get("/site-config/public", async (_req, res): Promise<void> => {
     integrations,
     heroSection,
     donationAddresses,
-  });
+  };
+
+  setCached("site-config:public", result, 5 * 60_000); // 5 minutes
+  res.json(result);
 });
 
 // ── Admin: get all config ─────────────────────────────────────────────────────

@@ -4,10 +4,11 @@ import { Activity, Droplet, Network, Repeat2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function StatsOverview() {
+  // refetchInterval managed by DashboardHome — same queryKey shares the cache
   const { data: stats, isLoading } = useGetAdminStats({
-    query: { 
-      refetchInterval: 120000,
-      queryKey: getGetAdminStatsQueryKey()
+    query: {
+      queryKey: getGetAdminStatsQueryKey(),
+      staleTime: 60_000,
     }
   });
 
