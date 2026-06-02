@@ -35,7 +35,15 @@ const app: Express = express();
 app.set("trust proxy", 1);
 
 // ── Compression — reduces Railway bandwidth ~60% for JSON/text responses ──────
-app.use(compression());
+// Admin routes are excluded to mitigate BREACH attack (compression + HTTPS
+// side-channel can leak secrets when attacker-controlled data appears alongside
+// secrets in the same compressed response).
+app.use(compression({
+  filter: (req, res) => {
+    if (req.path.startsWith("/api/admin")) return false;
+    return compression.filter(req, res);
+  },
+}));
 
 // ── Security headers ──────────────────────────────────────────────────────────
 app.use(helmet({

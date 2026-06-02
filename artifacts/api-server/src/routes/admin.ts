@@ -29,7 +29,7 @@ import {
   UpdateAnnouncementParams,
   DeleteAnnouncementParams,
 } from "@workspace/api-zod";
-import { signAdminToken, requireAdmin, checkLoginRateLimit, recordFailedLogin, recordSuccessfulLogin, clearAllRateLimits } from "../lib/adminAuth";
+import { signAdminToken, requireAdmin, checkLoginRateLimit, recordFailedLogin, recordSuccessfulLogin, clearAllRateLimits, getClientIp } from "../lib/adminAuth";
 import { parseRpcUrls, checkRpcHealth } from "../lib/rpcFailover";
 import { CHAIN_TYPES } from "../lib/chains/index";
 
@@ -40,6 +40,10 @@ router.post("/admin/auth", async (req, res): Promise<void> => {
   // Rate-limit check — block IPs that have failed too many times
   const blocked = checkLoginRateLimit(req);
   if (blocked) {
+    req.log.warn(
+      { ip: getClientIp(req), ua: String(req.headers["user-agent"] ?? ""), event: "admin_login_blocked" },
+      "Admin login blocked — rate limit active"
+    );
     res.status(429).json({ error: blocked });
     return;
   }
@@ -73,11 +77,19 @@ router.post("/admin/auth", async (req, res): Promise<void> => {
 
   if (!valid) {
     recordFailedLogin(req);
+    req.log.warn(
+      { ip: getClientIp(req), ua: String(req.headers["user-agent"] ?? ""), event: "admin_login_failed" },
+      "Admin login failed — wrong password"
+    );
     res.status(401).json({ error: "Invalid password" });
     return;
   }
 
   recordSuccessfulLogin(req);
+  req.log.info(
+    { ip: getClientIp(req), ua: String(req.headers["user-agent"] ?? ""), event: "admin_login_success" },
+    "Admin login successful"
+  );
   res.json({ token: signAdminToken() });
 });
 
@@ -115,23 +127,6 @@ router.post("/admin/emergency-reset-password", async (req, res): Promise<void> =
     .onConflictDoUpdate({ target: settingsTable.key, set: { value: hash } });
   clearAllRateLimits();
   res.json({ ok: true, message: "Password reset successfully. Rate limits also cleared." });
-});
-
-// Password debug — requires SESSION_SECRET, returns length info only (no value)
-router.get("/admin/debug-password", (req, res): void => {
-  const auth = req.headers.authorization;
-  const secret = process.env.SESSION_SECRET;
-  if (!secret || !auth || auth !== `Bearer ${secret}`) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  const pw = process.env.ADMIN_PASSWORD ?? "";
-  res.json({
-    envPasswordLength: pw.length,
-    envPasswordTrimmedLength: pw.trim().length,
-    hasLeadingSpace: pw !== pw.trimStart(),
-    hasTrailingSpace: pw !== pw.trimEnd(),
-  });
 });
 
 // Image upload (auth required) — converts to base64 data URL so logos survive Railway redeploys.

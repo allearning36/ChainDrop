@@ -33,6 +33,23 @@ function lookupCountry(ip: string): { country: string | null; countryCode: strin
   }
 }
 
+// ── IP anonymisation (GDPR) ───────────────────────────────────────────────────
+// We look up geolocation with the real IP, then store only an anonymised form:
+//   IPv4 — last octet zeroed:  192.168.1.42  →  192.168.1.0
+//   IPv6 — first 4 groups kept: 2001:db8:85a3::1 →  2001:db8:85a3:0::
+// Unique-visitor counts remain accurate at /24 (/48 for IPv6) granularity.
+function anonymizeIp(ip: string): string {
+  const stripped = ip.replace(/^::ffff:/, "");
+  if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(stripped)) {
+    return stripped.replace(/\.\d+$/, ".0");
+  }
+  if (stripped.includes(":")) {
+    const parts = stripped.split(":");
+    return parts.slice(0, 4).join(":") + "::";
+  }
+  return ip;
+}
+
 // Country code → full name mapping (most common)
 const COUNTRY_NAMES: Record<string, string> = {
   US:"United States",GB:"United Kingdom",IN:"India",DE:"Germany",FR:"France",
@@ -87,9 +104,10 @@ router.post("/track", trackLimiter, async (req, res): Promise<void> => {
   const { country, countryCode } = lookupCountry(ip);
   const deviceType = detectDevice(ua);
 
-  // Buffer instead of immediate INSERT — flushed every 5 seconds
+  // Buffer instead of immediate INSERT — flushed every 5 seconds.
+  // Store the anonymised IP (GDPR): full IP used only for geo lookup above.
   viewBuffer.push({
-    ip,
+    ip: anonymizeIp(ip),
     country: country ? countryName(country) : null,
     countryCode,
     path,

@@ -135,6 +135,9 @@ export function recordSuccessfulLogin(req: Request): void {
   attempts.delete(ip);
 }
 
+/** Exported so route handlers can include the real IP in structured log lines. */
+export { getClientIp };
+
 /** Clear all rate-limit records (used by emergency reset endpoint). */
 export function clearAllRateLimits(): void {
   attempts.clear();

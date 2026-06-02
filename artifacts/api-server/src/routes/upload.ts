@@ -3,8 +3,41 @@ import path from "path";
 import fs from "fs";
 import multer from "multer";
 import { requireAdmin } from "../lib/adminAuth";
+import { supportLimiter } from "../lib/rateLimiters";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import type { Readable } from "stream";
+
+// ── Magic-byte signatures for accepted image types ────────────────────────────
+// Prevents attackers from renaming non-image files (scripts, executables) with
+// an image extension and bypassing the mimetype-only check in multer.
+const IMAGE_SIGNATURES: Array<{ mimes: string[]; bytes: number[] }> = [
+  { mimes: ["image/jpeg"],                               bytes: [0xFF, 0xD8, 0xFF] },
+  { mimes: ["image/png"],                                bytes: [0x89, 0x50, 0x4E, 0x47] },
+  { mimes: ["image/gif"],                                bytes: [0x47, 0x49, 0x46, 0x38] },
+  { mimes: ["image/webp"],                               bytes: [0x52, 0x49, 0x46, 0x46] },
+  { mimes: ["image/bmp"],                                bytes: [0x42, 0x4D] },
+  { mimes: ["image/x-icon", "image/vnd.microsoft.icon"], bytes: [0x00, 0x00, 0x01, 0x00] },
+];
+
+function hasValidMagicBytes(buf: Buffer, mimetype: string): boolean {
+  const sig = IMAGE_SIGNATURES.find(s => s.mimes.includes(mimetype));
+  if (!sig) return false;
+  return sig.bytes.every((b, i) => buf[i] === b);
+}
+
+function readFileMagic(file: Express.Multer.File): Buffer | null {
+  try {
+    if (file.buffer && file.buffer.length > 0) return file.buffer;
+    if (file.path) {
+      const fd = fs.openSync(file.path, "r");
+      const buf = Buffer.alloc(8);
+      fs.readSync(fd, buf, 0, 8, 0);
+      fs.closeSync(fd);
+      return buf;
+    }
+  } catch { /* ignore */ }
+  return null;
+}
 
 const router: IRouter = Router();
 
@@ -72,9 +105,18 @@ function generateFilename(originalname: string): string {
 }
 
 // Support image upload — no admin required, any user can upload (for chat images)
-router.post("/uploads/support", upload.single("image"), async (req, res): Promise<void> => {
+// Rate-limited (supportLimiter: 10/hour) + magic-byte verified to prevent
+// disguised file uploads.
+router.post("/uploads/support", supportLimiter, upload.single("image"), async (req, res): Promise<void> => {
   if (!req.file) {
     res.status(400).json({ error: "No image file provided" });
+    return;
+  }
+
+  const magicBuf = readFileMagic(req.file);
+  if (!magicBuf || !hasValidMagicBytes(magicBuf, req.file.mimetype)) {
+    if (req.file.path) { try { fs.unlinkSync(req.file.path); } catch { /* ignore */ } }
+    res.status(400).json({ error: "Invalid image file content." });
     return;
   }
 
@@ -95,6 +137,13 @@ router.post("/uploads/support", upload.single("image"), async (req, res): Promis
 router.post("/uploads/banner", requireAdmin, upload.single("image"), async (req, res): Promise<void> => {
   if (!req.file) {
     res.status(400).json({ error: "No image file provided" });
+    return;
+  }
+
+  const magicBuf = readFileMagic(req.file);
+  if (!magicBuf || !hasValidMagicBytes(magicBuf, req.file.mimetype)) {
+    if (req.file.path) { try { fs.unlinkSync(req.file.path); } catch { /* ignore */ } }
+    res.status(400).json({ error: "Invalid image file content." });
     return;
   }
 
