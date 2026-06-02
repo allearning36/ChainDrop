@@ -729,7 +729,7 @@ function VerifyFilesTab() {
               placeholder="e.g. monetag-abc123.txt"
               className="font-mono bg-background border-border text-sm h-8"
             />
-            <p className="text-[10px] text-muted-foreground">Only letters, numbers, hyphens, underscores. Extension: .txt or .html</p>
+            <p className="text-[10px] text-muted-foreground">Only letters, numbers, hyphens, underscores. Extension: .txt, .html or .js</p>
           </div>
           <div className="space-y-1.5">
             <Label className="font-mono text-xs">File Content</Label>
