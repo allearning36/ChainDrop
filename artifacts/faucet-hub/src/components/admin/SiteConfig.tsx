@@ -5,12 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, Globe, Search, Wrench, Shield, AlertTriangle, Puzzle, Paintbrush, KeyRound, Upload, ImageIcon, LayoutTemplate, Heart, Plus, Trash2 } from "lucide-react";
+import { Loader2, Save, Globe, Search, Wrench, Shield, AlertTriangle, Puzzle, Paintbrush, KeyRound, Upload, ImageIcon, LayoutTemplate, Heart, Plus, Trash2, FileCheck, X, Copy, ExternalLink } from "lucide-react";
 import { LogoManagement } from "./LogoManagement";
 import { ChangePassword } from "./ChangePassword";
 
 
-type Tab = "social" | "seo" | "maintenance" | "ratelimit" | "claimlimits" | "integrations" | "logo" | "password" | "hero" | "donations";
+type Tab = "social" | "seo" | "maintenance" | "ratelimit" | "claimlimits" | "integrations" | "logo" | "password" | "hero" | "donations" | "verifyfiles";
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "social", label: "Social Links", icon: Globe },
   { id: "seo", label: "SEO Settings", icon: Search },
@@ -18,6 +18,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "ratelimit", label: "Rate Limit", icon: Shield },
   { id: "claimlimits", label: "Claim Limits", icon: AlertTriangle },
   { id: "integrations", label: "Integrations", icon: Puzzle },
+  { id: "verifyfiles", label: "Verify Files", icon: FileCheck },
   { id: "hero", label: "Hero Section", icon: LayoutTemplate },
   { id: "donations", label: "Donations", icon: Heart },
   { id: "logo", label: "Logo", icon: Paintbrush },
@@ -603,6 +604,171 @@ function DonationsTab({ data, saving, onSave }: { data: DonationAddress[]; savin
   );
 }
 
+// ── Verify Files Tab ──────────────────────────────────────────────────────────
+
+interface VerifyFile { filename: string; content: string; }
+
+function VerifyFilesTab() {
+  const { toast } = useToast();
+  const [files, setFiles] = useState<VerifyFile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [filename, setFilename] = useState("");
+  const [content, setContent] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const load = () => {
+    setLoading(true);
+    adminFetch("/api/admin/verify-files")
+      .then(r => r.json())
+      .then((d: VerifyFile[]) => setFiles(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleAdd = async () => {
+    if (!filename.trim()) { toast({ title: "Error", description: "Filename is required.", variant: "destructive" }); return; }
+    if (!content.trim()) { toast({ title: "Error", description: "File content is required.", variant: "destructive" }); return; }
+    setSaving(true);
+    try {
+      const res = await adminFetch("/api/admin/verify-files", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: filename.trim(), content: content.trim() }),
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({})) as { error?: string };
+        toast({ title: "Error", description: e.error ?? "Failed to save.", variant: "destructive" }); return;
+      }
+      toast({ title: "Saved", description: `${filename.trim()} added successfully.` });
+      setFilename(""); setContent(""); setAdding(false); load();
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (name: string) => {
+    if (!confirm(`Delete "${name}"?`)) return;
+    await adminFetch(`/api/admin/verify-files/${encodeURIComponent(name)}`, { method: "DELETE" });
+    toast({ title: "Deleted", description: `${name} removed.` });
+    load();
+  };
+
+  const copyUrl = (name: string) => {
+    const url = `${window.location.origin}/${name}`;
+    void navigator.clipboard.writeText(url);
+    setCopied(name);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  return (
+    <div className="space-y-5 max-w-lg">
+      <div>
+        <p className="font-mono font-semibold text-sm">Verification Files</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Upload verification files for Monetag, Bitmedia, Coinzilla, etc. Files are served directly at{" "}
+          <code className="bg-muted px-1 rounded">chaindrop.app/filename.txt</code> — no JavaScript needed.
+          Bots can read them immediately.
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+        <p className="text-xs text-amber-400 font-mono">
+          ⚡ After adding a file, click <strong>Verify</strong> in Monetag — the file is instantly accessible.
+          If it fails, wait 30 seconds and try again.
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+      ) : (
+        <div className="space-y-2">
+          {files.length === 0 && !adding && (
+            <p className="text-xs text-muted-foreground font-mono py-4 text-center">No verification files yet.</p>
+          )}
+          {files.map(f => (
+            <div key={f.filename} className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border bg-card">
+              <FileCheck className="w-4 h-4 text-primary shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-mono font-semibold text-white truncate">{f.filename}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{f.content.slice(0, 60)}{f.content.length > 60 ? "…" : ""}</p>
+              </div>
+              <button
+                onClick={() => copyUrl(f.filename)}
+                title="Copy URL"
+                className="p-1.5 rounded text-muted-foreground hover:text-primary transition-colors shrink-0"
+              >
+                {copied === f.filename ? <FileCheck className="w-3.5 h-3.5 text-primary" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+              <a
+                href={`/${f.filename}`} target="_blank" rel="noreferrer"
+                className="p-1.5 rounded text-muted-foreground hover:text-primary transition-colors shrink-0"
+                title="Open file"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+              <button
+                onClick={() => void handleDelete(f.filename)}
+                className="p-1.5 rounded text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                title="Delete"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {adding ? (
+        <div className="space-y-3 p-4 rounded-xl border border-border bg-card">
+          <p className="text-xs font-mono font-semibold text-muted-foreground uppercase tracking-wider">New Verification File</p>
+          <div className="space-y-1.5">
+            <Label className="font-mono text-xs">Filename</Label>
+            <Input
+              value={filename} onChange={e => setFilename(e.target.value)}
+              placeholder="e.g. monetag-abc123.txt"
+              className="font-mono bg-background border-border text-sm h-8"
+            />
+            <p className="text-[10px] text-muted-foreground">Only letters, numbers, hyphens, underscores. Extension: .txt or .html</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="font-mono text-xs">File Content</Label>
+            <Textarea
+              value={content} onChange={e => setContent(e.target.value)}
+              rows={4}
+              placeholder="Paste the file content from Monetag / Bitmedia here..."
+              className="font-mono text-xs bg-background border-border resize-none"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={() => void handleAdd()} disabled={saving} className="gap-1.5 text-xs h-8" style={{ background: "#22c55e", color: "#000" }}>
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              {saving ? "Saving…" : "Save File"}
+            </Button>
+            <Button variant="outline" onClick={() => { setAdding(false); setFilename(""); setContent(""); }} className="gap-1.5 text-xs h-8">
+              <X className="w-3.5 h-3.5" /> Cancel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button variant="outline" onClick={() => setAdding(true)} className="font-mono gap-2">
+          <Plus className="w-4 h-4" /> Add Verification File
+        </Button>
+      )}
+
+      <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+        <p className="text-xs font-mono font-semibold text-muted-foreground uppercase tracking-wider">How to use with Monetag</p>
+        <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside font-mono">
+          <li>Monetag dashboard → Add Site → Download the verification file</li>
+          <li>Open the file — copy its name and full content</li>
+          <li>Click "Add Verification File" above, paste name + content, save</li>
+          <li>Go back to Monetag and click "Verify" button</li>
+        </ol>
+      </div>
+    </div>
+  );
+}
+
 export function SiteConfig() {
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>("social");
@@ -663,6 +829,7 @@ export function SiteConfig() {
       {tab === "ratelimit" && <RateLimitTab data={cfg.rateLimitConfig} onSave={save} saving={saving} />}
       {tab === "claimlimits" && <IpClaimConfigTab data={cfg.ipClaimConfig} onSave={save} saving={saving} />}
       {tab === "integrations" && <IntegrationsTab data={cfg.integrations} onSave={save} saving={saving} />}
+      {tab === "verifyfiles" && <VerifyFilesTab />}
       {tab === "hero" && <HeroTab data={cfg.heroSection} onSave={save} saving={saving} />}
       {tab === "donations" && <DonationsTab data={cfg.donationAddresses} onSave={save} saving={saving} />}
       {tab === "logo" && <LogoManagement />}

@@ -1,5 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, inArray } from "drizzle-orm";
+import fs from "node:fs";
+import path from "node:path";
 import { db, settingsTable, ipBlocksTable } from "@workspace/db";
 import { requireAdmin } from "../lib/adminAuth";
 import { getCached, setCached, invalidateCache } from "../lib/cache";
@@ -232,6 +234,63 @@ router.patch("/admin/site-config/donationAddresses", requireAdmin, async (req, r
     .filter(e => e.chain && e.symbol && e.address);
   await setSetting("donationAddresses", cleaned);
   res.json({ ok: true });
+});
+
+// ── Verification Files ────────────────────────────────────────────────────────
+
+interface VerifyFile { filename: string; content: string; }
+const DEFAULT_VERIFY_FILES: VerifyFile[] = [];
+
+function getPublicDir(): string {
+  const cwd = process.cwd();
+  const candidates = [
+    path.join(cwd, "artifacts", "faucet-hub", "public"),
+    path.join(cwd, "..", "faucet-hub", "public"),
+    path.join(cwd, "..", "..", "faucet-hub", "public"),
+  ];
+  for (const c of candidates) {
+    try { if (fs.existsSync(c)) return c; } catch { /* skip */ }
+  }
+  return candidates[0];
+}
+
+function isValidVerifyFilename(name: string): boolean {
+  return /^[a-zA-Z0-9_-]{1,80}\.(txt|html|htm)$/.test(name);
+}
+
+router.get("/admin/verify-files", requireAdmin, async (_req, res): Promise<void> => {
+  const files = await getSetting("verificationFiles", DEFAULT_VERIFY_FILES);
+  res.json(files);
+});
+
+router.post("/admin/verify-files", requireAdmin, async (req, res): Promise<void> => {
+  const { filename, content } = req.body as { filename?: string; content?: string };
+  if (!filename || !isValidVerifyFilename(filename.trim())) {
+    res.status(400).json({ error: "Invalid filename. Letters/numbers/hyphens only, .txt or .html extension." });
+    return;
+  }
+  if (typeof content !== "string") {
+    res.status(400).json({ error: "content is required" });
+    return;
+  }
+  const entry: VerifyFile = { filename: filename.trim(), content: content.trim() };
+  const files = await getSetting("verificationFiles", DEFAULT_VERIFY_FILES) as VerifyFile[];
+  const idx = files.findIndex(f => f.filename === entry.filename);
+  if (idx >= 0) files[idx] = entry; else files.push(entry);
+  await setSetting("verificationFiles", files);
+  try {
+    fs.writeFileSync(path.join(getPublicDir(), entry.filename), entry.content, "utf-8");
+  } catch { /* public dir may not be available in production */ }
+  res.status(201).json(entry);
+});
+
+router.delete("/admin/verify-files/:filename", requireAdmin, async (req, res): Promise<void> => {
+  const filename = String(req.params.filename).trim();
+  if (!isValidVerifyFilename(filename)) { res.status(400).json({ error: "Invalid filename" }); return; }
+  const files = await getSetting("verificationFiles", DEFAULT_VERIFY_FILES) as VerifyFile[];
+  await setSetting("verificationFiles", files.filter(f => f.filename !== filename));
+  try { fs.unlinkSync(path.join(getPublicDir(), filename)); } catch { /* ignore */ }
+  res.sendStatus(204);
 });
 
 // ── Admin: IP Blocks ──────────────────────────────────────────────────────────
