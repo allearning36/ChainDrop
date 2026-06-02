@@ -158,7 +158,7 @@ app.use("/api", (err: unknown, _req: Request, res: Response, _next: NextFunction
 
 // ── Verification files — served from DB at root level for ad network verification ──
 // Must come BEFORE express.static so DB-stored files take priority.
-app.get(/^\/([a-zA-Z0-9_\-]{1,80}\.(txt|html|htm))$/, async (req, res, next) => {
+app.get(/^\/([a-zA-Z0-9_\-]{1,80}\.(txt|html|htm|js))$/, async (req, res, next) => {
   try {
     const filename = req.params[0];
     if (filename === "ads.txt" || filename === "robots.txt") return next();
@@ -170,6 +170,8 @@ app.get(/^\/([a-zA-Z0-9_\-]{1,80}\.(txt|html|htm))$/, async (req, res, next) => 
     if (!file) return next();
     const contentType = filename.endsWith(".txt")
       ? "text/plain; charset=utf-8"
+      : filename.endsWith(".js")
+      ? "application/javascript; charset=utf-8"
       : "text/html; charset=utf-8";
     res.setHeader("Content-Type", contentType);
     res.setHeader("Cache-Control", "no-cache, no-store");

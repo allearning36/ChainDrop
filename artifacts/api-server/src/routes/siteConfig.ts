@@ -255,7 +255,7 @@ function getPublicDir(): string {
 }
 
 function isValidVerifyFilename(name: string): boolean {
-  return /^[a-zA-Z0-9_-]{1,80}\.(txt|html|htm)$/.test(name);
+  return /^[a-zA-Z0-9_-]{1,80}\.(txt|html|htm|js)$/.test(name);
 }
 
 router.get("/admin/verify-files", requireAdmin, async (_req, res): Promise<void> => {
@@ -266,7 +266,7 @@ router.get("/admin/verify-files", requireAdmin, async (_req, res): Promise<void>
 router.post("/admin/verify-files", requireAdmin, async (req, res): Promise<void> => {
   const { filename, content } = req.body as { filename?: string; content?: string };
   if (!filename || !isValidVerifyFilename(filename.trim())) {
-    res.status(400).json({ error: "Invalid filename. Letters/numbers/hyphens only, .txt or .html extension." });
+    res.status(400).json({ error: "Invalid filename. Letters/numbers/hyphens only, .txt, .html or .js extension." });
     return;
   }
   if (typeof content !== "string") {
