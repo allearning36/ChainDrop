@@ -650,15 +650,17 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                       <iframe
                         src={adWatchContent}
                         className="w-full"
-                        style={{ height: "120px", border: "none" }}
-                        sandbox="allow-scripts allow-same-origin allow-popups"
+                        style={{ height: "200px", border: "none" }}
+                        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
                         title="Advertisement"
                       />
                     ) : (
-                      <div
-                        className="w-full p-3"
-                        style={{ minHeight: "120px" }}
-                        dangerouslySetInnerHTML={{ __html: adWatchContent }}
+                      <iframe
+                        srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;background:transparent;display:flex;align-items:center;justify-content:center;min-height:200px;}</style></head><body>${adWatchContent}</body></html>`}
+                        className="w-full"
+                        style={{ height: "200px", border: "none", background: "transparent" }}
+                        sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+                        title="Advertisement"
                       />
                     )
                   ) : (
