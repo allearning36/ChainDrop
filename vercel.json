@@ -9,6 +9,10 @@
       "destination": "https://workspaceapi-server-production-98d2.up.railway.app/api/:path*"
     },
     {
+      "source": "/:filename([a-zA-Z0-9_-]+\\.(txt|js|html|htm))",
+      "destination": "https://workspaceapi-server-production-98d2.up.railway.app/:filename"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
