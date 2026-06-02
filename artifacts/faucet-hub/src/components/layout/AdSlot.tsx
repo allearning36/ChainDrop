@@ -47,6 +47,10 @@ export function AdSlot({ id, className }: AdSlotProps) {
         const content = (d[settingKey] ?? "").trim();
         setHtml(content || null);
         if (cachedSettings) cachedSettings[settingKey] = d[settingKey];
+      } else if ((e as CustomEvent).type === "adSettingsChanged") {
+        // Full refresh — invalidate cache so next mount re-fetches
+        cachedSettings = null;
+        fetchPromise = null;
       }
     };
     window.addEventListener("adSettingsChanged", handler);
