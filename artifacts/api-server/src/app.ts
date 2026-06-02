@@ -221,6 +221,7 @@ if (fs.existsSync(frontendDist)) {
   let integrationsCache: {
     adsenseEnabled: boolean; adsensePublisherId: string;
     gscCode: string;
+    customMetaTags: string;
     ts: number;
   } | null = null;
 
@@ -248,11 +249,13 @@ if (fs.existsSync(frontendDist)) {
         const cfg: {
           googleAds?: { enabled?: boolean; publisherId?: string };
           googleSearchConsole?: { verificationCode?: string };
+          customMetaTags?: string;
         } = row?.value ? JSON.parse(row.value) : {};
         integrationsCache = {
           adsenseEnabled:     cfg.googleAds?.enabled     ?? false,
           adsensePublisherId: cfg.googleAds?.publisherId ?? "",
           gscCode:            cfg.googleSearchConsole?.verificationCode ?? "",
+          customMetaTags:     cfg.customMetaTags ?? "",
           ts: now,
         };
       }
@@ -274,6 +277,16 @@ if (fs.existsSync(frontendDist)) {
         headInjection.push(
           `<meta name="google-site-verification" content="${integrationsCache.gscCode}">`
         );
+      }
+      // Inject custom verification meta tags (Monetag, Bitmedia, Coinzilla, Bing, etc.)
+      if (integrationsCache.customMetaTags) {
+        const lines = integrationsCache.customMetaTags.split("\n");
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith("<meta ") && trimmed.includes(">")) {
+            headInjection.push(trimmed);
+          }
+        }
       }
 
       const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
