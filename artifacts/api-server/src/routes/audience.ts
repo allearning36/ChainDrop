@@ -56,6 +56,27 @@ function countryName(code: string): string {
 
 // ── POST /api/track ───────────────────────────────────────────────────────────
 // Frontend calls this once per page navigation. Rate-limited to prevent spam.
+// ── Page-view write buffer — batch INSERTs every 5s to cut DB writes ~90% ─────
+interface PendingView {
+  ip: string; country: string | null; countryCode: string | null;
+  path: string; userAgent: string; deviceType: string;
+}
+const viewBuffer: PendingView[] = [];
+
+async function flushViewBuffer(): Promise<void> {
+  if (viewBuffer.length === 0) return;
+  const batch = viewBuffer.splice(0, viewBuffer.length);
+  try {
+    await db.insert(pageViewsTable).values(batch);
+  } catch {
+    // If flush fails, silently drop — tracking must never break the API
+  }
+}
+setInterval(flushViewBuffer, 5_000);
+// Flush on process exit so we don't lose the last batch
+process.on("SIGTERM", () => { void flushViewBuffer(); });
+process.on("SIGINT",  () => { void flushViewBuffer(); });
+
 router.post("/track", trackLimiter, async (req, res): Promise<void> => {
   const ip = getClientIp(req);
   const ua = req.headers["user-agent"] ?? "";
@@ -66,7 +87,8 @@ router.post("/track", trackLimiter, async (req, res): Promise<void> => {
   const { country, countryCode } = lookupCountry(ip);
   const deviceType = detectDevice(ua);
 
-  await db.insert(pageViewsTable).values({
+  // Buffer instead of immediate INSERT — flushed every 5 seconds
+  viewBuffer.push({
     ip,
     country: country ? countryName(country) : null,
     countryCode,

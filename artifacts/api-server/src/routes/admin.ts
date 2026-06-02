@@ -264,22 +264,25 @@ router.use("/admin", requireAdmin);
 
 // Stats
 router.get("/admin/stats", async (_req, res): Promise<void> => {
-  const [{ totalClaims }] = await db.select({ totalClaims: count(claimsTable.id) }).from(claimsTable);
-  const allChains = await db.select().from(chainsTable);
-  const activeChains = allChains.filter((c) => c.isEnabled).length;
+  const cached = getCached<object>("admin:stats");
+  if (cached) { res.json(cached); return; }
 
   const recentSince = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const [{ recentClaimsCount }] = await db
-    .select({ recentClaimsCount: count(claimsTable.id) })
-    .from(claimsTable)
-    .where(eq(claimsTable.claimedAt, recentSince));
+  const [[{ totalClaims }], allChains, [{ recentClaimsCount }]] = await Promise.all([
+    db.select({ totalClaims: count(claimsTable.id) }).from(claimsTable),
+    db.select({ id: chainsTable.id, isEnabled: chainsTable.isEnabled }).from(chainsTable),
+    db.select({ recentClaimsCount: count(claimsTable.id) }).from(claimsTable)
+      .where(gte(claimsTable.claimedAt, recentSince)),
+  ]);
 
-  res.json({
+  const result = {
     totalClaims: Number(totalClaims),
     totalChains: allChains.length,
-    activeChains,
+    activeChains: allChains.filter(c => c.isEnabled).length,
     recentClaimsCount: Number(recentClaimsCount),
-  });
+  };
+  setCached("admin:stats", result, 30_000); // 30 seconds
+  res.json(result);
 });
 
 // System wallet info (derived from FAUCET_PRIVATE_KEY env var)
@@ -619,18 +622,21 @@ router.delete("/admin/chains/:id", async (req, res): Promise<void> => {
 
 // Banners
 router.get("/admin/banners", async (_req, res): Promise<void> => {
+  const cached = getCached<object[]>("admin:banners");
+  if (cached) { res.json(cached); return; }
+
   const banners = await db.select().from(bannersTable).orderBy(bannersTable.sortOrder, bannersTable.id);
-  res.json(
-    banners.map((b) => ({
-      id: b.id,
-      imageUrl: b.imageUrl,
-      linkUrl: b.linkUrl,
-      altText: b.altText,
-      isActive: b.isActive,
-      sortOrder: b.sortOrder,
-      createdAt: b.createdAt.toISOString(),
-    }))
-  );
+  const result = banners.map((b) => ({
+    id: b.id,
+    imageUrl: b.imageUrl,
+    linkUrl: b.linkUrl,
+    altText: b.altText,
+    isActive: b.isActive,
+    sortOrder: b.sortOrder,
+    createdAt: b.createdAt.toISOString(),
+  }));
+  setCached("admin:banners", result, 60_000); // 60 seconds
+  res.json(result);
 });
 
 router.post("/admin/banners", async (req, res): Promise<void> => {
@@ -641,6 +647,7 @@ router.post("/admin/banners", async (req, res): Promise<void> => {
   }
 
   const [banner] = await db.insert(bannersTable).values(parsed.data).returning();
+  invalidateCache("admin:banners");
   res.status(201).json({
     id: banner.id,
     imageUrl: banner.imageUrl,
@@ -677,6 +684,7 @@ router.patch("/admin/banners/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  invalidateCache("admin:banners");
   res.json({
     id: banner.id,
     imageUrl: banner.imageUrl,
@@ -697,22 +705,26 @@ router.delete("/admin/banners/:id", async (req, res): Promise<void> => {
   }
 
   await db.delete(bannersTable).where(eq(bannersTable.id, params.data.id));
+  invalidateCache("admin:banners");
   res.sendStatus(204);
 });
 
 // Announcements
 router.get("/admin/announcements", async (_req, res): Promise<void> => {
+  const cached = getCached<object[]>("admin:announcements");
+  if (cached) { res.json(cached); return; }
+
   const items = await db.select().from(announcementsTable).orderBy(desc(announcementsTable.createdAt));
-  res.json(
-    items.map((a) => ({
-      id: a.id,
-      title: a.title,
-      content: a.content,
-      imageUrl: a.imageUrl ?? null,
-      isActive: a.isActive,
-      createdAt: a.createdAt.toISOString(),
-    }))
-  );
+  const result = items.map((a) => ({
+    id: a.id,
+    title: a.title,
+    content: a.content,
+    imageUrl: a.imageUrl ?? null,
+    isActive: a.isActive,
+    createdAt: a.createdAt.toISOString(),
+  }));
+  setCached("admin:announcements", result, 60_000); // 60 seconds
+  res.json(result);
 });
 
 router.post("/admin/announcements", async (req, res): Promise<void> => {
@@ -723,6 +735,7 @@ router.post("/admin/announcements", async (req, res): Promise<void> => {
   }
 
   const [item] = await db.insert(announcementsTable).values(parsed.data).returning();
+  invalidateCache("admin:announcements");
   res.status(201).json({
     id: item.id,
     title: item.title,
@@ -758,6 +771,7 @@ router.patch("/admin/announcements/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  invalidateCache("admin:announcements");
   res.json({
     id: item.id,
     title: item.title,
@@ -777,13 +791,18 @@ router.delete("/admin/announcements/:id", async (req, res): Promise<void> => {
   }
 
   await db.delete(announcementsTable).where(eq(announcementsTable.id, params.data.id));
+  invalidateCache("admin:announcements");
   res.sendStatus(204);
 });
 
 // ─── Payment Networks ────────────────────────────────────────────────────────
 
 router.get("/admin/payment-networks", async (_req, res): Promise<void> => {
+  const cached = getCached<object[]>("admin:payment-networks");
+  if (cached) { res.json(cached); return; }
+
   const networks = await db.select().from(paymentNetworksTable).orderBy(paymentNetworksTable.id);
+  setCached("admin:payment-networks", networks, 60_000); // 60 seconds
   res.json(networks);
 });
 
@@ -813,6 +832,7 @@ router.post("/admin/payment-networks", async (req, res): Promise<void> => {
       logoUrl: logoUrl || null,
       isEnabled: isEnabled ?? true,
     }).returning();
+    invalidateCache("admin:payment-networks");
     res.status(201).json(network);
   } catch (err: any) {
     const pgCode = err?.code ?? err?.cause?.code ?? (err?.message?.includes("23505") ? "23505" : undefined);
@@ -844,6 +864,7 @@ router.patch("/admin/payment-networks/:id", async (req, res): Promise<void> => {
   if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No fields to update" }); return; }
   const [network] = await db.update(paymentNetworksTable).set(updates).where(eq(paymentNetworksTable.id, id)).returning();
   if (!network) { res.status(404).json({ error: "Not found" }); return; }
+  invalidateCache("admin:payment-networks");
   res.json(network);
 });
 
@@ -851,6 +872,7 @@ router.delete("/admin/payment-networks/:id", async (req, res): Promise<void> => 
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   await db.delete(paymentNetworksTable).where(eq(paymentNetworksTable.id, id));
+  invalidateCache("admin:payment-networks");
   res.sendStatus(204);
 });
 

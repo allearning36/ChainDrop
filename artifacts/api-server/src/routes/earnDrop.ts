@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc, count as drizzleCount, sql, inArray } from "drizzle-orm";
+import { getCached, setCached, invalidateCache } from "../lib/cache";
 import {
   db, chainsTable,
   earnDropCampaignsTable, earnDropTasksTable, earnDropPromoCodesTable, earnDropParticipantsTable,
@@ -51,6 +52,9 @@ async function getParticipantCount(campaignId: number): Promise<number> {
 // ── Public: list active campaigns ────────────────────────────────────────────
 
 router.get("/earn-drop/campaigns", async (_req, res): Promise<void> => {
+  const earndropCached = getCached<object[]>("earndrop:campaigns");
+  if (earndropCached) { res.json(earndropCached); return; }
+
   const campaigns = await db
     .select()
     .from(earnDropCampaignsTable)
@@ -96,6 +100,7 @@ router.get("/earn-drop/campaigns", async (_req, res): Promise<void> => {
     totalParticipants: countMap[c.id] ?? 0,
   }));
 
+  setCached("earndrop:campaigns", results, 60_000); // 60 seconds
   res.json(results);
 });
 
