@@ -37,6 +37,25 @@ function injectInlineScript(id: string, code: string) {
   document.head.appendChild(s);
 }
 
+function injectCustomMetaTags(html: string) {
+  if (!html?.trim()) return;
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<html><head>${html}</head></html>`, "text/html");
+  doc.querySelectorAll("meta").forEach(meta => {
+    const name = meta.getAttribute("name") ?? meta.getAttribute("property") ?? "";
+    const content = meta.getAttribute("content") ?? "";
+    if (!name || !content) return;
+    const id = `custom-meta-${name}`;
+    if (document.getElementById(id)) return;
+    const el = document.createElement("meta");
+    el.id = id;
+    if (name.startsWith("og:")) el.setAttribute("property", name);
+    else el.setAttribute("name", name);
+    el.setAttribute("content", content);
+    document.head.appendChild(el);
+  });
+}
+
 interface PublicConfig {
   seoTitle?: string;
   seoDescription?: string;
@@ -45,6 +64,7 @@ interface PublicConfig {
     googleAds?: { enabled: boolean; publisherId: string };
     googleAnalytics?: { enabled: boolean; measurementId: string };
     googleSearchConsole?: { verificationCode: string };
+    customMetaTags?: string;
   };
 }
 
@@ -89,6 +109,11 @@ export function SEOHead({ title, description, ogImage }: SEOHeadProps) {
             `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ads.publisherId}`,
             { crossorigin: "anonymous" }
           );
+        }
+
+        // Custom meta tags (Bitmedia, Coinzilla, Bing, etc.)
+        if (integrations.customMetaTags) {
+          injectCustomMetaTags(integrations.customMetaTags);
         }
       })
       .catch(() => {
