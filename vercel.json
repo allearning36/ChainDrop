@@ -9,6 +9,10 @@
       "destination": "https://workspaceapi-server-production-98d2.up.railway.app/api/:path*"
     },
     {
+      "source": "/:file.:ext",
+      "destination": "https://workspaceapi-server-production-98d2.up.railway.app/:file.:ext"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
