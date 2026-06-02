@@ -138,7 +138,7 @@ function SubTabBar({ tabs, active, onChange }: {
 
 // ── Hash helpers ───────────────────────────────────────────────────────────────
 const VALID_SECTIONS: TopSection[] = [
-  "dashboard","live","claims","support","exchange","referral","promo","siteconfig",
+  "dashboard","live","claims","support","exchange","referral","promo","earn-drop","siteconfig",
   "chains-group","analytics-group","security-group","content-group",
 ];
 function readHashSection(): TopSection {

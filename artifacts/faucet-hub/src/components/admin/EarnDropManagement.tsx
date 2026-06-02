@@ -5,7 +5,7 @@ import { adminFetch } from "@/lib/auth";
 import {
   Plus, Pencil, Trash2, ChevronDown, ChevronUp, Loader2,
   RefreshCw, X, Key, ListChecks, Zap, Eye, EyeOff,
-  Upload, Twitter, MessageCircle, Globe, Send,
+  Upload, Twitter, MessageCircle, Globe, Send, Copy,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -491,6 +491,31 @@ function CampaignRow({ campaign, chains, onRefresh }: { campaign: Campaign; chai
     onRefresh();
   };
 
+  const copyCampaign = async () => {
+    const res = await adminFetch("/api/admin/earn-drop/campaigns", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: `${campaign.title} (Copy)`,
+        logoUrl: campaign.logoUrl,
+        rewardAmount: campaign.rewardAmount,
+        rewardToken: campaign.rewardToken,
+        chainId: campaign.chainId,
+        endDate: campaign.endDate,
+        rules: campaign.rules,
+        twitterUrl: campaign.twitterUrl,
+        telegramUrl: campaign.telegramUrl,
+        discordUrl: campaign.discordUrl,
+        websiteUrl: campaign.websiteUrl,
+        promoCodeEnabled: campaign.promoCodeEnabled,
+        promoScheduleEnabled: false,
+        promoScheduleAt: null,
+        isActive: false,
+      }),
+    });
+    if (res.ok) onRefresh();
+    else alert("Failed to copy campaign");
+  };
+
   const addPromo = async () => {
     if (!newPromoCode.trim()) { alert("Enter a promo code"); return; }
     setSavingPromo(true);
@@ -544,10 +569,13 @@ function CampaignRow({ campaign, chains, onRefresh }: { campaign: Campaign; chai
           <button onClick={() => void toggleActive()} className="p-1.5 rounded-lg text-muted-foreground hover:text-white transition-colors" title={campaign.isActive ? "Disable" : "Enable"}>
             {campaign.isActive ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
           </button>
-          <button onClick={() => setEditingCampaign(v => !v)} className="p-1.5 rounded-lg text-muted-foreground hover:text-white transition-colors">
+          <button onClick={() => setEditingCampaign(v => !v)} className="p-1.5 rounded-lg text-muted-foreground hover:text-white transition-colors" title="Edit">
             <Pencil className="w-3.5 h-3.5" />
           </button>
-          <button onClick={() => void deleteCampaign()} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-400 transition-colors">
+          <button onClick={() => void copyCampaign()} className="p-1.5 rounded-lg text-muted-foreground hover:text-blue-400 transition-colors" title="Copy campaign">
+            <Copy className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={() => void deleteCampaign()} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-400 transition-colors" title="Delete">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
           <button onClick={handleExpand} className="p-1.5 rounded-lg text-muted-foreground hover:text-white transition-colors">

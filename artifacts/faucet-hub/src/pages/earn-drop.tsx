@@ -4,7 +4,7 @@ import { Footer } from "@/components/layout/Footer";
 import { SEOHead } from "@/components/layout/SEOHead";
 import { EarnDropCampaignModal } from "@/components/home/EarnDropCampaignModal";
 import { useGetEarnDropCampaigns, getGetEarnDropCampaignsQueryKey, EarnDropCampaignPublic, EarnDropCampaignDetail } from "@workspace/api-client-react";
-import { Loader2, Zap, Info } from "lucide-react";
+import { Loader2, Zap, Info, ArrowLeft } from "lucide-react";
 
 // ── Countdown ─────────────────────────────────────────────────────────────────
 
@@ -167,6 +167,15 @@ export default function EarnDropPage() {
       <div className="min-h-screen flex flex-col" style={{ background: "#080c12" }}>
         <Navbar />
         <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-8">
+
+          {/* Back link */}
+          <a
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-mono text-muted-foreground hover:text-white transition-colors mb-6 group"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
+            Back to Home
+          </a>
 
           {/* Page header */}
           <div className="mb-8">
