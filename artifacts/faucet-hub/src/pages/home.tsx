@@ -468,6 +468,8 @@ export default function Home() {
           </>
         )}
 
+        <AdSlot id="home-bottom" className="mt-6" />
+
         <RecentFeed />
 
         {/* Support ChainDrop banner — only show if donation addresses are configured */}
@@ -496,7 +498,6 @@ export default function Home() {
           </div>
         )}
 
-        <AdSlot id="home-bottom" className="mt-6" />
       </main>
 
       <Footer />
