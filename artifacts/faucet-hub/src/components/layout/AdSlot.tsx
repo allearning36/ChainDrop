@@ -28,13 +28,26 @@ function getSettings(): Promise<Record<string, string>> {
   return fetchPromise;
 }
 
-function buildSrcDoc(html: string): string {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box;}html,body{width:100%;height:100%;background:transparent;overflow:hidden;}body{display:flex;align-items:center;justify-content:center;}</style></head><body>${html}</body></html>`;
+function buildSrcDoc(html: string, slotId: string): string {
+  const heightScript = `<script>(function(){
+    function report(){
+      var h=0;
+      var els=document.body.children;
+      for(var i=0;i<els.length-1;i++){var r=els[i].getBoundingClientRect();if(r.bottom>h)h=r.bottom;}
+      if(h<1)h=document.body.scrollHeight;
+      if(h>10)window.parent.postMessage({type:'ad-height',slotId:'${slotId}',height:h},'*');
+    }
+    setTimeout(report,600);
+    setTimeout(report,1500);
+    setTimeout(report,3000);
+  })()</script>`;
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box;}html,body{width:100%;background:transparent;overflow:hidden;}body{display:flex;align-items:center;justify-content:center;min-height:0;}</style></head><body>${html}${heightScript}</body></html>`;
 }
 
 export function AdSlot({ id, className }: AdSlotProps) {
   const [html, setHtml] = useState<string | null>(null);
-  const [iframeHeight, setIframeHeight] = useState(90);
+  const [iframeHeight, setIframeHeight] = useState(0);
 
   useEffect(() => {
     const settingKey = SETTING_KEY[id];
@@ -46,11 +59,12 @@ export function AdSlot({ id, className }: AdSlotProps) {
     });
 
     const handler = (e: Event) => {
-      const d = (e as CustomEvent<Record<string, string>>).detail;
-      if (settingKey in d) {
-        const content = (d[settingKey] ?? "").trim();
+      const detail = (e as CustomEvent<Record<string, string>>).detail;
+      if (detail && settingKey in detail) {
+        const content = (detail[settingKey] ?? "").trim();
         setHtml(content || null);
-        if (cachedSettings) cachedSettings[settingKey] = d[settingKey];
+        setIframeHeight(0);
+        if (cachedSettings) cachedSettings[settingKey] = detail[settingKey];
       } else if ((e as CustomEvent).type === "adSettingsChanged") {
         cachedSettings = null;
         fetchPromise = null;
@@ -63,7 +77,8 @@ export function AdSlot({ id, className }: AdSlotProps) {
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.data && e.data.type === "ad-height" && e.data.slotId === id) {
-        setIframeHeight(Math.max(60, Number(e.data.height) || 90));
+        const h = Number(e.data.height);
+        if (h > 10) setIframeHeight(h);
       }
     };
     window.addEventListener("message", onMessage);
@@ -72,23 +87,20 @@ export function AdSlot({ id, className }: AdSlotProps) {
 
   if (!html) return null;
 
-  const slotId = id;
-  const srcDocWithHeightMsg = buildSrcDoc(
-    html +
-    `<script>(function(){function send(){var h=document.body.scrollHeight||90;window.parent.postMessage({type:'ad-height',slotId:'${slotId}',height:h},'*');}setTimeout(send,800);setTimeout(send,2000);})()</script>`
-  );
-
   return (
     <div
       id={`ad-slot-${id}`}
       className={cn("w-full overflow-hidden", className)}
-      style={{ height: `${iframeHeight}px`, transition: "height 0.3s ease" }}
+      style={{
+        height: iframeHeight > 0 ? `${iframeHeight}px` : "0px",
+        transition: "height 0.3s ease",
+      }}
     >
       <iframe
         key={html}
-        srcDoc={srcDocWithHeightMsg}
+        srcDoc={buildSrcDoc(html, id)}
         className="w-full border-0"
-        style={{ height: "100%", display: "block" }}
+        style={{ height: iframeHeight > 0 ? `${iframeHeight}px` : "0px", display: "block" }}
         sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
         title={`Advertisement ${id}`}
         scrolling="no"
