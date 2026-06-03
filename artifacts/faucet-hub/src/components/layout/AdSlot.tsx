@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 interface AdSlotProps {
@@ -28,9 +28,13 @@ function getSettings(): Promise<Record<string, string>> {
   return fetchPromise;
 }
 
+function buildSrcDoc(html: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box;}html,body{width:100%;height:100%;background:transparent;overflow:hidden;}body{display:flex;align-items:center;justify-content:center;}</style></head><body>${html}</body></html>`;
+}
+
 export function AdSlot({ id, className }: AdSlotProps) {
   const [html, setHtml] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [iframeHeight, setIframeHeight] = useState(90);
 
   useEffect(() => {
     const settingKey = SETTING_KEY[id];
@@ -48,7 +52,6 @@ export function AdSlot({ id, className }: AdSlotProps) {
         setHtml(content || null);
         if (cachedSettings) cachedSettings[settingKey] = d[settingKey];
       } else if ((e as CustomEvent).type === "adSettingsChanged") {
-        // Full refresh — invalidate cache so next mount re-fetches
         cachedSettings = null;
         fetchPromise = null;
       }
@@ -57,27 +60,39 @@ export function AdSlot({ id, className }: AdSlotProps) {
     return () => window.removeEventListener("adSettingsChanged", handler);
   }, [id]);
 
-  // Execute scripts inside ad HTML after render
   useEffect(() => {
-    if (!html || !containerRef.current) return;
-    const container = containerRef.current;
-    const scripts = Array.from(container.querySelectorAll("script"));
-    scripts.forEach(oldScript => {
-      const newScript = document.createElement("script");
-      Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-      newScript.textContent = oldScript.textContent;
-      oldScript.parentNode?.replaceChild(newScript, oldScript);
-    });
-  }, [html]);
+    const onMessage = (e: MessageEvent) => {
+      if (e.data && e.data.type === "ad-height" && e.data.slotId === id) {
+        setIframeHeight(Math.max(60, Number(e.data.height) || 90));
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [id]);
 
   if (!html) return null;
 
+  const slotId = id;
+  const srcDocWithHeightMsg = buildSrcDoc(
+    html +
+    `<script>(function(){function send(){var h=document.body.scrollHeight||90;window.parent.postMessage({type:'ad-height',slotId:'${slotId}',height:h},'*');}setTimeout(send,800);setTimeout(send,2000);})()</script>`
+  );
+
   return (
     <div
-      ref={containerRef}
       id={`ad-slot-${id}`}
       className={cn("w-full overflow-hidden", className)}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+      style={{ height: `${iframeHeight}px`, transition: "height 0.3s ease" }}
+    >
+      <iframe
+        key={html}
+        srcDoc={srcDocWithHeightMsg}
+        className="w-full border-0"
+        style={{ height: "100%", display: "block" }}
+        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+        title={`Advertisement ${id}`}
+        scrolling="no"
+      />
+    </div>
   );
 }
