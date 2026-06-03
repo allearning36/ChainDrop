@@ -11,6 +11,47 @@ const router: IRouter = Router();
 
 type ChainRow = typeof chainsTable.$inferSelect;
 
+// ── Background wallet-balance cache ──────────────────────────────────────────
+// Balances are fetched asynchronously and cached for 5 minutes.
+// List endpoint always returns immediately — balances appear after the first
+// background refresh completes (~3-4 s after cold start).
+
+const BALANCE_CACHE_KEY = "chains:wallet-balances";
+const BALANCE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+async function refreshWalletBalances(chains: ChainRow[]): Promise<void> {
+  const balances: Record<number, string | null> =
+    getCached<Record<number, string | null>>(BALANCE_CACHE_KEY) ?? {};
+
+  await Promise.allSettled(
+    chains.map(async (c) => {
+      let walletAddr = resolveChainWalletAddress(c.walletAddress);
+      if (!walletAddr && c.privateKey) {
+        try {
+          const pk = resolveChainPrivateKey(c.privateKey);
+          walletAddr = await deriveWalletAddress(c.chainType as ChainType, pk);
+        } catch { return; }
+      }
+      if (!walletAddr) { balances[c.id] = null; return; }
+      try {
+        const balance = await Promise.race([
+          getWalletBalance(
+            c.chainType as ChainType,
+            parseRpcUrls(c.rpcUrls, c.rpcUrl),
+            walletAddr,
+          ),
+          new Promise<null>((r) => setTimeout(() => r(null), 4000)),
+        ]);
+        balances[c.id] = balance;
+      } catch { balances[c.id] = null; }
+    }),
+  );
+
+  setCached(BALANCE_CACHE_KEY, balances, BALANCE_TTL_MS);
+}
+
+// ── GET /chains ───────────────────────────────────────────────────────────────
+
 router.get("/chains", async (req, res): Promise<void> => {
   const query = GetChainsQueryParams.safeParse(req.query);
 
@@ -24,6 +65,15 @@ router.get("/chains", async (req, res): Promise<void> => {
       .orderBy(desc(chainsTable.isPinned), asc(chainsTable.sortOrder), asc(chainsTable.id));
     setCached("chains:enabled", allRows, 60_000);
   }
+
+  // Wallet balances — served from a separate 5-minute cache.
+  // If cache is missing/expired, trigger a background refresh (fire-and-forget)
+  // so this request always returns instantly.
+  const cachedBalances = getCached<Record<number, string | null>>(BALANCE_CACHE_KEY);
+  if (cachedBalances === null) {
+    void refreshWalletBalances(allRows);
+  }
+  const balanceMap: Record<number, string | null> = cachedBalances ?? {};
 
   let rows = allRows;
   if (query.success && query.data.type) {
@@ -59,9 +109,12 @@ router.get("/chains", async (req, res): Promise<void> => {
       adCooldownSeconds: c.adCooldownSeconds,
       captchaEnabled: c.captchaEnabled,
       sortOrder: c.sortOrder,
+      walletBalanceEth: balanceMap[c.id] ?? null,
     }))
   );
 });
+
+// ── GET /chains/:id ───────────────────────────────────────────────────────────
 
 router.get("/chains/:id", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
@@ -86,7 +139,6 @@ router.get("/chains/:id", async (req, res): Promise<void> => {
   let walletAddr = resolveChainWalletAddress(chain.walletAddress);
   if (!walletAddr && chain.privateKey) {
     try {
-      const { resolveChainPrivateKey } = await import("../lib/encryption");
       const pk = resolveChainPrivateKey(chain.privateKey);
       walletAddr = await deriveWalletAddress(chain.chainType as ChainType, pk);
     } catch { walletAddr = ""; }

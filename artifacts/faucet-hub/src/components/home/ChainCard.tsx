@@ -19,13 +19,13 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
   const [promoActive, setPromoActive] = useState(false);
   const [promoModal, setPromoModal] = useState(false);
 
-  // Fetch chain detail (incl. live wallet balance) on mount so Reserve balance shows on card.
-  // Long staleTime + no window-focus refetch prevents mass RPC calls on admin changes.
+  // Lazy-fetch chain detail only when info popover opens — prevents 21+ simultaneous
+  // RPC calls on page load. walletBalanceEth is now included in the list endpoint
+  // (background-cached, 5 min TTL), so Reserve shows on the card without detail fetch.
   const { data: detail } = useGetChain(chain.id, {
     query: {
-      enabled: !!chain.id,
-      staleTime: 5 * 60_000,
-      refetchOnWindowFocus: false,
+      enabled: !!chain.id && infoOpen,
+      staleTime: 60_000,
       queryKey: getGetChainQueryKey(chain.id),
     }
   });
