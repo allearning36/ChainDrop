@@ -93,7 +93,8 @@ export function AdSlot({ id, className }: AdSlotProps) {
     <div
       id={`ad-slot-${id}`}
       ref={containerRef}
-      className={cn("w-full", className)}
+      className={cn("w-full overflow-hidden", className)}
+      style={{ maxHeight: "120px" }}
     />
   );
 }
