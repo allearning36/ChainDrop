@@ -93,7 +93,7 @@ export function AdSlot({ id, className }: AdSlotProps) {
     <div
       id={`ad-slot-${id}`}
       ref={containerRef}
-      className={cn("w-full flex justify-center", className)}
+      className={cn("w-full flex justify-center overflow-x-auto", className)}
     />
   );
 }
