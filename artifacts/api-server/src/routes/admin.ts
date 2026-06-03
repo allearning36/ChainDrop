@@ -541,6 +541,10 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  // Clear public caches so the updated chain appears immediately on the site
+  invalidateCache("chains:enabled");
+  invalidateCache("chains:wallet-balances");
+
   res.json({
     id: chain.id,
     name: chain.name,

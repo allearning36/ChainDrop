@@ -19,35 +19,51 @@ type ChainRow = typeof chainsTable.$inferSelect;
 const BALANCE_CACHE_KEY = "chains:wallet-balances";
 const BALANCE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
+// Guard: only one refresh can run at a time — prevents Railway memory spikes
+// from multiple simultaneous /api/chains requests when cache is cold.
+let balanceRefreshInFlight = false;
+
 async function refreshWalletBalances(chains: ChainRow[]): Promise<void> {
-  const balances: Record<number, string | null> =
-    getCached<Record<number, string | null>>(BALANCE_CACHE_KEY) ?? {};
+  if (balanceRefreshInFlight) return;
+  balanceRefreshInFlight = true;
 
-  await Promise.allSettled(
-    chains.map(async (c) => {
-      let walletAddr = resolveChainWalletAddress(c.walletAddress);
-      if (!walletAddr && c.privateKey) {
-        try {
-          const pk = resolveChainPrivateKey(c.privateKey);
-          walletAddr = await deriveWalletAddress(c.chainType as ChainType, pk);
-        } catch { return; }
-      }
-      if (!walletAddr) { balances[c.id] = null; return; }
-      try {
-        const balance = await Promise.race([
-          getWalletBalance(
-            c.chainType as ChainType,
-            parseRpcUrls(c.rpcUrls, c.rpcUrl),
-            walletAddr,
-          ),
-          new Promise<null>((r) => setTimeout(() => r(null), 4000)),
-        ]);
-        balances[c.id] = balance;
-      } catch { balances[c.id] = null; }
-    }),
-  );
+  try {
+    const balances: Record<number, string | null> =
+      getCached<Record<number, string | null>>(BALANCE_CACHE_KEY) ?? {};
 
-  setCached(BALANCE_CACHE_KEY, balances, BALANCE_TTL_MS);
+    // Process in batches of 5 — prevents 21+ simultaneous RPC calls from
+    // spiking Railway memory and triggering a server restart.
+    const BATCH = 5;
+    for (let i = 0; i < chains.length; i += BATCH) {
+      await Promise.allSettled(
+        chains.slice(i, i + BATCH).map(async (c) => {
+          let walletAddr = resolveChainWalletAddress(c.walletAddress);
+          if (!walletAddr && c.privateKey) {
+            try {
+              const pk = resolveChainPrivateKey(c.privateKey);
+              walletAddr = await deriveWalletAddress(c.chainType as ChainType, pk);
+            } catch { return; }
+          }
+          if (!walletAddr) { balances[c.id] = null; return; }
+          try {
+            const balance = await Promise.race([
+              getWalletBalance(
+                c.chainType as ChainType,
+                parseRpcUrls(c.rpcUrls, c.rpcUrl),
+                walletAddr,
+              ),
+              new Promise<null>((r) => setTimeout(() => r(null), 4000)),
+            ]);
+            balances[c.id] = balance;
+          } catch { balances[c.id] = null; }
+        }),
+      );
+    }
+
+    setCached(BALANCE_CACHE_KEY, balances, BALANCE_TTL_MS);
+  } finally {
+    balanceRefreshInFlight = false;
+  }
 }
 
 // ── GET /chains ───────────────────────────────────────────────────────────────
