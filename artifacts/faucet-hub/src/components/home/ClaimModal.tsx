@@ -333,6 +333,8 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   };
 
   const handleOpenChange = (open: boolean) => {
+    // Never close via Dialog events while the full-screen ad overlay is active
+    if (!open && step === "watch-ad") return;
     if (!open) {
       setTimeout(() => {
         setStep("input"); setAddress(""); setDebouncedAddress("");
@@ -357,7 +359,8 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
 
   return (
     <>
-      <Dialog open={!!chain} onOpenChange={handleOpenChange}>
+      {/* Dialog is closed during "watch-ad" so its backdrop doesn't capture taps on the overlay */}
+      <Dialog open={!!chain && step !== "watch-ad"} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-md w-full p-0 border-0 bg-transparent shadow-none [&>button]:hidden">
           <div
             className="relative w-full rounded-2xl overflow-hidden"
