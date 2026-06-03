@@ -937,7 +937,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                 ) : adWatchCountdown > 0 ? (
                   <><Clock style={{ width: "16px", height: "16px" }} /> Wait {adWatchCountdown}s to Claim</>
                 ) : (
-                  <><Zap style={{ width: "16px", height: "16px" }} /> Claim {chain?.claimAmount} {chain?.symbol}</>
+                  <><Zap style={{ width: "16px", height: "16px" }} /> Claim {(chain as any)?.adClaimAmount ?? chain?.claimAmount} {chain?.symbol}</>
                 )}
               </button>
 
