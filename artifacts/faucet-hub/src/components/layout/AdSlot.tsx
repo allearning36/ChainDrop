@@ -29,20 +29,33 @@ function getSettings(): Promise<Record<string, string>> {
 }
 
 function buildSrcDoc(html: string, slotId: string): string {
+  // Height reporter — uses MutationObserver to detect async ad content + long timeouts
   const heightScript = `<script>(function(){
-    function report(){
-      var h=0;
+    var slotId='${slotId}';
+    function getH(){
+      var h=document.body.scrollHeight||0;
       var els=document.body.children;
-      for(var i=0;i<els.length-1;i++){var r=els[i].getBoundingClientRect();if(r.bottom>h)h=r.bottom;}
-      if(h<1)h=document.body.scrollHeight;
-      if(h>10)window.parent.postMessage({type:'ad-height',slotId:'${slotId}',height:h},'*');
+      for(var i=0;i<els.length;i++){
+        var r=els[i].getBoundingClientRect();
+        if(r.bottom>h)h=r.bottom;
+      }
+      return h;
     }
-    setTimeout(report,600);
-    setTimeout(report,1500);
-    setTimeout(report,3000);
+    function report(){
+      var h=getH();
+      if(h>10)window.parent.postMessage({type:'ad-height',slotId:slotId,height:h},'*');
+    }
+    // Poll at increasing intervals to catch async ad loads
+    [500,1000,2000,3500,5000,7000,10000].forEach(function(t){setTimeout(report,t);});
+    // MutationObserver: fires whenever the ad network injects content
+    if(window.MutationObserver){
+      var ob=new MutationObserver(function(){setTimeout(report,200);});
+      ob.observe(document.body,{childList:true,subtree:true,attributes:true});
+      setTimeout(function(){ob.disconnect();},12000);
+    }
   })()</script>`;
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box;}html,body{width:100%;background:transparent;overflow:hidden;}body{display:flex;align-items:center;justify-content:center;min-height:0;}</style></head><body>${html}${heightScript}</body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box;}html,body{width:100%;background:transparent;overflow:hidden;}body{display:flex;align-items:flex-start;justify-content:center;}</style></head><body>${html}${heightScript}</body></html>`;
 }
 
 export function AdSlot({ id, className }: AdSlotProps) {
@@ -78,7 +91,7 @@ export function AdSlot({ id, className }: AdSlotProps) {
     const onMessage = (e: MessageEvent) => {
       if (e.data && e.data.type === "ad-height" && e.data.slotId === id) {
         const h = Number(e.data.height);
-        if (h > 10) setIframeHeight(h);
+        if (h > 10) setIframeHeight(prev => Math.max(prev, h));
       }
     };
     window.addEventListener("message", onMessage);
@@ -87,20 +100,20 @@ export function AdSlot({ id, className }: AdSlotProps) {
 
   if (!html) return null;
 
+  // Use detected height; fall back to 100px minimum so the ad is never invisible while loading
+  const displayHeight = iframeHeight > 10 ? iframeHeight : 100;
+
   return (
     <div
       id={`ad-slot-${id}`}
       className={cn("w-full overflow-hidden", className)}
-      style={{
-        height: iframeHeight > 0 ? `${iframeHeight}px` : "0px",
-        transition: "height 0.3s ease",
-      }}
+      style={{ height: `${displayHeight}px`, transition: "height 0.3s ease" }}
     >
       <iframe
         key={html}
         srcDoc={buildSrcDoc(html, id)}
         className="w-full border-0"
-        style={{ height: iframeHeight > 0 ? `${iframeHeight}px` : "0px", display: "block" }}
+        style={{ height: `${displayHeight}px`, display: "block" }}
         sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
         title={`Advertisement ${id}`}
         scrolling="no"
