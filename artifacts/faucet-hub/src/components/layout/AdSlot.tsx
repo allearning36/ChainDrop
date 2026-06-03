@@ -89,7 +89,7 @@ export function AdSlot({ id, className }: AdSlotProps) {
         srcDoc={srcDocWithHeightMsg}
         className="w-full border-0"
         style={{ height: "100%", display: "block" }}
-        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+        sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
         title={`Advertisement ${id}`}
         scrolling="no"
       />
