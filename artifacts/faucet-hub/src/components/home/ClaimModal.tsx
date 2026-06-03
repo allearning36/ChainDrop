@@ -628,119 +628,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
               </div>
             )}
 
-            {/* ── STEP: WATCH AD ── */}
-            {step === "watch-ad" && (
-              <div className="px-5 py-6 flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-bold font-mono text-white flex items-center gap-2">
-                    <Play className="w-4 h-4" style={{ color: "#d97706" }} /> Watch Ad to Claim
-                  </h3>
-                  <span className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>
-                    {adWatchCountdown > 0 ? `${adWatchCountdown}s left` : "Complete!"}
-                  </span>
-                </div>
-
-                {/* Ad display */}
-                <div
-                  className="rounded-xl overflow-hidden"
-                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", minHeight: "120px" }}
-                >
-                  {adWatchContent ? (
-                    adWatchContent.startsWith("http") ? (
-                      <iframe
-                        src={adWatchContent}
-                        className="w-full"
-                        style={{ height: "200px", border: "none" }}
-                        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                        title="Advertisement"
-                      />
-                    ) : (
-                      <iframe
-                        srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;background:transparent;display:flex;align-items:center;justify-content:center;min-height:200px;}</style></head><body>${adWatchContent}</body></html>`}
-                        className="w-full"
-                        style={{ height: "200px", border: "none", background: "transparent" }}
-                        sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
-                        title="Advertisement"
-                      />
-                    )
-                  ) : (
-                    <div className="flex items-center justify-center" style={{ height: "120px" }}>
-                      <p className="text-xs font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.15)" }}>
-                        — Advertisement —
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Countdown */}
-                <div className="flex flex-col items-center gap-2">
-                  {adWatchCountdown > 0 ? (
-                    <>
-                      <div className="relative w-16 h-16">
-                        <div className="absolute inset-0 rounded-full" style={{ border: "3px solid rgba(217,119,6,0.2)" }} />
-                        <div
-                          className="absolute inset-0 rounded-full border-4 border-transparent border-t-amber-500 animate-spin"
-                          style={{ animationDuration: "1s" }}
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center font-bold font-mono text-xl" style={{ color: "#d97706" }}>
-                          {adWatchCountdown}
-                        </div>
-                      </div>
-                      <p className="text-xs font-mono" style={{ color: "rgba(255,255,255,0.35)" }}>
-                        Please wait for the ad to finish…
-                      </p>
-                    </>
-                  ) : (
-                    <div className="flex items-center gap-2 py-1" style={{ color: "#22c55e" }}>
-                      <CheckCircle2 className="w-5 h-5" />
-                      <p className="text-sm font-mono font-bold">Ad complete! Claim your tokens.</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Error */}
-                {adWatchError && (
-                  <div
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl"
-                    style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}
-                  >
-                    <AlertCircle className="w-4 h-4 shrink-0" style={{ color: "#f87171" }} />
-                    <p className="text-xs font-mono" style={{ color: "#f87171" }}>{adWatchError}</p>
-                  </div>
-                )}
-
-                {/* Claim button */}
-                <button
-                  onClick={handleAdClaim}
-                  disabled={adWatchCountdown > 0 || adClaimMutation.isPending}
-                  className="w-full h-12 rounded-xl font-bold font-mono uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all duration-200"
-                  style={{
-                    background: adWatchCountdown === 0 && !adClaimMutation.isPending
-                      ? "linear-gradient(135deg, #15803d 0%, #22c55e 100%)"
-                      : "rgba(34,197,94,0.08)",
-                    color: adWatchCountdown === 0 && !adClaimMutation.isPending ? "white" : "rgba(34,197,94,0.3)",
-                    boxShadow: adWatchCountdown === 0 && !adClaimMutation.isPending ? "0 0 20px rgba(34,197,94,0.3)" : "none",
-                    cursor: adWatchCountdown === 0 && !adClaimMutation.isPending ? "pointer" : "not-allowed",
-                  }}
-                >
-                  {adClaimMutation.isPending
-                    ? <span className="flex flex-col items-center gap-0.5">
-                        <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Sending to blockchain...</span>
-                        <span className="text-[10px] font-mono opacity-60 normal-case tracking-normal">This may take 15–30 seconds</span>
-                      </span>
-                    : <><Zap className="w-4 h-4" /> Claim Now</>
-                  }
-                </button>
-
-                <button
-                  onClick={() => { setStep("input"); setAdWatchError(""); }}
-                  className="w-full h-10 rounded-xl text-sm font-mono transition-colors"
-                  style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}
-                >
-                  Back
-                </button>
-              </div>
-            )}
+            {/* ── STEP: WATCH AD — rendered as full-screen overlay outside Dialog ── */}
 
             {/* ── STEP: AD / PROCESSING ── */}
             {step === "ad" && (
@@ -904,6 +792,171 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
       </Dialog>
 
       <BuyModal chain={buyOpen ? chain : null} onClose={() => setBuyOpen(false)} />
+
+      {/* ── FULL-SCREEN AD OVERLAY ── */}
+      {step === "watch-ad" && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 9999,
+              background: "#000",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {/* ── Top bar ── */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "12px 16px",
+                background: "rgba(255,255,255,0.03)",
+                borderBottom: "1px solid rgba(255,255,255,0.08)",
+                flexShrink: 0,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <Play style={{ width: "14px", height: "14px", color: "#d97706" }} />
+                <span style={{ fontFamily: "monospace", fontSize: "12px", fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                  Watch Ad · Earn {chain?.symbol}
+                </span>
+              </div>
+              <div
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: "20px",
+                  fontWeight: 900,
+                  color: adWatchCountdown > 0 ? "#d97706" : "#22c55e",
+                  minWidth: "48px",
+                  textAlign: "right",
+                }}
+              >
+                {adWatchCountdown > 0 ? `${adWatchCountdown}s` : "✓"}
+              </div>
+            </div>
+
+            {/* ── Progress bar ── */}
+            <div style={{ height: "3px", background: "rgba(255,255,255,0.06)", flexShrink: 0 }}>
+              <div
+                style={{
+                  height: "100%",
+                  background: adWatchCountdown > 0 ? "#d97706" : "#22c55e",
+                  transition: "width 1s linear",
+                  width: "100%",
+                }}
+              />
+            </div>
+
+            {/* ── Ad iframe — fills remaining space ── */}
+            <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+              {adWatchContent ? (
+                adWatchContent.startsWith("http") ? (
+                  <iframe
+                    key={adWatchContent}
+                    src={adWatchContent}
+                    style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+                    sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                    allow="autoplay; fullscreen"
+                    title="Advertisement"
+                  />
+                ) : (
+                  <iframe
+                    key={adWatchContent}
+                    srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box;}html,body{width:100%;height:100%;background:#000;overflow:hidden;}body{display:flex;align-items:center;justify-content:center;}</style></head><body>${adWatchContent}</body></html>`}
+                    style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+                    sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+                    allow="autoplay; fullscreen"
+                    title="Advertisement"
+                  />
+                )
+              ) : (
+                <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px" }}>
+                  <div style={{ width: "48px", height: "48px", borderRadius: "50%", border: "3px solid rgba(217,119,6,0.3)", borderTopColor: "#d97706", animation: "spin 1s linear infinite" }} />
+                  <p style={{ fontFamily: "monospace", fontSize: "11px", color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Loading ad…</p>
+                  <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+                </div>
+              )}
+            </div>
+
+            {/* ── Bottom action bar ── */}
+            <div
+              style={{
+                flexShrink: 0,
+                padding: "16px",
+                background: "rgba(0,0,0,0.9)",
+                borderTop: "1px solid rgba(255,255,255,0.08)",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+              }}
+            >
+              {adWatchError && (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", borderRadius: "10px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}>
+                  <AlertCircle style={{ width: "14px", height: "14px", color: "#f87171", flexShrink: 0 }} />
+                  <p style={{ fontFamily: "monospace", fontSize: "12px", color: "#f87171" }}>{adWatchError}</p>
+                </div>
+              )}
+
+              <button
+                onClick={handleAdClaim}
+                disabled={adWatchCountdown > 0 || adClaimMutation.isPending}
+                style={{
+                  width: "100%",
+                  height: "52px",
+                  borderRadius: "14px",
+                  border: "none",
+                  fontFamily: "monospace",
+                  fontWeight: 900,
+                  fontSize: "14px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  cursor: adWatchCountdown === 0 && !adClaimMutation.isPending ? "pointer" : "not-allowed",
+                  background: adWatchCountdown === 0 && !adClaimMutation.isPending
+                    ? "linear-gradient(135deg, #15803d 0%, #22c55e 100%)"
+                    : "rgba(34,197,94,0.08)",
+                  color: adWatchCountdown === 0 && !adClaimMutation.isPending
+                    ? "#fff"
+                    : "rgba(34,197,94,0.3)",
+                  boxShadow: adWatchCountdown === 0 && !adClaimMutation.isPending
+                    ? "0 0 24px rgba(34,197,94,0.4)"
+                    : "none",
+                  transition: "all 0.3s ease",
+                }}
+              >
+                {adClaimMutation.isPending ? (
+                  <><Loader2 style={{ width: "16px", height: "16px", animation: "spin 1s linear infinite" }} /> Sending to blockchain…</>
+                ) : adWatchCountdown > 0 ? (
+                  <><Clock style={{ width: "16px", height: "16px" }} /> Wait {adWatchCountdown}s to Claim</>
+                ) : (
+                  <><Zap style={{ width: "16px", height: "16px" }} /> Claim {chain?.claimAmount} {chain?.symbol}</>
+                )}
+              </button>
+
+              <button
+                onClick={() => { setStep("input"); setAdWatchError(""); }}
+                style={{
+                  width: "100%",
+                  height: "40px",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  background: "rgba(255,255,255,0.04)",
+                  color: "rgba(255,255,255,0.35)",
+                  fontFamily: "monospace",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                }}
+              >
+                ← Back
+              </button>
+            </div>
+          </div>
+      )}
     </>
   );
 }
