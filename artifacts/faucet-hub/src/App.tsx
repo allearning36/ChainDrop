@@ -82,13 +82,26 @@ function useIntegrations() {
           inject(meta);
         }
 
-        // ── Custom meta tags (Bitmedia, Coinzilla, Bing, etc.) ──────────────
+        // ── Custom meta tags (Monetag, Bitmedia, Coinzilla, Bing, etc.) ───────
+        // cloneNode() does NOT execute <script> tags — must recreate each element
+        // from scratch so the browser treats it as a fresh script and runs it.
         const raw = cfg.customMetaTags?.trim() ?? "";
         if (raw) {
           const temp = document.createElement("div");
           temp.innerHTML = raw;
           Array.from(temp.children).forEach(child => {
-            inject(child.cloneNode(true) as HTMLElement);
+            const tag = child.tagName.toLowerCase();
+            if (tag === "script") {
+              const s = document.createElement("script");
+              // Copy all attributes (src, async, data-zone, data-cfasync, …)
+              Array.from(child.attributes).forEach(attr => s.setAttribute(attr.name, attr.value));
+              // Copy inline script body if any
+              if (child.textContent) s.textContent = child.textContent;
+              inject(s);
+            } else {
+              // meta, link, etc. — cloneNode is fine for non-script tags
+              inject(child.cloneNode(true) as HTMLElement);
+            }
           });
         }
       })
