@@ -19,10 +19,12 @@ export function ChainCard({ chain, onClick, showNetworkBadge }: ChainCardProps) 
   const [promoActive, setPromoActive] = useState(false);
   const [promoModal, setPromoModal] = useState(false);
 
+  // Fetch chain detail (incl. live wallet balance) only when the info popover is open.
+  // This prevents 21+ simultaneous RPC calls on every page load / cache invalidation.
   const { data: detail } = useGetChain(chain.id, {
     query: {
-      enabled: !!chain.id,
-      staleTime: 60000,
+      enabled: !!chain.id && infoOpen,
+      staleTime: 60_000,
       queryKey: getGetChainQueryKey(chain.id),
     }
   });
