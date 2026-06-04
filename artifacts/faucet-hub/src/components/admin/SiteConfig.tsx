@@ -25,7 +25,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "password", label: "Password", icon: KeyRound },
 ];
 
-interface SocialLinks { twitter: string; telegram: string; discord: string; github: string; }
+interface SocialLinks { twitter: string; telegram: string; discord: string; github: string; email: string; }
 interface SEOSettings { title: string; description: string; ogImage: string; }
 interface MaintenanceMode { enabled: boolean; message: string; }
 interface RateLimitConfig { maxAttempts: number; lockoutMinutes: number; }
@@ -49,7 +49,7 @@ export interface DonationAddress { chain: string; symbol: string; address: strin
 interface SiteConfigData { socialLinks: SocialLinks; seoSettings: SEOSettings; maintenanceMode: MaintenanceMode; rateLimitConfig: RateLimitConfig; ipClaimConfig: IpClaimConfig; integrations: IntegrationsConfig; heroSection: HeroConfig; donationAddresses: DonationAddress[]; }
 
 const DEFAULT: SiteConfigData = {
-  socialLinks: { twitter: "", telegram: "", discord: "", github: "" },
+  socialLinks: { twitter: "", telegram: "", discord: "", github: "", email: "" },
   seoSettings: { title: "ChainDrop — Multi-Chain Crypto Faucet Hub", description: "Get free testnet crypto tokens from ChainDrop.", ogImage: "" },
   maintenanceMode: { enabled: false, message: "We're currently performing maintenance. Please check back soon." },
   rateLimitConfig: { maxAttempts: 5, lockoutMinutes: 15 },
@@ -90,10 +90,10 @@ function SocialTab({ data, onSave, saving }: { data: SocialLinks; onSave: SaveFn
   return (
     <div className="space-y-4 max-w-lg">
       <p className="text-sm text-muted-foreground">These links appear in the footer. Leave blank to hide.</p>
-      {([["twitter", "Twitter / X URL"], ["telegram", "Telegram URL"], ["discord", "Discord URL"], ["github", "GitHub URL"]] as [keyof SocialLinks, string][]).map(([key, label]) => (
+      {([["twitter", "Twitter / X URL", "https://x.com/..."], ["telegram", "Telegram URL", "https://t.me/..."], ["discord", "Discord URL", "https://discord.gg/..."], ["github", "GitHub URL", "https://github.com/..."], ["email", "Email Address", "contact@example.com"]] as [keyof SocialLinks, string, string][]).map(([key, label, placeholder]) => (
         <div key={key} className="space-y-1.5">
           <Label className="font-mono text-xs">{label}</Label>
-          <Input value={form[key]} onChange={f(key)} placeholder="https://..." className="font-mono bg-card border-border" />
+          <Input value={form[key]} onChange={f(key)} placeholder={placeholder} className="font-mono bg-card border-border" />
         </div>
       ))}
       <SaveBtn onClick={() => onSave("socialLinks", form)} saving={saving} />
