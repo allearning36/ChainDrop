@@ -46,7 +46,7 @@ const DEFAULT_HERO = {
 
 const DEFAULT_DONATION_ADDRESSES: { chain: string; symbol: string; address: string }[] = [];
 const DEFAULT_ANTI_ABUSE_CONFIG = { enabled: true, blockVpn: true, blockProxy: true, blockTor: true, blockDatacenter: false };
-const DEFAULT_SOCIAL = { twitter: "", telegram: "", discord: "", github: "" };
+const DEFAULT_SOCIAL = { twitter: "", telegram: "", discord: "", github: "", email: "" };
 const DEFAULT_SEO = { title: "ChainDrop — Multi-Chain Crypto Faucet Hub", description: "Get free testnet crypto tokens from ChainDrop. Supports multiple EVM-compatible chains including Sepolia and more.", ogImage: "" };
 const DEFAULT_MAINTENANCE = { enabled: false, message: "We're currently performing maintenance. Please check back soon." };
 const DEFAULT_RATELIMIT = { maxAttempts: 5, lockoutMinutes: 15 };
@@ -113,12 +113,13 @@ router.get("/admin/site-config", requireAdmin, async (_req, res): Promise<void> 
 
 // ── Admin: update sections ────────────────────────────────────────────────────
 router.patch("/admin/site-config/socialLinks", requireAdmin, async (req, res): Promise<void> => {
-  const { twitter, telegram, discord, github } = req.body as Record<string, unknown>;
+  const { twitter, telegram, discord, github, email } = req.body as Record<string, unknown>;
   await setSetting("socialLinks", {
     twitter: typeof twitter === "string" ? twitter.trim() : "",
     telegram: typeof telegram === "string" ? telegram.trim() : "",
     discord: typeof discord === "string" ? discord.trim() : "",
     github: typeof github === "string" ? github.trim() : "",
+    email: typeof email === "string" ? email.trim() : "",
   });
   res.json({ ok: true });
 });
