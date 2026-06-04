@@ -35,6 +35,9 @@ function useIntegrations() {
   const injectedRef = useRef<HTMLElement[]>([]);
 
   useEffect(() => {
+    // Never inject ad scripts on admin pages
+    if (window.location.pathname.startsWith("/admin")) return;
+
     fetch("/api/site-config/public")
       .then(r => r.ok ? r.json() : null)
       .then((d: { integrations?: IntegrationsConfig } | null) => {
