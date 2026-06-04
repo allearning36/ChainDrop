@@ -143,6 +143,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [captchaExpired, setCaptchaExpired] = useState(false);
   const [ipLimitReached, setIpLimitReached] = useState(false);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
+  const adContainerRef = useRef<HTMLDivElement>(null);
 
   const queryClient = useQueryClient();
   const claimMutation = useClaimFaucet();
@@ -196,6 +197,43 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
     const timer = setTimeout(() => setAdWatchCountdown(c => c - 1), 1000);
     return () => clearTimeout(timer);
   }, [step, adWatchCountdown]);
+
+  // ── Inject ad scripts directly into page DOM (not iframe) when watching ad ──
+  useEffect(() => {
+    if (step !== "watch-ad" || !adWatchContent || adWatchContent.startsWith("http")) return;
+
+    const injected: HTMLScriptElement[] = [];
+    const template = document.createElement("div");
+    template.innerHTML = adWatchContent;
+
+    // Non-script nodes → ad container div
+    const container = adContainerRef.current;
+    if (container) {
+      container.innerHTML = "";
+      template.childNodes.forEach(node => {
+        if ((node as Element).tagName !== "SCRIPT") {
+          container.appendChild(node.cloneNode(true));
+        }
+      });
+    }
+
+    // Script tags → inject into document.body so they run in full page context
+    template.querySelectorAll("script").forEach(s => {
+      const el = document.createElement("script");
+      if (s.src) {
+        el.src = s.src;
+      } else {
+        el.textContent = s.textContent;
+      }
+      el.async = true;
+      document.body.appendChild(el);
+      injected.push(el);
+    });
+
+    return () => {
+      injected.forEach(el => el.parentNode?.removeChild(el));
+    };
+  }, [step, adWatchContent]);
 
   // When modal opens in cooldown → always show result step (restore txHash from localStorage if available, fallback to API)
   useEffect(() => {
@@ -286,6 +324,10 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
           setAdWatchToken(res.token);
           setAdWatchContent(res.adContent ?? null);
           setAdWatchCountdown(res.durationSeconds);
+          // URL-based ad (popunder/direct): open in new tab immediately
+          if (res.adContent && res.adContent.startsWith("http")) {
+            window.open(res.adContent, "_blank", "noopener,noreferrer");
+          }
           setStep("watch-ad");
         },
         onError: (err: any) => {
@@ -852,26 +894,36 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
               />
             </div>
 
-            {/* ── Ad iframe — fills remaining space ── */}
-            <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+            {/* ── Ad area — fills remaining space ── */}
+            <div style={{ flex: 1, position: "relative", overflow: "hidden", background: "#000" }}>
               {adWatchContent ? (
                 adWatchContent.startsWith("http") ? (
-                  <iframe
-                    key={adWatchContent}
-                    src={adWatchContent}
-                    style={{ width: "100%", height: "100%", border: "none", display: "block" }}
-                    sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                    allow="autoplay; fullscreen"
-                    title="Advertisement"
-                  />
+                  /* URL-based (popunder): already opened in new tab — show status message */
+                  <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px", padding: "24px" }}>
+                    <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: "rgba(217,119,6,0.1)", border: "2px solid rgba(217,119,6,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Play style={{ width: "28px", height: "28px", color: "#d97706" }} />
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <p style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 700, color: "rgba(255,255,255,0.8)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>Ad opened in new tab</p>
+                      <p style={{ fontFamily: "monospace", fontSize: "11px", color: "rgba(255,255,255,0.35)", lineHeight: "1.6" }}>
+                        Please view the ad in the new tab.<br />
+                        Come back here when the timer finishes.
+                      </p>
+                    </div>
+                    <a
+                      href={adWatchContent}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ padding: "8px 20px", borderRadius: "10px", background: "rgba(217,119,6,0.15)", border: "1px solid rgba(217,119,6,0.3)", fontFamily: "monospace", fontSize: "11px", color: "#d97706", textTransform: "uppercase", letterSpacing: "0.08em", textDecoration: "none" }}
+                    >
+                      Reopen Ad ↗
+                    </a>
+                  </div>
                 ) : (
-                  <iframe
-                    key={adWatchContent}
-                    srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box;}html,body{width:100%;height:100%;background:#000;overflow:hidden;}body{display:flex;align-items:center;justify-content:center;}</style></head><body>${adWatchContent}</body></html>`}
-                    style={{ width: "100%", height: "100%", border: "none", display: "block" }}
-                    sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
-                    allow="autoplay; fullscreen"
-                    title="Advertisement"
+                  /* Script-based: rendered directly in page DOM via useEffect — show container */
+                  <div
+                    ref={adContainerRef}
+                    style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "auto" }}
                   />
                 )
               ) : (
