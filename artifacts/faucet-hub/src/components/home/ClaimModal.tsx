@@ -144,6 +144,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [ipLimitReached, setIpLimitReached] = useState(false);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
   const adContainerRef = useRef<HTMLDivElement>(null);
+  const adWindowRef = useRef<Window | null>(null);
 
   const queryClient = useQueryClient();
   const claimMutation = useClaimFaucet();
@@ -317,6 +318,13 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const handleWatchAd = () => {
     if (!chain || !debouncedAddress) return;
     setAdWatchError("");
+
+    // Pre-open a blank window SYNCHRONOUSLY (inside the click handler) so
+    // mobile popup blockers don't suppress it. We navigate it to the ad URL
+    // once the API responds. For script-based ads we close it immediately.
+    const preOpened = window.open("about:blank", "_blank");
+    adWindowRef.current = preOpened;
+
     requestAdTokenMutation.mutate(
       { data: { chainId: chain.id, address: debouncedAddress } },
       {
@@ -324,13 +332,25 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
           setAdWatchToken(res.token);
           setAdWatchContent(res.adContent ?? null);
           setAdWatchCountdown(res.durationSeconds);
-          // URL-based ad (popunder/direct): open in new tab immediately
           if (res.adContent && res.adContent.startsWith("http")) {
-            window.open(res.adContent, "_blank", "noopener,noreferrer");
+            // Navigate the pre-opened window to the ad URL
+            if (adWindowRef.current && !adWindowRef.current.closed) {
+              adWindowRef.current.location.href = res.adContent;
+            } else {
+              // Fallback if pre-open was blocked
+              window.open(res.adContent, "_blank");
+            }
+          } else {
+            // Script-based ad: close the blank tab, ad runs on this page
+            adWindowRef.current?.close();
           }
+          adWindowRef.current = null;
           setStep("watch-ad");
         },
         onError: (err: any) => {
+          // Close the blank tab on error
+          adWindowRef.current?.close();
+          adWindowRef.current = null;
           setAdWatchError(err?.data?.error || "Could not start ad. Please try again.");
         },
       }
