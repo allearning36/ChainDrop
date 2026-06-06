@@ -106,6 +106,7 @@ const DEFAULT_CHAIN = {
   adDurationSeconds: 30,
   adCooldownSeconds: 0,
   adNetworkCode: "",
+  adType: "url",
   captchaEnabled: true,
   sortOrder: 0
 };
@@ -280,6 +281,7 @@ export function ChainManagement() {
       adDurationSeconds: (chain as any).adDurationSeconds ?? 30,
       adCooldownSeconds: (chain as any).adCooldownSeconds ?? 0,
       adNetworkCode: (chain as any).adNetworkCode ?? "",
+      adType: (chain as any).adType ?? "url",
       captchaEnabled: (chain as any).captchaEnabled !== false,
       addressRegex: (chain as any).addressRegex ?? "",
     });
@@ -1065,15 +1067,50 @@ export function ChainManagement() {
                     </p>
                   </div>
                   <div className="space-y-1.5 sm:col-span-2">
-                    <Label className="text-xs">Ad URL or Embed Code <span className="text-muted-foreground font-normal">(shown in iframe during ad watch)</span></Label>
+                    <Label className="text-xs">Ad Type</Label>
+                    <select
+                      value={formData.adType ?? "url"}
+                      onChange={e => setFormData({...formData, adType: e.target.value})}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="url">URL — opens in new tab (popunder)</option>
+                      <option value="script">Script / HTML — injected on page</option>
+                      <option value="vast">VAST — video ad (ExoClick, Adsterra, etc.)</option>
+                      <option value="hypelab">HypeLab — rewarded video SDK</option>
+                    </select>
+                    <p className="text-[10px] text-muted-foreground font-mono">
+                      {formData.adType === "vast" && "Enter a VAST tag URL below. Any VAST-compatible network works."}
+                      {formData.adType === "hypelab" && "Enter HypeLab placement ID below (format: id|placement, e.g. rewarded-3c1099a1d4|3c1099a1d4)."}
+                      {formData.adType === "url" && "Enter a URL — will open in a new tab when user clicks Watch Ad."}
+                      {formData.adType === "script" && "Paste the ad network HTML/script embed code below."}
+                      {!formData.adType && "Select how the ad will be delivered to users."}
+                    </p>
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label className="text-xs">
+                      {formData.adType === "vast" ? "VAST Tag URL" : formData.adType === "hypelab" ? "HypeLab Placement (id|placement)" : "Ad URL or Embed Code"}
+                      <span className="text-muted-foreground font-normal ml-1">(shown during ad watch)</span>
+                    </Label>
                     <textarea
                       value={formData.adNetworkCode}
                       onChange={e => setFormData({...formData, adNetworkCode: e.target.value})}
-                      placeholder="https://your-ad-network.com/ad-unit or paste HTML embed code"
+                      placeholder={
+                        formData.adType === "vast"
+                          ? "https://exoclick.com/vast-tag-url?..."
+                          : formData.adType === "hypelab"
+                          ? "rewarded-3c1099a1d4|3c1099a1d4"
+                          : "https://your-ad-network.com/ad-unit or paste HTML embed code"
+                      }
                       rows={3}
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground"
                     />
-                    <p className="text-[10px] text-muted-foreground font-mono">Leave blank to show a placeholder. Users see this for {formData.adDurationSeconds}s before they can claim.</p>
+                    <p className="text-[10px] text-muted-foreground font-mono">
+                      {formData.adType === "vast"
+                        ? "VAST video will play inline. Claim unlocks when video completes."
+                        : formData.adType === "hypelab"
+                        ? "HypeLab rewarded video plays fullscreen. Claim unlocks on video completion."
+                        : `Leave blank to show a placeholder. Users see this for ${formData.adDurationSeconds}s before they can claim.`}
+                    </p>
                   </div>
                 </div>
               ) : (

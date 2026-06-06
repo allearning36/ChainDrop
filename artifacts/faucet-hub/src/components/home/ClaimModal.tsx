@@ -8,6 +8,7 @@ import { Loader2, ExternalLink, Clock, Zap, ShoppingCart, CheckCircle2, Copy, Ch
 import { BuyModal } from "./BuyModal";
 import { formatDistanceToNow } from "date-fns";
 import ReCAPTCHA from "react-google-recaptcha";
+import { VastPlayer } from "./VastPlayer";
 
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
 
@@ -139,6 +140,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [adWatchToken, setAdWatchToken] = useState("");
   const [adWatchContent, setAdWatchContent] = useState<string | null>(null);
   const [adWatchError, setAdWatchError] = useState("");
+  const [adType, setAdType] = useState<"url" | "script" | "vast" | "hypelab">("url");
   const [remainingSecs, setRemainingSecs] = useState(0);
   const [captchaExpired, setCaptchaExpired] = useState(false);
   const [ipLimitReached, setIpLimitReached] = useState(false);
@@ -195,13 +197,15 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   useEffect(() => {
     if (step !== "watch-ad") return;
     if (adWatchCountdown <= 0) return;
+    if (adType === "vast" || adType === "hypelab") return;
     const timer = setTimeout(() => setAdWatchCountdown(c => c - 1), 1000);
     return () => clearTimeout(timer);
-  }, [step, adWatchCountdown]);
+  }, [step, adWatchCountdown, adType]);
 
   // ── Inject ad scripts directly into page DOM (not iframe) when watching ad ──
   useEffect(() => {
     if (step !== "watch-ad" || !adWatchContent || adWatchContent.startsWith("http")) return;
+    if (adType === "vast" || adType === "hypelab") return;
 
     const injected: HTMLScriptElement[] = [];
     const template = document.createElement("div");
@@ -329,26 +333,28 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
       { data: { chainId: chain.id, address: debouncedAddress } },
       {
         onSuccess: (res) => {
+          const resolvedType = (res.adType ?? "url") as "url" | "script" | "vast" | "hypelab";
           setAdWatchToken(res.token);
           setAdWatchContent(res.adContent ?? null);
-          setAdWatchCountdown(res.durationSeconds);
-          if (res.adContent && res.adContent.startsWith("http")) {
+          setAdType(resolvedType);
+          // For VAST/HypeLab: countdown is not timer-based — set to 1 so button stays locked until completion
+          setAdWatchCountdown(resolvedType === "vast" || resolvedType === "hypelab" ? 1 : res.durationSeconds);
+
+          if (resolvedType === "url" && res.adContent) {
             // Navigate the pre-opened window to the ad URL
             if (adWindowRef.current && !adWindowRef.current.closed) {
               adWindowRef.current.location.href = res.adContent;
             } else {
-              // Fallback if pre-open was blocked
               window.open(res.adContent, "_blank");
             }
           } else {
-            // Script-based ad: close the blank tab, ad runs on this page
+            // VAST / HypeLab / Script: close the blank tab, ad runs on this page
             adWindowRef.current?.close();
           }
           adWindowRef.current = null;
           setStep("watch-ad");
         },
         onError: (err: any) => {
-          // Close the blank tab on error
           adWindowRef.current?.close();
           adWindowRef.current = null;
           setAdWatchError(err?.data?.error || "Could not start ad. Please try again.");
@@ -401,7 +407,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
       setTimeout(() => {
         setStep("input"); setAddress(""); setDebouncedAddress("");
         setAdCountdown(5); setErrorMsg(""); setCaptchaToken("");
-        setAdWatchToken(""); setAdWatchContent(null); setAdWatchCountdown(0); setAdWatchError("");
+        setAdWatchToken(""); setAdWatchContent(null); setAdWatchCountdown(0); setAdWatchError(""); setAdType("url");
         setIpLimitReached(false);
         recaptchaRef.current?.reset();
       }, 300);
@@ -916,37 +922,80 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
 
             {/* ── Ad area — fills remaining space ── */}
             <div style={{ flex: 1, position: "relative", overflow: "hidden", background: "#000" }}>
-              {adWatchContent ? (
-                adWatchContent.startsWith("http") ? (
-                  /* URL-based (popunder): already opened in new tab — show status message */
-                  <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px", padding: "24px" }}>
-                    <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: "rgba(217,119,6,0.1)", border: "2px solid rgba(217,119,6,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <Play style={{ width: "28px", height: "28px", color: "#d97706" }} />
-                    </div>
-                    <div style={{ textAlign: "center" }}>
-                      <p style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 700, color: "rgba(255,255,255,0.8)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>Ad opened in new tab</p>
-                      <p style={{ fontFamily: "monospace", fontSize: "11px", color: "rgba(255,255,255,0.35)", lineHeight: "1.6" }}>
-                        Please view the ad in the new tab.<br />
-                        Come back here when the timer finishes.
-                      </p>
-                    </div>
-                    <a
-                      href={adWatchContent}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ padding: "8px 20px", borderRadius: "10px", background: "rgba(217,119,6,0.15)", border: "1px solid rgba(217,119,6,0.3)", fontFamily: "monospace", fontSize: "11px", color: "#d97706", textTransform: "uppercase", letterSpacing: "0.08em", textDecoration: "none" }}
-                    >
-                      Reopen Ad ↗
-                    </a>
+              {/* VAST video player */}
+              {adType === "vast" && adWatchContent && (
+                <VastPlayer
+                  vastUrl={adWatchContent}
+                  onComplete={() => setAdWatchCountdown(0)}
+                  onError={(msg) => setAdWatchError(msg)}
+                />
+              )}
+
+              {/* HypeLab rewarded video */}
+              {adType === "hypelab" && (() => {
+                const [id, placement] = (adWatchContent ?? "").split("|");
+                if (!id || !placement) return (
+                  <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <p style={{ fontFamily: "monospace", fontSize: "12px", color: "rgba(255,255,255,0.3)" }}>HypeLab ad loading…</p>
                   </div>
-                ) : (
-                  /* Script-based: rendered directly in page DOM via useEffect — show container */
-                  <div
-                    ref={adContainerRef}
-                    style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "auto" }}
-                  />
-                )
-              ) : (
+                );
+                return (
+                  <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px", padding: "24px" }}>
+                    {/* HypeLab custom element — SDK must be loaded in index.html */}
+                    {/* @ts-expect-error custom element */}
+                    <hype-rewarded
+                      id={`hype-${id}`}
+                      placement={placement}
+                      ref={(el: Element | null) => {
+                        if (!el) return;
+                        const handler = () => setAdWatchCountdown(0);
+                        el.addEventListener("rewarded", handler);
+                        el.addEventListener("complete", handler);
+                        el.addEventListener("adComplete", handler);
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        const el = document.getElementById(`hype-${id}`) as any;
+                        el?.show?.();
+                      }}
+                      style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 28px", borderRadius: "12px", background: "linear-gradient(135deg, #78350f 0%, #d97706 100%)", border: "none", fontFamily: "monospace", fontSize: "13px", fontWeight: 700, color: "white", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.08em" }}
+                    >
+                      <Play style={{ width: "16px", height: "16px" }} /> Play Ad
+                    </button>
+                    <p style={{ fontFamily: "monospace", fontSize: "11px", color: "rgba(255,255,255,0.3)", textAlign: "center" }}>
+                      Watch the full video ad to unlock your claim.
+                    </p>
+                  </div>
+                );
+              })()}
+
+              {/* URL-based (popunder): already opened in new tab */}
+              {adType === "url" && adWatchContent && (
+                <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px", padding: "24px" }}>
+                  <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: "rgba(217,119,6,0.1)", border: "2px solid rgba(217,119,6,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Play style={{ width: "28px", height: "28px", color: "#d97706" }} />
+                  </div>
+                  <div style={{ textAlign: "center" }}>
+                    <p style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 700, color: "rgba(255,255,255,0.8)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>Ad opened in new tab</p>
+                    <p style={{ fontFamily: "monospace", fontSize: "11px", color: "rgba(255,255,255,0.35)", lineHeight: "1.6" }}>
+                      Please view the ad in the new tab.<br />
+                      Come back here when the timer finishes.
+                    </p>
+                  </div>
+                  <a href={adWatchContent} target="_blank" rel="noopener noreferrer" style={{ padding: "8px 20px", borderRadius: "10px", background: "rgba(217,119,6,0.15)", border: "1px solid rgba(217,119,6,0.3)", fontFamily: "monospace", fontSize: "11px", color: "#d97706", textTransform: "uppercase", letterSpacing: "0.08em", textDecoration: "none" }}>
+                    Reopen Ad ↗
+                  </a>
+                </div>
+              )}
+
+              {/* Script-based: rendered directly in page DOM via useEffect */}
+              {adType === "script" && (
+                <div ref={adContainerRef} style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "auto" }} />
+              )}
+
+              {/* Loading state */}
+              {!adWatchContent && adType !== "vast" && (
                 <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px" }}>
                   <div style={{ width: "48px", height: "48px", borderRadius: "50%", border: "3px solid rgba(217,119,6,0.3)", borderTopColor: "#d97706", animation: "spin 1s linear infinite" }} />
                   <p style={{ fontFamily: "monospace", fontSize: "11px", color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Loading ad…</p>

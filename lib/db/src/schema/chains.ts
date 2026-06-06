@@ -39,6 +39,7 @@ export const chainsTable = pgTable("chains", {
   adDurationSeconds: integer("ad_duration_seconds").notNull().default(30),
   adCooldownSeconds: integer("ad_cooldown_seconds").notNull().default(0),
   adNetworkCode: text("ad_network_code"),
+  adType: text("ad_type").notNull().default("url"),
   captchaEnabled: boolean("captcha_enabled").notNull().default(true),
   addressRegex: text("address_regex"),
   sortOrder: integer("sort_order").notNull().default(0),

@@ -5,13 +5,16 @@
  * ChainDrop — Multi-chain faucet hub API
  * OpenAPI spec version: 0.1.0
  */
+import type { AdTokenResponseAdType } from './adTokenResponseAdType';
 
 export interface AdTokenResponse {
   token: string;
   durationSeconds: number;
   /**
-     * URL or HTML embed code for the ad to display
+     * URL, VAST URL, or HTML embed code for the ad to display
      * @nullable
      */
   adContent?: string | null;
+  /** How to render the ad: url=new tab, script=inject HTML, vast=VAST video player, hypelab=HypeLab SDK */
+  adType?: AdTokenResponseAdType;
 }

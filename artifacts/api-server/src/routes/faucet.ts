@@ -598,7 +598,7 @@ router.post("/faucet/ad-token", async (req, res): Promise<void> => {
     expiresAt,
   });
 
-  res.json({ token, durationSeconds, adContent: chain.adNetworkCode ?? null });
+  res.json({ token, durationSeconds, adContent: chain.adNetworkCode ?? null, adType: chain.adType ?? "url" });
 });
 
 router.post("/faucet/ad-claim", claimLimiter, async (req, res): Promise<void> => {

@@ -206,6 +206,19 @@ export const ChainAdminChainType = {
   custom: 'custom',
 } as const;
 
+/**
+ * How to render the ad
+ */
+export type ChainAdminAdType = typeof ChainAdminAdType[keyof typeof ChainAdminAdType];
+
+
+export const ChainAdminAdType = {
+  url: 'url',
+  script: 'script',
+  vast: 'vast',
+  hypelab: 'hypelab',
+} as const;
+
 export interface ChainAdmin {
   id: number;
   name: string;
@@ -262,10 +275,12 @@ export interface ChainAdmin {
   adClaimAmount?: string | null;
   adDurationSeconds?: number;
   /**
-     * URL or HTML embed code for the ad to display (shown in iframe)
+     * URL, VAST URL, or HTML embed code for the ad
      * @nullable
      */
   adNetworkCode?: string | null;
+  /** How to render the ad */
+  adType?: ChainAdminAdType;
   /** Seconds between ad watches per address (0 = no cooldown) */
   adCooldownSeconds?: number;
   /** Whether reCAPTCHA is required to claim this chain (default: true) */
@@ -352,6 +367,19 @@ export const ChainUpdateChainType = {
   custom: 'custom',
 } as const;
 
+/**
+ * How to render the ad: url=new tab, script=inject HTML, vast=VAST video player, hypelab=HypeLab SDK
+ */
+export type ChainUpdateAdType = typeof ChainUpdateAdType[keyof typeof ChainUpdateAdType];
+
+
+export const ChainUpdateAdType = {
+  url: 'url',
+  script: 'script',
+  vast: 'vast',
+  hypelab: 'hypelab',
+} as const;
+
 export interface ChainUpdate {
   name?: string;
   symbol?: string;
@@ -390,8 +418,10 @@ export interface ChainUpdate {
   adClaimEnabled?: boolean;
   adClaimAmount?: string;
   adDurationSeconds?: number;
-  /** URL or HTML embed code for the ad to display (shown in iframe) */
+  /** URL, VAST URL, or HTML embed code for the ad */
   adNetworkCode?: string;
+  /** How to render the ad: url=new tab, script=inject HTML, vast=VAST video player, hypelab=HypeLab SDK */
+  adType?: ChainUpdateAdType;
   /** Seconds between ad watches per address (0 = no cooldown) */
   adCooldownSeconds?: number;
   /** Whether reCAPTCHA is required to claim this chain (default: true) */
@@ -421,14 +451,29 @@ export interface AdTokenBody {
   address: string;
 }
 
+/**
+ * How to render the ad: url=new tab, script=inject HTML, vast=VAST video player, hypelab=HypeLab SDK
+ */
+export type AdTokenResponseAdType = typeof AdTokenResponseAdType[keyof typeof AdTokenResponseAdType];
+
+
+export const AdTokenResponseAdType = {
+  url: 'url',
+  script: 'script',
+  vast: 'vast',
+  hypelab: 'hypelab',
+} as const;
+
 export interface AdTokenResponse {
   token: string;
   durationSeconds: number;
   /**
-     * URL or HTML embed code for the ad to display
+     * URL, VAST URL, or HTML embed code for the ad to display
      * @nullable
      */
   adContent?: string | null;
+  /** How to render the ad: url=new tab, script=inject HTML, vast=VAST video player, hypelab=HypeLab SDK */
+  adType?: AdTokenResponseAdType;
 }
 
 export interface AdClaimBody {

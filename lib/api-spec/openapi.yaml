@@ -1784,7 +1784,11 @@ components:
           type: integer
         adNetworkCode:
           type: ["string", "null"]
-          description: "URL or HTML embed code for the ad to display (shown in iframe)"
+          description: "URL, VAST URL, or HTML embed code for the ad"
+        adType:
+          type: string
+          enum: [url, script, vast, hypelab]
+          description: "How to render the ad"
         adCooldownSeconds:
           type: integer
           description: "Seconds between ad watches per address (0 = no cooldown)"
@@ -1952,7 +1956,11 @@ components:
           type: integer
         adNetworkCode:
           type: string
-          description: "URL or HTML embed code for the ad to display (shown in iframe)"
+          description: "URL, VAST URL, or HTML embed code for the ad"
+        adType:
+          type: string
+          enum: [url, script, vast, hypelab]
+          description: "How to render the ad: url=new tab, script=inject HTML, vast=VAST video player, hypelab=HypeLab SDK"
         adCooldownSeconds:
           type: integer
           description: "Seconds between ad watches per address (0 = no cooldown)"
@@ -2017,7 +2025,11 @@ components:
           type: integer
         adContent:
           type: ["string", "null"]
-          description: "URL or HTML embed code for the ad to display"
+          description: "URL, VAST URL, or HTML embed code for the ad to display"
+        adType:
+          type: string
+          enum: [url, script, vast, hypelab]
+          description: "How to render the ad: url=new tab, script=inject HTML, vast=VAST video player, hypelab=HypeLab SDK"
 
     AdClaimBody:
       type: object

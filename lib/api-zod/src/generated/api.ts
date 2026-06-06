@@ -185,7 +185,8 @@ export const RequestAdTokenBody = zod.object({
 export const RequestAdTokenResponse = zod.object({
   "token": zod.string(),
   "durationSeconds": zod.number(),
-  "adContent": zod.string().nullish().describe('URL or HTML embed code for the ad to display')
+  "adContent": zod.string().nullish().describe('URL, VAST URL, or HTML embed code for the ad to display'),
+  "adType": zod.enum(['url', 'script', 'vast', 'hypelab']).optional().describe('How to render the ad: url=new tab, script=inject HTML, vast=VAST video player, hypelab=HypeLab SDK')
 })
 
 
@@ -1047,7 +1048,8 @@ export const GetAdminChainsResponseItem = zod.object({
   "adClaimEnabled": zod.boolean().optional(),
   "adClaimAmount": zod.string().nullish(),
   "adDurationSeconds": zod.number().optional(),
-  "adNetworkCode": zod.string().nullish().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
+  "adNetworkCode": zod.string().nullish().describe('URL, VAST URL, or HTML embed code for the ad'),
+  "adType": zod.enum(['url', 'script', 'vast', 'hypelab']).optional().describe('How to render the ad'),
   "adCooldownSeconds": zod.number().optional().describe('Seconds between ad watches per address (0 = no cooldown)'),
   "captchaEnabled": zod.boolean().optional().describe('Whether reCAPTCHA is required to claim this chain (default: true)'),
   "addressRegex": zod.string().nullish().describe('Custom address validation regex for \'custom\' chain type'),
@@ -1153,7 +1155,8 @@ export const UpdateChainBody = zod.object({
   "adClaimEnabled": zod.boolean().optional(),
   "adClaimAmount": zod.string().optional(),
   "adDurationSeconds": zod.number().optional(),
-  "adNetworkCode": zod.string().optional().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
+  "adNetworkCode": zod.string().optional().describe('URL, VAST URL, or HTML embed code for the ad'),
+  "adType": zod.enum(['url', 'script', 'vast', 'hypelab']).optional().describe('How to render the ad: url=new tab, script=inject HTML, vast=VAST video player, hypelab=HypeLab SDK'),
   "adCooldownSeconds": zod.number().optional().describe('Seconds between ad watches per address (0 = no cooldown)'),
   "captchaEnabled": zod.boolean().optional().describe('Whether reCAPTCHA is required to claim this chain (default: true)'),
   "addressRegex": zod.string().optional().describe('Custom address validation regex for \'custom\' chain type'),
@@ -1192,7 +1195,8 @@ export const UpdateChainResponse = zod.object({
   "adClaimEnabled": zod.boolean().optional(),
   "adClaimAmount": zod.string().nullish(),
   "adDurationSeconds": zod.number().optional(),
-  "adNetworkCode": zod.string().nullish().describe('URL or HTML embed code for the ad to display (shown in iframe)'),
+  "adNetworkCode": zod.string().nullish().describe('URL, VAST URL, or HTML embed code for the ad'),
+  "adType": zod.enum(['url', 'script', 'vast', 'hypelab']).optional().describe('How to render the ad'),
   "adCooldownSeconds": zod.number().optional().describe('Seconds between ad watches per address (0 = no cooldown)'),
   "captchaEnabled": zod.boolean().optional().describe('Whether reCAPTCHA is required to claim this chain (default: true)'),
   "addressRegex": zod.string().nullish().describe('Custom address validation regex for \'custom\' chain type'),

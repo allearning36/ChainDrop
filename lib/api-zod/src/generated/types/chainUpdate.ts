@@ -5,6 +5,7 @@
  * ChainDrop — Multi-chain faucet hub API
  * OpenAPI spec version: 0.1.0
  */
+import type { ChainUpdateAdType } from './chainUpdateAdType';
 import type { ChainUpdateChainType } from './chainUpdateChainType';
 
 export interface ChainUpdate {
@@ -45,8 +46,10 @@ export interface ChainUpdate {
   adClaimEnabled?: boolean;
   adClaimAmount?: string;
   adDurationSeconds?: number;
-  /** URL or HTML embed code for the ad to display (shown in iframe) */
+  /** URL, VAST URL, or HTML embed code for the ad */
   adNetworkCode?: string;
+  /** How to render the ad: url=new tab, script=inject HTML, vast=VAST video player, hypelab=HypeLab SDK */
+  adType?: ChainUpdateAdType;
   /** Seconds between ad watches per address (0 = no cooldown) */
   adCooldownSeconds?: number;
   /** Whether reCAPTCHA is required to claim this chain (default: true) */
