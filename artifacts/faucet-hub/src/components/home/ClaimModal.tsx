@@ -141,6 +141,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [adWatchContent, setAdWatchContent] = useState<string | null>(null);
   const [adWatchError, setAdWatchError] = useState("");
   const [adType, setAdType] = useState<"url" | "script" | "vast" | "hypelab">("url");
+  const [processingAdHtml, setProcessingAdHtml] = useState("");
   const [remainingSecs, setRemainingSecs] = useState(0);
   const [captchaExpired, setCaptchaExpired] = useState(false);
   const [ipLimitReached, setIpLimitReached] = useState(false);
@@ -154,6 +155,13 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const adClaimMutation = useClaimFaucetWithAd();
 
   const chainType = chain?.chainType ?? "evm";
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then(r => r.json())
+      .then((d: Record<string, string>) => { if (d.adProcessingHtml) setProcessingAdHtml(d.adProcessingHtml); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -721,12 +729,21 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                   </p>
                 </div>
                 <div
-                  className="w-full rounded-xl flex items-center justify-center py-6"
+                  className="w-full rounded-xl overflow-hidden"
                   style={{ background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.08)" }}
                 >
-                  <p className="text-xs font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>
-                    — Advertisement —
-                  </p>
+                  {processingAdHtml ? (
+                    <div
+                      className="w-full"
+                      dangerouslySetInnerHTML={{ __html: processingAdHtml }}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center py-6">
+                      <p className="text-xs font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>
+                        — Advertisement —
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

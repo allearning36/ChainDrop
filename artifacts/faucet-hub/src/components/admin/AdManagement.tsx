@@ -9,33 +9,36 @@ import { Loader2, Save, Trash2, Megaphone } from "lucide-react";
 interface AdForm {
   adTopHtml: string;
   adBottomHtml: string;
+  adProcessingHtml: string;
 }
 
 const DEFAULTS: AdForm = {
   adTopHtml: "",
   adBottomHtml: "",
+  adProcessingHtml: "",
 };
 
 export function AdManagement() {
   const { toast } = useToast();
   const [form, setForm] = useState<AdForm>(DEFAULTS);
-  const [saving, setSaving] = useState<"top" | "bottom" | null>(null);
+  const [saving, setSaving] = useState<"top" | "bottom" | "processing" | null>(null);
 
   useEffect(() => {
     fetch("/api/settings")
       .then(r => r.json())
       .then((data: Record<string, string>) => {
         setForm({
-          adTopHtml:    data.adTopHtml    ?? "",
-          adBottomHtml: data.adBottomHtml ?? "",
+          adTopHtml:        data.adTopHtml        ?? "",
+          adBottomHtml:     data.adBottomHtml     ?? "",
+          adProcessingHtml: data.adProcessingHtml ?? "",
         });
       })
       .catch(() => {});
   }, []);
 
-  async function saveSlot(slot: "top" | "bottom") {
+  async function saveSlot(slot: "top" | "bottom" | "processing") {
     setSaving(slot);
-    const key = slot === "top" ? "adTopHtml" : "adBottomHtml";
+    const key = slot === "top" ? "adTopHtml" : slot === "bottom" ? "adBottomHtml" : "adProcessingHtml";
     const value = form[key as keyof AdForm];
     try {
       const res = await adminFetch("/api/admin/settings", {
@@ -45,7 +48,8 @@ export function AdManagement() {
       });
       if (!res.ok) throw new Error("Save failed");
       window.dispatchEvent(new CustomEvent("adSettingsChanged", { detail: { [key]: value } }));
-      toast({ title: `Ad slot saved`, description: `${slot === "top" ? "Top" : "Bottom"} ad is now live.` });
+      const label = slot === "top" ? "Top" : slot === "bottom" ? "Bottom" : "Processing screen";
+      toast({ title: `Ad slot saved`, description: `${label} ad is now live.` });
     } catch {
       toast({ title: "Error", description: "Could not save ad.", variant: "destructive" });
     } finally {
@@ -53,8 +57,8 @@ export function AdManagement() {
     }
   }
 
-  async function clearSlot(slot: "top" | "bottom") {
-    const key = slot === "top" ? "adTopHtml" : "adBottomHtml";
+  async function clearSlot(slot: "top" | "bottom" | "processing") {
+    const key = slot === "top" ? "adTopHtml" : slot === "bottom" ? "adBottomHtml" : "adProcessingHtml";
     setForm(p => ({ ...p, [key]: "" }));
     try {
       const res = await adminFetch("/api/admin/settings", {
@@ -85,6 +89,7 @@ export function AdManagement() {
         <p className="text-foreground/70 font-semibold">Slot locations:</p>
         <p>• <span className="text-primary">Top</span> — appears just below the navbar / headline banner</p>
         <p>• <span className="text-primary">Bottom</span> — appears just above the footer</p>
+        <p>• <span className="text-primary">Processing Screen</span> — shown inside the claim modal while transaction is broadcasting (supports banner images, GIFs, or HTML)</p>
       </div>
 
       {/* Top Ad Slot */}
@@ -155,6 +160,47 @@ export function AdManagement() {
               size="sm"
               variant="outline"
               onClick={() => clearSlot("bottom")}
+              className="font-mono text-xs text-destructive border-destructive/40 hover:bg-destructive/10"
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Clear
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Processing Screen Ad Slot */}
+      <div className="space-y-3 p-4 rounded-lg border border-border bg-card/40">
+        <div className="flex items-center justify-between">
+          <Label className="font-mono text-sm font-semibold">Processing Screen Ad</Label>
+          <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${form.adProcessingHtml.trim() ? "bg-green-500/20 text-green-400" : "bg-muted text-muted-foreground"}`}>
+            {form.adProcessingHtml.trim() ? "ACTIVE" : "EMPTY"}
+          </span>
+        </div>
+        <p className="text-[11px] text-muted-foreground font-mono">
+          Shown inside the claim modal while the transaction is broadcasting. Paste an image/GIF URL or any HTML banner code.
+        </p>
+        <Textarea
+          value={form.adProcessingHtml}
+          onChange={e => setForm(p => ({ ...p, adProcessingHtml: e.target.value }))}
+          placeholder={`<!-- Banner image example -->\n<img src="https://your-banner.com/ad.gif" style="width:100%;border-radius:8px" />\n\n<!-- Or paste any HTML ad embed code -->`}
+          className="font-mono text-xs resize-none min-h-[120px]"
+          rows={6}
+        />
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            onClick={() => saveSlot("processing")}
+            disabled={saving === "processing"}
+            className="font-mono text-xs"
+          >
+            {saving === "processing" ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
+            Save Processing Ad
+          </Button>
+          {form.adProcessingHtml.trim() && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => clearSlot("processing")}
               className="font-mono text-xs text-destructive border-destructive/40 hover:bg-destructive/10"
             >
               <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Clear
