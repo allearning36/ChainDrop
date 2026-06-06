@@ -739,4 +739,77 @@ router.post("/faucet/ad-claim", claimLimiter, async (req, res): Promise<void> =>
   });
 });
 
+// ── VAST proxy ────────────────────────────────────────────────────────────────
+// Fetches VAST XML server-side so the browser avoids CORS restrictions.
+// Resolves wrapper chains up to 5 levels deep and returns ad metadata.
+
+async function resolveVastServer(url: string, depth = 0): Promise<{
+  mediaUrl: string; mimeType: string;
+  impressionUrls: string[]; trackingUrls: Record<string, string[]>;
+  skipOffsetSeconds: number | null;
+} | null> {
+  if (depth > 5) return null;
+  let xml: string;
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; VAST-Resolver/1.0)" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    xml = await res.text();
+  } catch { return null; }
+
+  const wrapperMatch = xml.match(/<(?:Wrapper|wrapper)[^>]*>[\s\S]*?<(?:VASTAdTagURI|vastadtaguri)[^>]*><!\[CDATA\[(.*?)\]\]><\/(?:VASTAdTagURI|vastadtaguri)>|<(?:VASTAdTagURI|vastadtaguri)[^>]*>(.*?)<\/(?:VASTAdTagURI|vastadtaguri)>/);
+  if (wrapperMatch) {
+    const nextUrl = (wrapperMatch[1] ?? wrapperMatch[2] ?? "").trim();
+    if (nextUrl) return resolveVastServer(nextUrl, depth + 1);
+  }
+
+  const mediaMatch = xml.match(/<MediaFile[^>]*type="([^"]*)"[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/MediaFile>|<MediaFile[^>]*type="([^"]*)"[^>]*>([\s\S]*?)<\/MediaFile>/);
+  if (!mediaMatch) return null;
+  const mimeType = (mediaMatch[1] ?? mediaMatch[3] ?? "video/mp4").trim();
+  const mediaUrl = (mediaMatch[2] ?? mediaMatch[4] ?? "").trim();
+  if (!mediaUrl) return null;
+
+  const impressionUrls: string[] = [];
+  for (const m of xml.matchAll(/<Impression[^>]*>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/Impression>/gs)) {
+    const u = m[1]?.trim();
+    if (u) impressionUrls.push(u);
+  }
+
+  const trackingUrls: Record<string, string[]> = {};
+  for (const m of xml.matchAll(/<Tracking\s+event="([^"]+)"[^>]*>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/Tracking>/gs)) {
+    const ev = m[1]?.trim() ?? "";
+    const u = m[2]?.trim();
+    if (u) { if (!trackingUrls[ev]) trackingUrls[ev] = []; trackingUrls[ev].push(u); }
+  }
+
+  let skipOffsetSeconds: number | null = null;
+  const skipMatch = xml.match(/skipoffset="([^"]+)"/i);
+  if (skipMatch && skipMatch[1] && !skipMatch[1].endsWith("%")) {
+    const parts = skipMatch[1].split(":").map(Number);
+    if (parts.length === 3) skipOffsetSeconds = (parts[0]! * 3600) + (parts[1]! * 60) + (parts[2]!);
+  }
+
+  return { mediaUrl, mimeType, impressionUrls, trackingUrls, skipOffsetSeconds };
+}
+
+router.get("/vast/resolve", async (req, res): Promise<void> => {
+  const url = typeof req.query.url === "string" ? req.query.url : null;
+  if (!url || !/^https?:\/\//i.test(url)) {
+    res.status(400).json({ error: "Invalid VAST URL" });
+    return;
+  }
+  try {
+    const ad = await resolveVastServer(url);
+    if (!ad) {
+      res.json({ noFill: true });
+      return;
+    }
+    res.json({ noFill: false, ...ad });
+  } catch {
+    res.json({ noFill: true });
+  }
+});
+
 export default router;

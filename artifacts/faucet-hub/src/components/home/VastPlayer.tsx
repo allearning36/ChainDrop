@@ -9,64 +9,28 @@ interface VastAd {
   skipOffsetSeconds: number | null;
 }
 
-async function resolveVast(url: string, depth = 0): Promise<VastAd | null> {
-  if (depth > 5) throw new Error("VAST wrapper chain too deep");
-
-  let xml: string;
-  try {
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    xml = await res.text();
-  } catch {
-    throw new Error("Could not load ad. Please try again.");
-  }
-
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(xml, "text/xml");
-
-  if (doc.querySelector("parsererror")) {
-    throw new Error("Invalid VAST response from ad server.");
-  }
-
-  const wrapperEl = doc.querySelector("Wrapper, wrapper");
-  if (wrapperEl) {
-    const uri = wrapperEl.querySelector("VASTAdTagURI")?.textContent?.trim();
-    if (uri) return resolveVast(uri, depth + 1);
-  }
-
-  const mediaFileEl = doc.querySelector("MediaFile");
-  if (!mediaFileEl) return null;
-
-  const mediaUrl = (mediaFileEl.textContent ?? "").trim();
-  const mimeType = mediaFileEl.getAttribute("type") ?? "video/mp4";
-
-  const impressionUrls = [...doc.querySelectorAll("Impression")]
-    .map(el => el.textContent?.trim() ?? "")
-    .filter(Boolean);
-
-  const trackingUrls: Record<string, string[]> = {};
-  doc.querySelectorAll("Tracking").forEach(el => {
-    const event = el.getAttribute("event") ?? "";
-    if (!trackingUrls[event]) trackingUrls[event] = [];
-    const u = el.textContent?.trim();
-    if (u) trackingUrls[event].push(u);
+// Resolve VAST via backend proxy — avoids CORS issues with ad servers
+async function resolveVast(vastUrl: string): Promise<VastAd | null> {
+  const res = await fetch(`/api/vast/resolve?url=${encodeURIComponent(vastUrl)}`, {
+    cache: "no-store",
   });
-
-  const linear = doc.querySelector("Linear");
-  const skipAttr = linear?.getAttribute("skipoffset") ?? null;
-  let skipOffsetSeconds: number | null = null;
-  if (skipAttr) {
-    if (skipAttr.endsWith("%")) {
-      skipOffsetSeconds = null;
-    } else {
-      const parts = skipAttr.split(":").map(Number);
-      if (parts.length === 3) {
-        skipOffsetSeconds = (parts[0]! * 3600) + (parts[1]! * 60) + (parts[2]!);
-      }
-    }
-  }
-
-  return { mediaUrl, mimeType, impressionUrls, trackingUrls, skipOffsetSeconds };
+  if (!res.ok) throw new Error(`Proxy error: HTTP ${res.status}`);
+  const data = await res.json() as {
+    noFill: boolean;
+    mediaUrl?: string;
+    mimeType?: string;
+    impressionUrls?: string[];
+    trackingUrls?: Record<string, string[]>;
+    skipOffsetSeconds?: number | null;
+  };
+  if (data.noFill || !data.mediaUrl) return null;
+  return {
+    mediaUrl: data.mediaUrl,
+    mimeType: data.mimeType ?? "video/mp4",
+    impressionUrls: data.impressionUrls ?? [],
+    trackingUrls: data.trackingUrls ?? {},
+    skipOffsetSeconds: data.skipOffsetSeconds ?? null,
+  };
 }
 
 function beacon(urls: string[] | undefined): void {
