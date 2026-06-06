@@ -1,5 +1,6 @@
 - [Vercel deployment](vercel-deployment.md) — chaindrop.app frontend is Vercel (NOT Railway); static files go in faucet-hub/public/, Railway is API only
 - [Supabase migration](supabase-migration.md) — DB migrated from Neon to Supabase; SSL fix required in pool config
+- [Railway still on Neon](railway-neon-split.md) — Railway DATABASE_URL still points to Neon; Replit local uses Supabase; any new schema columns must be added to BOTH DBs until Railway is migrated
 - [Polling intervals](polling-intervals.md) — aggressive polling was causing excessive DB transfer; intervals bumped
 - [Railway watch paths](railway-watch-paths.md) — Railway only triggers rebuild on changes to artifacts/api-server/, not lib/
 - [Railway IPv6 crash](railway-ipv6.md) — Railway has no IPv6; Supabase resolves to IPv6 → add --dns-result-order=ipv4first to Node start command
