@@ -7,6 +7,7 @@ import { HeadlineBanner } from "@/components/home/HeadlineBanner";
 import { HeroSection } from "@/components/home/HeroSection";
 import { Banners } from "@/components/home/Banners";
 import { ChainCard } from "@/components/home/ChainCard";
+import { InFeedAdCard } from "@/components/home/InFeedAdCard";
 import { RecentFeed } from "@/components/home/RecentFeed";
 import { ClaimModal } from "@/components/home/ClaimModal";
 import { useGetChains, getGetChainsQueryKey, ChainPublic } from "@workspace/api-client-react";
@@ -107,6 +108,7 @@ export default function Home() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [donateOpen, setDonateOpen] = useState(false);
   const [donationAddresses, setDonationAddresses] = useState<DonationAddress[]>([]);
+  const [inFeedAd, setInFeedAd] = useState<{ enabled: boolean; adCode: string; firstPosition: number; interval: number } | null>(null);
 
   const STATUS_FILTERS: { value: "all" | "YES" | "SOON" | "NO"; label: string; color: string }[] = [
     { value: "all",  label: "All Chains",   color: "rgba(255,255,255,0.6)" },
@@ -118,8 +120,9 @@ export default function Home() {
   useEffect(() => {
     fetch("/api/site-config/public")
       .then(r => r.ok ? r.json() : null)
-      .then((d: { donationAddresses?: DonationAddress[] } | null) => {
+      .then((d: { donationAddresses?: DonationAddress[]; inFeedAd?: { enabled: boolean; adCode: string; firstPosition: number; interval: number } } | null) => {
         if (Array.isArray(d?.donationAddresses)) setDonationAddresses(d!.donationAddresses);
+        if (d?.inFeedAd) setInFeedAd(d.inFeedAd);
       })
       .catch(() => {});
   }, []);
@@ -456,14 +459,38 @@ export default function Home() {
               </p>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredChains.map(chain => (
-                <ChainCard
-                  key={chain.id}
-                  chain={chain}
-                  onClick={() => setSelectedChain(chain)}
-                  showNetworkBadge={isSearching}
-                />
-              ))}
+              {(() => {
+                const showAds = inFeedAd?.enabled && inFeedAd.adCode.trim().length > 0;
+                const firstPos = inFeedAd?.firstPosition ?? 4;
+                const interval = inFeedAd?.interval ?? 6;
+                const items: React.ReactNode[] = [];
+                let adSlotIndex = 0;
+
+                filteredChains.forEach((chain, i) => {
+                  // Insert ad BEFORE this chain card if position matches
+                  if (showAds) {
+                    const pos = i + 1; // 1-based card count
+                    const isFirstSlot = pos === firstPos;
+                    const isRepeatSlot = pos > firstPos && (pos - firstPos) % interval === 0;
+                    if (isFirstSlot || isRepeatSlot) {
+                      items.push(
+                        <InFeedAdCard key={`ad-${adSlotIndex}`} adCode={inFeedAd!.adCode} slotIndex={adSlotIndex} />
+                      );
+                      adSlotIndex++;
+                    }
+                  }
+                  items.push(
+                    <ChainCard
+                      key={chain.id}
+                      chain={chain}
+                      onClick={() => setSelectedChain(chain)}
+                      showNetworkBadge={isSearching}
+                    />
+                  );
+                });
+
+                return items;
+              })()}
             </div>
           </>
         )}

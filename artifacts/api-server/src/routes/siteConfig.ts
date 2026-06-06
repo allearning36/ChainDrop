@@ -47,6 +47,7 @@ const DEFAULT_HERO = {
 const DEFAULT_DONATION_ADDRESSES: { chain: string; symbol: string; address: string }[] = [];
 const DEFAULT_ANTI_ABUSE_CONFIG = { enabled: true, blockVpn: true, blockProxy: true, blockTor: true, blockDatacenter: false };
 const DEFAULT_SOCIAL = { twitter: "", telegram: "", discord: "", github: "", email: "" };
+const DEFAULT_INFEED_AD = { enabled: false, adCode: "", firstPosition: 4, interval: 6 };
 const DEFAULT_SEO = { title: "ChainDrop — Multi-Chain Crypto Faucet Hub", description: "Get free testnet crypto tokens from ChainDrop. Supports multiple EVM-compatible chains including Sepolia and more.", ogImage: "" };
 const DEFAULT_MAINTENANCE = { enabled: false, message: "We're currently performing maintenance. Please check back soon." };
 const DEFAULT_RATELIMIT = { maxAttempts: 5, lockoutMinutes: 15 };
@@ -71,6 +72,7 @@ router.get("/site-config/public", async (_req, res): Promise<void> => {
     ["integrations",      DEFAULT_INTEGRATIONS],
     ["heroSection",       DEFAULT_HERO],
     ["donationAddresses", DEFAULT_DONATION_ADDRESSES],
+    ["inFeedAd",          DEFAULT_INFEED_AD],
   ]);
 
   const social      = settings["socialLinks"]       as typeof DEFAULT_SOCIAL;
@@ -79,6 +81,7 @@ router.get("/site-config/public", async (_req, res): Promise<void> => {
   const integrations    = settings["integrations"];
   const heroSection     = settings["heroSection"];
   const donationAddresses = settings["donationAddresses"];
+  const inFeedAd    = settings["inFeedAd"]          as typeof DEFAULT_INFEED_AD;
 
   const result = {
     socialLinks: social,
@@ -90,6 +93,7 @@ router.get("/site-config/public", async (_req, res): Promise<void> => {
     integrations,
     heroSection,
     donationAddresses,
+    inFeedAd,
   };
 
   setCached("site-config:public", result, 5 * 60_000); // 5 minutes
@@ -98,7 +102,7 @@ router.get("/site-config/public", async (_req, res): Promise<void> => {
 
 // ── Admin: get all config ─────────────────────────────────────────────────────
 router.get("/admin/site-config", requireAdmin, async (_req, res): Promise<void> => {
-  const [socialLinks, seoSettings, maintenanceMode, rateLimitConfig, ipClaimConfig, integrations, heroSection, donationAddresses] = await Promise.all([
+  const [socialLinks, seoSettings, maintenanceMode, rateLimitConfig, ipClaimConfig, integrations, heroSection, donationAddresses, inFeedAd] = await Promise.all([
     getSetting("socialLinks", DEFAULT_SOCIAL),
     getSetting("seoSettings", DEFAULT_SEO),
     getSetting("maintenanceMode", DEFAULT_MAINTENANCE),
@@ -107,8 +111,9 @@ router.get("/admin/site-config", requireAdmin, async (_req, res): Promise<void> 
     getSetting("integrations", DEFAULT_INTEGRATIONS),
     getSetting("heroSection", DEFAULT_HERO),
     getSetting("donationAddresses", DEFAULT_DONATION_ADDRESSES),
+    getSetting("inFeedAd", DEFAULT_INFEED_AD),
   ]);
-  res.json({ socialLinks, seoSettings, maintenanceMode, rateLimitConfig, ipClaimConfig, integrations, heroSection, donationAddresses });
+  res.json({ socialLinks, seoSettings, maintenanceMode, rateLimitConfig, ipClaimConfig, integrations, heroSection, donationAddresses, inFeedAd });
 });
 
 // ── Admin: update sections ────────────────────────────────────────────────────
@@ -218,6 +223,17 @@ router.patch("/admin/site-config/antiAbuseConfig", requireAdmin, async (req, res
     blockProxy:      b.blockProxy      !== false,
     blockTor:        b.blockTor        !== false,
     blockDatacenter: b.blockDatacenter === true,
+  });
+  res.json({ ok: true });
+});
+
+router.patch("/admin/site-config/inFeedAd", requireAdmin, async (req, res): Promise<void> => {
+  const b = req.body as Record<string, unknown>;
+  await setSetting("inFeedAd", {
+    enabled:       b.enabled === true,
+    adCode:        typeof b.adCode       === "string" ? b.adCode       : "",
+    firstPosition: Math.max(1, Math.min(20, Number(b.firstPosition) || 4)),
+    interval:      Math.max(2, Math.min(50, Number(b.interval)      || 6)),
   });
   res.json({ ok: true });
 });
