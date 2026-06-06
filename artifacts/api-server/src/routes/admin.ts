@@ -334,6 +334,7 @@ router.get("/admin/chains", async (_req, res): Promise<void> => {
       adClaimAmount: c.adClaimAmount ?? null,
       adDurationSeconds: c.adDurationSeconds,
       adNetworkCode: c.adNetworkCode ?? null,
+      adType: c.adType ?? "url",
       adCooldownSeconds: c.adCooldownSeconds,
       captchaEnabled: c.captchaEnabled,
       sortOrder: c.sortOrder,
@@ -447,6 +448,7 @@ router.post("/admin/chains", async (req, res): Promise<void> => {
     adClaimAmount: chain.adClaimAmount ?? null,
     adDurationSeconds: chain.adDurationSeconds,
     adNetworkCode: chain.adNetworkCode ?? null,
+    adType: chain.adType ?? "url",
     adCooldownSeconds: chain.adCooldownSeconds,
     captchaEnabled: chain.captchaEnabled,
     sortOrder: chain.sortOrder,
@@ -496,6 +498,10 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     }
   }
 
+  // Extract adType before Zod (not in OpenAPI schema — handled manually)
+  const rawAdTypePatch = body.adType;
+  if (rawAdTypePatch !== undefined) delete body.adType;
+
   // Extract chainType before Zod (same reason as POST — avoid stale enum)
   const rawChainTypePatch = body.chainType;
   if (rawChainTypePatch !== undefined) delete body.chainType;
@@ -516,6 +522,7 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
   }
   if (buyRatesForDbPatch !== undefined) updateData.buyRates = buyRatesForDbPatch;
   if (buyLimitsForDbPatch !== undefined) updateData.buyLimits = buyLimitsForDbPatch;
+  if (rawAdTypePatch !== undefined) updateData.adType = rawAdTypePatch;
   const rawUpdatePk = (updateData.privateKey as string | undefined)?.trim();
   if (rawUpdatePk) {
     // Auto-derive wallet address from private key if not supplied (EVM only)
@@ -578,6 +585,7 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     adClaimAmount: chain.adClaimAmount ?? null,
     adDurationSeconds: chain.adDurationSeconds,
     adNetworkCode: chain.adNetworkCode ?? null,
+    adType: chain.adType ?? "url",
     adCooldownSeconds: chain.adCooldownSeconds,
     captchaEnabled: chain.captchaEnabled,
     sortOrder: chain.sortOrder,
