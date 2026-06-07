@@ -130,7 +130,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [debouncedAddress, setDebouncedAddress] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
   const [step, setStep] = useState<"input" | "watch-ad" | "ad" | "result">("input");
-  const [adCountdown, setAdCountdown] = useState(5);
+  const [adCountdown, setAdCountdown] = useState(10);
   const [txHash, setTxHash] = useState("");
   const [claimedAmount, setClaimedAmount] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -295,7 +295,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
         setClaimedAmount(res.amount);
         setCaptchaToken("");
         recaptchaRef.current?.reset();
-        setAdCountdown(5);
+        setAdCountdown(10);
         setStep("ad");
         // Persist so cooldown re-open shows result step
         try {
@@ -381,7 +381,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
           setTxHash(res.txHash);
           setClaimedAmount(res.amount);
           setAdWatchToken("");
-          setAdCountdown(5);
+          setAdCountdown(10);
           setStep("ad");
           queryClient.invalidateQueries({ queryKey: getGetChainQueryKey(chain.id) });
           queryClient.invalidateQueries({ queryKey: getGetFaucetHistoryQueryKey() });
