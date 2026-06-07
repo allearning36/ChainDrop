@@ -136,7 +136,7 @@ app.use(
 );
 
 app.use((req, res, next) => {
-  if (req.path.startsWith("/api/admin/") || req.path.startsWith("/api/uploads/")) return next();
+  if (req.path.startsWith("/api/admin/") || req.path.startsWith("/api/uploads/") || req.path.startsWith("/api/vast/")) return next();
   return globalLimiter(req, res, next);
 });
 // Admin routes may send base64 logo data — allow up to 8 MB
