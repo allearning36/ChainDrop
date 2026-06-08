@@ -135,6 +135,51 @@ app.use(
   }),
 );
 
+// ── Per-endpoint request & response-size tracker ──────────────────────────────
+// Tracks top endpoints by request count and estimated response bytes.
+// Logs a summary every 5 minutes so you can identify bandwidth sources.
+const endpointStats = new Map<string, { count: number; bytes: number; botCount: number }>();
+const BOT_UA_RE = /bot|crawl|spider|slurp|baiduspider|duckduck|semrush|ahrefs|mj12|facebot|ia_archiver/i;
+
+function normalizePath(url: string): string {
+  return (url ?? "")
+    .split("?")[0]
+    .replace(/\/\d+/g, "/:id")
+    .replace(/\/0x[0-9a-fA-F]{10,}/g, "/:addr")
+    .slice(0, 80);
+}
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const path = normalizePath(req.url ?? "");
+  const isBot = BOT_UA_RE.test(req.headers["user-agent"] ?? "");
+  res.on("finish", () => {
+    const bytes = parseInt(res.getHeader("content-length") as string ?? "0") || 0;
+    const existing = endpointStats.get(path) ?? { count: 0, bytes: 0, botCount: 0 };
+    endpointStats.set(path, {
+      count: existing.count + 1,
+      bytes: existing.bytes + bytes,
+      botCount: existing.botCount + (isBot ? 1 : 0),
+    });
+  });
+  next();
+});
+
+setInterval(() => {
+  if (endpointStats.size === 0) return;
+  const top = [...endpointStats.entries()]
+    .sort((a, b) => b[1].bytes - a[1].bytes)
+    .slice(0, 20)
+    .map(([path, s]) => ({
+      path,
+      requests: s.count,
+      bots: s.botCount,
+      totalKB: Math.round(s.bytes / 1024),
+      avgBytes: s.count > 0 ? Math.round(s.bytes / s.count) : 0,
+    }));
+  logger.info({ top20ByBytes: top }, "BANDWIDTH_REPORT — top 20 endpoints by response bytes (5-min window)");
+  endpointStats.clear();
+}, 5 * 60 * 1000);
+
 app.use((req, res, next) => {
   if (req.path.startsWith("/api/admin/") || req.path.startsWith("/api/uploads/") || req.path.startsWith("/api/vast/")) return next();
   return globalLimiter(req, res, next);
