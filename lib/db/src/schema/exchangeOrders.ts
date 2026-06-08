@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, numeric, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, numeric, integer, index } from "drizzle-orm/pg-core";
 
 export const exchangeOrdersTable = pgTable("exchange_orders", {
   id: text("id").primaryKey(),
@@ -14,4 +14,6 @@ export const exchangeOrdersTable = pgTable("exchange_orders", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
-});
+}, (t) => [
+  index("idx_exchange_orders_status").on(t.status),
+]);

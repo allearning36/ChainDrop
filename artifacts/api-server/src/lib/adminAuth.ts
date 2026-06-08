@@ -64,7 +64,7 @@ async function refreshRateLimitConfig() {
 }
 
 void refreshRateLimitConfig();
-setInterval(() => void refreshRateLimitConfig(), 5 * 60 * 1000);
+setInterval(() => void refreshRateLimitConfig(), 30 * 60 * 1000);
 
 interface AttemptRecord {
   count: number;

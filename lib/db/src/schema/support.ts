@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, boolean, integer, index } from "drizzle-orm/pg-core";
 
 export const supportConversationsTable = pgTable("support_conversations", {
   id: serial("id").primaryKey(),
@@ -8,7 +8,10 @@ export const supportConversationsTable = pgTable("support_conversations", {
   userToken: text("user_token"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (t) => [
+  index("idx_support_conversations_status").on(t.status),
+  index("idx_support_conversations_updated_at").on(t.updatedAt),
+]);
 
 export const supportMessagesTable = pgTable("support_messages", {
   id: serial("id").primaryKey(),
@@ -21,7 +24,10 @@ export const supportMessagesTable = pgTable("support_messages", {
   // userSeen: has the user read this admin message? (only relevant when isAdmin=true)
   userSeen: boolean("user_seen").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  index("idx_support_messages_conversation_id").on(t.conversationId),
+  index("idx_support_messages_admin_seen").on(t.conversationId, t.adminSeen),
+]);
 
 export type SupportConversation = typeof supportConversationsTable.$inferSelect;
 export type SupportMessage = typeof supportMessagesTable.$inferSelect;

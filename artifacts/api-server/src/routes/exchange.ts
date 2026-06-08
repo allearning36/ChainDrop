@@ -2,7 +2,7 @@ import { Router } from "express";
 import { ethers } from "ethers";
 import { db } from "@workspace/db";
 import { exchangePairsTable, exchangeOrdersTable, settingsTable, chainsTable } from "@workspace/db/schema";
-import { eq, desc, and, isNotNull, isNull, lt } from "drizzle-orm";
+import { eq, desc, and, isNotNull, isNull, lt, or } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendTokens } from "../lib/faucet";
 import { requireAdmin } from "../lib/adminAuth";
@@ -662,6 +662,14 @@ async function sendAndComplete(orderId: string, order: { userAddress: string; to
 }
 
 async function runOrderRecovery(): Promise<void> {
+  // Fast-path: skip entirely when no active orders — avoids full table scans while idle
+  const [hasActive] = await db
+    .select({ id: exchangeOrdersTable.id })
+    .from(exchangeOrdersTable)
+    .where(or(eq(exchangeOrdersTable.status, "pending"), eq(exchangeOrdersTable.status, "confirming")))
+    .limit(1);
+  if (!hasActive) return;
+
   // ── 1. Pending orders with fromTxHash saved — verify from-chain then send ──
   const pendingCutoff = new Date(Date.now() - 3 * 60 * 1000);
   const pendingStuck = await db

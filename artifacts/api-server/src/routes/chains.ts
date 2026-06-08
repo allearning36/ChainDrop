@@ -79,7 +79,7 @@ router.get("/chains", async (req, res): Promise<void> => {
       .from(chainsTable)
       .where(eq(chainsTable.isEnabled, true))
       .orderBy(desc(chainsTable.isPinned), asc(chainsTable.sortOrder), asc(chainsTable.id));
-    setCached("chains:enabled", allRows, 60_000);
+    setCached("chains:enabled", allRows, 300_000);
   }
 
   // Wallet balances — served from a separate 5-minute cache.

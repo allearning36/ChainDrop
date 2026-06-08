@@ -234,7 +234,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!isAuthenticated()) return;
     void fetchUnreadCount().then(setSupportUnread);
-    const id = setInterval(() => void fetchUnreadCount().then(setSupportUnread), 20000);
+    const id = setInterval(() => void fetchUnreadCount().then(setSupportUnread), 60000);
     return () => clearInterval(id);
   }, []);
 
