@@ -1,0 +1,112 @@
+Before making any changes, please answer these questions with risks, side effects, and expected savings.
+
+1. Chains Infinite Scroll
+
+* Currently all chains load together.
+* If we change to:
+  First 8 chains → scroll → next 8 chains auto load
+  then:
+
+  * What benefits will we get?
+  * What problems can occur?
+  * Will search still work perfectly?
+  * Will future 1000+ chains be handled better?
+
+2. Claim History Optimization
+
+* If Claim History becomes:
+
+  * Lazy loaded (load only when user scrolls)
+  * Cached for 3-5 minutes
+* What could break?
+* Will newly claimed transactions appear with delay?
+* Any downside for user trust?
+
+3. Chains API Cache
+
+* If chains API cache is increased (e.g. 60s → 300s):
+
+  * What benefits will we get?
+  * Could newly published chains be delayed?
+  * How can we keep "New Chain Publish" instant while still reducing DB load?
+
+4. Database Indexes
+   Please verify if these indexes are safe:
+
+* settings(key)
+* exchange_orders(status)
+* claims(address, chain_id)
+
+Questions:
+
+* Any risk?
+* Any migration issue?
+* Estimated DB performance improvement?
+
+5. Exchange Recovery Worker
+
+* Is startOrderRecoveryWorker() running even when nobody uses Exchange?
+* If yes:
+
+  * How many DB queries per day does it create?
+  * Can it automatically sleep when there are no active orders?
+  * Any side effects if optimized?
+
+6. Auto Refresh / Refetch Audit
+   Please identify all auto-refresh systems:
+
+* Chains
+* Claim History
+* Support
+* Exchange
+* Wallet Balance
+* Admin Dashboard
+
+For each:
+
+* Refresh interval
+* DB queries generated
+* Can interval be increased safely?
+* What could break?
+
+7. Bot/Crawler Traffic
+
+* Can we measure how much traffic comes from:
+
+  * Google bots
+  * Bing bots
+  * SEO crawlers
+  * Unknown bots
+
+* Which endpoints are hit most by bots?
+
+8. Claim History Query
+   Current audit suggested history was fetching more rows than users actually see.
+
+Questions:
+
+* Is this already fixed?
+* How many rows are fetched now?
+* How many rows are actually displayed?
+* Any further optimization possible?
+
+9. Logo Storage
+   How are chain logos stored?
+
+* Database?
+* Local files?
+* CDN?
+* External URLs?
+
+If we eventually support 1000+ chains:
+
+* Is current logo system scalable?
+
+10. Risk Assessment
+    Out of all optimization ideas discussed so far, please rank:
+
+SAFE TO IMPLEMENT NOW
+SAFE BUT NEED TESTING
+DO NOT TOUCH
+
+And explain why for each.
