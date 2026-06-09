@@ -247,6 +247,9 @@ router.post("/exchange/orders", async (req, res): Promise<void> => {
     expiresAt,
   });
 
+  // New order created — ensure recovery worker is running to handle it
+  ensureRecoveryWorkerRunning();
+
   res.json({
     orderId: id,
     depositAddress: pair.fromDepositAddress,
@@ -661,14 +664,29 @@ async function sendAndComplete(orderId: string, order: { userAddress: string; to
   }
 }
 
+let recoveryIntervalId: ReturnType<typeof setInterval> | null = null;
+
+export function ensureRecoveryWorkerRunning(): void {
+  if (recoveryIntervalId !== null) return;
+  recoveryIntervalId = setInterval(() => void runOrderRecovery(), 10 * 60 * 1000);
+  logger.info("Exchange order recovery worker started");
+}
+
+function stopRecoveryWorker(): void {
+  if (recoveryIntervalId === null) return;
+  clearInterval(recoveryIntervalId);
+  recoveryIntervalId = null;
+  logger.info("Exchange order recovery worker stopped (no active orders)");
+}
+
 async function runOrderRecovery(): Promise<void> {
-  // Fast-path: skip entirely when no active orders — avoids full table scans while idle
+  // If no active orders exist, stop the worker — DB can now autosuspend freely
   const [hasActive] = await db
     .select({ id: exchangeOrdersTable.id })
     .from(exchangeOrdersTable)
     .where(or(eq(exchangeOrdersTable.status, "pending"), eq(exchangeOrdersTable.status, "confirming")))
     .limit(1);
-  if (!hasActive) return;
+  if (!hasActive) { stopRecoveryWorker(); return; }
 
   // ── 1. Pending orders with fromTxHash saved — verify from-chain then send ──
   const pendingCutoff = new Date(Date.now() - 3 * 60 * 1000);
@@ -726,7 +744,18 @@ async function runOrderRecovery(): Promise<void> {
 }
 
 export function startOrderRecoveryWorker(): void {
-  void runOrderRecovery();
-  setInterval(() => void runOrderRecovery(), 10 * 60 * 1000);
-  logger.info("Exchange order recovery worker started (interval: 10 min)");
+  // At startup: check if there are any active orders before starting the worker.
+  // If none, skip — the worker will be started on-demand when the next order is created.
+  void (async () => {
+    const [hasActive] = await db
+      .select({ id: exchangeOrdersTable.id })
+      .from(exchangeOrdersTable)
+      .where(or(eq(exchangeOrdersTable.status, "pending"), eq(exchangeOrdersTable.status, "confirming")))
+      .limit(1);
+    if (hasActive) {
+      ensureRecoveryWorkerRunning();
+    } else {
+      logger.info("Exchange order recovery worker skipped at startup (no active orders)");
+    }
+  })();
 }
