@@ -727,6 +727,6 @@ async function runOrderRecovery(): Promise<void> {
 
 export function startOrderRecoveryWorker(): void {
   void runOrderRecovery();
-  setInterval(() => void runOrderRecovery(), 2 * 60 * 1000);
-  logger.info("Exchange order recovery worker started (interval: 2 min)");
+  setInterval(() => void runOrderRecovery(), 10 * 60 * 1000);
+  logger.info("Exchange order recovery worker started (interval: 10 min)");
 }
