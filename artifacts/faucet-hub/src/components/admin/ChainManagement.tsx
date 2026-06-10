@@ -635,7 +635,7 @@ export function ChainManagement() {
 
       {/* Form Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto bg-card border-border" onOpenAutoFocus={e => e.preventDefault()}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto overflow-x-hidden bg-card border-border" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="font-mono uppercase tracking-tight">
               {editingChain ? `Edit ${editingChain.name}` : "Deploy New Chain"}
@@ -668,7 +668,7 @@ export function ChainManagement() {
                 <Settings2 className="w-3.5 h-3.5" style={{ color: "#a78bfa" }} />
                 <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: "#a78bfa" }}>Identity</span>
               </div>
-              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 [&>*]:min-w-0">
+              <div className="p-4 grid grid-cols-1 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Network Name <span className="text-destructive">*</span></Label>
                   <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Ethereum Sepolia" className="font-mono text-sm h-9" />
@@ -859,7 +859,7 @@ export function ChainManagement() {
                 <Droplets className="w-3.5 h-3.5" style={{ color: "#4ade80" }} />
                 <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: "#4ade80" }}>Faucet Drop Settings</span>
               </div>
-              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 [&>*]:min-w-0">
+              <div className="p-4 grid grid-cols-1 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Claim Amount <span className="text-destructive">*</span></Label>
                   <div className="relative">
@@ -1085,7 +1085,7 @@ export function ChainManagement() {
                 </div>
               </div>
               {formData.adClaimEnabled ? (
-                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 [&>*]:min-w-0">
+                <div className="p-4 grid grid-cols-1 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Ad Duration (seconds)</Label>
                     <Input
@@ -1247,7 +1247,7 @@ export function ChainManagement() {
                   {/* Add new ad form */}
                   <div className="pt-2 space-y-2" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                     <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Add Ad Network</p>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 gap-2">
                       <Input
                         placeholder="Label (e.g. HilltopAds)"
                         value={newAd.label}
@@ -1288,7 +1288,7 @@ export function ChainManagement() {
                 <Globe className="w-3.5 h-3.5" style={{ color: "#fb923c" }} />
                 <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: "#fb923c" }}>Appearance & Links</span>
               </div>
-              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 [&>*]:min-w-0">
+              <div className="p-4 grid grid-cols-1 gap-3">
                 {/* Logo */}
                 <div className="space-y-2 sm:col-span-2">
                   <Label className="text-xs">Chain Logo</Label>
@@ -1331,7 +1331,7 @@ export function ChainManagement() {
               <div className="flex items-center gap-2.5 px-4 py-2.5" style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
                 <span className="text-xs font-mono font-bold uppercase tracking-widest text-muted-foreground">Availability & Display</span>
               </div>
-              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 [&>*]:min-w-0">
+              <div className="p-4 grid grid-cols-1 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Availability Status</Label>
                   <Select value={formData.availableStatus} onValueChange={(val) => setFormData({...formData, availableStatus: val})}>
