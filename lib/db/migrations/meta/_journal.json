@@ -15,6 +15,13 @@
       "when": 1749520000000,
       "tag": "0001_earn_drop",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1749521000000,
+      "tag": "0002_missing_columns",
+      "breakpoints": true
     }
   ]
 }
