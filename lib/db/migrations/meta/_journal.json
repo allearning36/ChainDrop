@@ -8,6 +8,13 @@
       "when": 1779782023915,
       "tag": "0000_light_luke_cage",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1749520000000,
+      "tag": "0001_earn_drop",
+      "breakpoints": true
     }
   ]
 }
