@@ -32,6 +32,94 @@ export const db = drizzle(pool, { schema });
 const DRIZZLE_MIGRATIONS_TABLE = "__drizzle_migrations";
 const BASELINE_HASH = "0000_light_luke_cage";
 
+const CHAIN_ADS_SQL = `
+  CREATE TABLE IF NOT EXISTS "chain_ads" (
+    "id" serial PRIMARY KEY NOT NULL,
+    "chain_id" integer NOT NULL REFERENCES "chains"("id") ON DELETE CASCADE,
+    "label" text NOT NULL DEFAULT '',
+    "ad_url" text NOT NULL,
+    "ad_type" text NOT NULL DEFAULT 'vast',
+    "priority" integer NOT NULL DEFAULT 0,
+    "is_enabled" boolean NOT NULL DEFAULT true,
+    "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS "chain_ads_chain_idx" ON "chain_ads" ("chain_id");
+`;
+
+const EARN_DROP_TABLES_SQL = `
+  CREATE TABLE IF NOT EXISTS "earn_drop_campaigns" (
+    "id" serial PRIMARY KEY NOT NULL,
+    "title" text NOT NULL,
+    "logo_url" text NOT NULL DEFAULT '',
+    "reward_amount" numeric(18, 8) NOT NULL,
+    "reward_token" text NOT NULL,
+    "chain_id" integer NOT NULL,
+    "end_date" timestamp with time zone NOT NULL,
+    "rules" text NOT NULL DEFAULT '',
+    "twitter_url" text NOT NULL DEFAULT '',
+    "telegram_url" text NOT NULL DEFAULT '',
+    "discord_url" text NOT NULL DEFAULT '',
+    "website_url" text NOT NULL DEFAULT '',
+    "promo_code_enabled" boolean NOT NULL DEFAULT false,
+    "promo_schedule_enabled" boolean NOT NULL DEFAULT false,
+    "promo_schedule_at" timestamp with time zone,
+    "is_active" boolean NOT NULL DEFAULT true,
+    "created_at" timestamp with time zone DEFAULT now() NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS "earn_drop_campaigns_active_idx" ON "earn_drop_campaigns" ("is_active");
+
+  CREATE TABLE IF NOT EXISTS "earn_drop_tasks" (
+    "id" serial PRIMARY KEY NOT NULL,
+    "campaign_id" integer NOT NULL,
+    "step_number" integer NOT NULL,
+    "title" text NOT NULL,
+    "description" text NOT NULL DEFAULT '',
+    "logo_url" text NOT NULL DEFAULT '',
+    "action_type" text NOT NULL DEFAULT 'link',
+    "action_url" text NOT NULL DEFAULT '',
+    "action_label" text NOT NULL DEFAULT 'Go',
+    "created_at" timestamp with time zone DEFAULT now() NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS "earn_drop_tasks_campaign_idx" ON "earn_drop_tasks" ("campaign_id");
+
+  CREATE TABLE IF NOT EXISTS "earn_drop_promo_codes" (
+    "id" serial PRIMARY KEY NOT NULL,
+    "campaign_id" integer NOT NULL,
+    "code" text NOT NULL,
+    "max_uses" integer NOT NULL DEFAULT 0,
+    "used_count" integer NOT NULL DEFAULT 0,
+    "is_active" boolean NOT NULL DEFAULT true,
+    "created_at" timestamp with time zone DEFAULT now() NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS "earn_drop_promo_campaign_idx" ON "earn_drop_promo_codes" ("campaign_id");
+  CREATE INDEX IF NOT EXISTS "earn_drop_promo_code_idx" ON "earn_drop_promo_codes" ("code");
+
+  CREATE TABLE IF NOT EXISTS "earn_drop_participants" (
+    "id" serial PRIMARY KEY NOT NULL,
+    "campaign_id" integer NOT NULL,
+    "address" text NOT NULL,
+    "completed_steps" jsonb NOT NULL DEFAULT '[]',
+    "promo_code" text,
+    "status" text NOT NULL DEFAULT 'pending',
+    "tx_hash" text,
+    "claimed_at" timestamp with time zone,
+    "claimed_from_ip" text,
+    "created_at" timestamp with time zone DEFAULT now() NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS "earn_drop_participants_campaign_idx" ON "earn_drop_participants" ("campaign_id");
+  CREATE INDEX IF NOT EXISTS "earn_drop_participants_address_idx" ON "earn_drop_participants" ("address");
+
+  CREATE TABLE IF NOT EXISTS "earn_drop_joins" (
+    "id" serial PRIMARY KEY NOT NULL,
+    "campaign_id" integer NOT NULL,
+    "session_id" text NOT NULL,
+    "created_at" timestamp with time zone DEFAULT now() NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS "earn_drop_joins_campaign_idx" ON "earn_drop_joins" ("campaign_id");
+  CREATE UNIQUE INDEX IF NOT EXISTS "earn_drop_joins_unique_idx" ON "earn_drop_joins" ("campaign_id", "session_id");
+`;
+
 const PROMO_TABLES_SQL = `
   CREATE TABLE IF NOT EXISTS "promo_codes" (
     "id" serial PRIMARY KEY NOT NULL,
@@ -160,6 +248,24 @@ export async function runMigrations(migrationsFolder?: string): Promise<void> {
   } catch (tblErr) {
     console.warn(
       `[db] Promo table setup warning: ${tblErr instanceof Error ? tblErr.message : String(tblErr)}`,
+    );
+  }
+
+  // Step 5: ensure chain_ads table exists (idempotent — safe to run every boot)
+  try {
+    await pool.query(CHAIN_ADS_SQL);
+  } catch (tblErr) {
+    console.warn(
+      `[db] Chain ads table setup warning: ${tblErr instanceof Error ? tblErr.message : String(tblErr)}`,
+    );
+  }
+
+  // Step 6: ensure earn_drop tables exist (idempotent — safe to run every boot)
+  try {
+    await pool.query(EARN_DROP_TABLES_SQL);
+  } catch (tblErr) {
+    console.warn(
+      `[db] Earn drop table setup warning: ${tblErr instanceof Error ? tblErr.message : String(tblErr)}`,
     );
   }
 }
