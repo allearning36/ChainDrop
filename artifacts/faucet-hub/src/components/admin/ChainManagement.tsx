@@ -635,7 +635,7 @@ export function ChainManagement() {
 
       {/* Form Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto bg-card border-border" onOpenAutoFocus={e => e.preventDefault()}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto overflow-x-hidden bg-card border-border" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="font-mono uppercase tracking-tight">
               {editingChain ? `Edit ${editingChain.name}` : "Deploy New Chain"}
@@ -805,7 +805,7 @@ export function ChainManagement() {
                 <div className="space-y-1.5">
                   <Label className="text-xs">Block Explorer URL</Label>
                   <Input value={formData.explorerUrl} onChange={e => setFormData({...formData, explorerUrl: e.target.value})} placeholder="https://explorer.example.com" className="font-mono text-sm h-9" />
-                  <p className="text-[10px] font-mono" style={{ color: formData.explorerUrl ? "#4ade80" : "rgba(251,191,36,0.8)" }}>
+                  <p className="text-[10px] font-mono truncate" style={{ color: formData.explorerUrl ? "#4ade80" : "rgba(251,191,36,0.8)" }}>
                     {formData.explorerUrl
                       ? `✓ ${formData.explorerUrl.replace(/\/$/, "")}/tx/0x...`
                       : "⚠ No TX link will show without this"}
@@ -1270,12 +1270,12 @@ export function ChainManagement() {
                       className="font-mono text-xs h-8"
                     />
                     <Button
-                      size="sm" className="w-full h-8 text-xs font-mono"
+                      className="w-full h-10 text-sm font-mono font-semibold"
                       disabled={!newAd.label.trim() || !newAd.adUrl.trim() || addingAd}
                       onClick={() => handleAddAd(editingChain.id)}
                     >
-                      {addingAd ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                      <span className="ml-1">Add</span>
+                      {addingAd ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                      Add
                     </Button>
                   </div>
                 </div>
