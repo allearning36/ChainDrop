@@ -28,6 +28,7 @@ export function VastPlayer({ vastUrl, durationSeconds, onComplete, onError }: Pr
   const adsLoaderRef   = useRef<Ima>(null);
   const adDisplayRef   = useRef<Ima>(null);
   const completedRef   = useRef(false);
+  const adStartedAtRef = useRef<number | null>(null);
 
   const [loading,          setLoading]          = useState(true);
   const [error,            setError]            = useState<string | null>(null);
@@ -101,11 +102,28 @@ export function VastPlayer({ vastUrl, durationSeconds, onComplete, onError }: Pr
       const Evt    = ima.AdEvent.Type;
       const ErrEvt = ima.AdErrorEvent.Type;
 
-      am.addEventListener(Evt.LOADED,            () => setLoading(false));
-      am.addEventListener(Evt.STARTED,           () => setLoading(false));
+      am.addEventListener(Evt.LOADED,  () => setLoading(false));
+      am.addEventListener(Evt.STARTED, () => {
+        setLoading(false);
+        adStartedAtRef.current = Date.now();
+      });
       // Use ALL_ADS_COMPLETED so multi-ad pods complete fully before unlocking claim
       am.addEventListener(Evt.ALL_ADS_COMPLETED, handleComplete);
-      am.addEventListener(Evt.SKIPPED,           handleComplete);
+      // SKIPPED: user pressed Skip — wait out the remaining server-side duration
+      am.addEventListener(Evt.SKIPPED, () => {
+        destroyIma();
+        setLoading(false);
+        const elapsed = adStartedAtRef.current
+          ? Math.floor((Date.now() - adStartedAtRef.current) / 1000)
+          : 0;
+        const remaining = Math.max(0, durationSeconds - elapsed);
+        if (remaining <= 0) {
+          handleComplete();
+        } else {
+          // Show countdown so the server token timer is satisfied
+          setFallbackSecs(remaining);
+        }
+      });
 
       // Mid-playback error → destroy, show error, start fallback countdown
       am.addEventListener(ErrEvt.AD_ERROR, (_e: Ima) => {
@@ -211,6 +229,7 @@ export function VastPlayer({ vastUrl, durationSeconds, onComplete, onError }: Pr
   const handleRetry = () => {
     destroyIma();
     completedRef.current = false;
+    adStartedAtRef.current = null;
     setError(null);
     setLoading(!direct);
     setMuted(false);
