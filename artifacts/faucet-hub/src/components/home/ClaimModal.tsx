@@ -137,6 +137,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [buyOpen, setBuyOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [adWatchCountdown, setAdWatchCountdown] = useState(0);
+  const [adWatchDuration, setAdWatchDuration] = useState(30);
   const [adWatchToken, setAdWatchToken] = useState("");
   const [adWatchContent, setAdWatchContent] = useState<string | null>(null);
   const [adWatchError, setAdWatchError] = useState("");
@@ -347,6 +348,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
           setAdType(resolvedType);
           // For VAST/HypeLab: countdown is not timer-based — set to 1 so button stays locked until completion
           setAdWatchCountdown(resolvedType === "vast" || resolvedType === "hypelab" ? 1 : res.durationSeconds);
+          setAdWatchDuration(res.durationSeconds);
 
           if (resolvedType === "url" && res.adContent) {
             // Navigate the pre-opened window to the ad URL
@@ -947,6 +949,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
               {adType === "vast" && adWatchContent && (
                 <VastPlayer
                   vastUrl={adWatchContent}
+                  durationSeconds={adWatchDuration}
                   onComplete={() => setAdWatchCountdown(0)}
                   onError={(msg) => setAdWatchError(msg)}
                 />

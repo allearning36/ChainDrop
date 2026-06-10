@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { AlertCircle, RefreshCw, Play } from "lucide-react";
+import { AlertCircle, RefreshCw, Play, Clock } from "lucide-react";
 
-// ── Minimal IMA SDK type shim ─────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Ima = any;
 function getIma(): Ima | null {
@@ -9,42 +8,44 @@ function getIma(): Ima | null {
   return (window as any).google?.ima ?? null;
 }
 
-// ── Direct video URL detection ────────────────────────────────────────────────
 const VIDEO_EXTS = /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i;
 function isDirectVideo(url: string) {
   return VIDEO_EXTS.test(url.split("?")[0] ?? "");
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
 interface Props {
   vastUrl: string;
+  /** Admin-set ad duration — used as fallback countdown when no ad is available */
+  durationSeconds: number;
   onComplete: () => void;
   onError: (msg: string) => void;
 }
 
-export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
-  const adContainerRef   = useRef<HTMLDivElement>(null);
-  const videoRef         = useRef<HTMLVideoElement>(null);
-  const adsManagerRef    = useRef<Ima>(null);
-  const adsLoaderRef     = useRef<Ima>(null);
-  const adDisplayRef     = useRef<Ima>(null);
-  const completedRef     = useRef(false);
+export function VastPlayer({ vastUrl, durationSeconds, onComplete, onError }: Props) {
+  const adContainerRef = useRef<HTMLDivElement>(null);
+  const videoRef       = useRef<HTMLVideoElement>(null);
+  const adsManagerRef  = useRef<Ima>(null);
+  const adsLoaderRef   = useRef<Ima>(null);
+  const adDisplayRef   = useRef<Ima>(null);
+  const completedRef   = useRef(false);
 
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string | null>(null);
-  const [muted,   setMuted]   = useState(false);
-  const [retryKey, setRetryKey] = useState(0);
+  const [loading,          setLoading]          = useState(true);
+  const [error,            setError]            = useState<string | null>(null);
+  const [muted,            setMuted]            = useState(false);
+  const [retryKey,         setRetryKey]         = useState(0);
+  /** null = not in fallback mode; >0 = counting down; 0 = ready to complete */
+  const [fallbackSecs,     setFallbackSecs]     = useState<number | null>(null);
 
   const direct = isDirectVideo(vastUrl);
 
-  // Single-fire complete — prevents double-complete from COMPLETE + ALL_ADS_COMPLETED
+  // ── Single-fire complete ──────────────────────────────────────────────────────
   const handleComplete = useCallback(() => {
     if (completedRef.current) return;
     completedRef.current = true;
     onComplete();
   }, [onComplete]);
 
-  // Destroy all IMA objects cleanly
+  // ── Destroy all IMA objects cleanly ──────────────────────────────────────────
   const destroyIma = useCallback(() => {
     try { adsManagerRef.current?.destroy(); }  catch { /* ignore */ }
     try { adsLoaderRef.current?.destroy?.(); } catch { /* ignore */ }
@@ -52,6 +53,17 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
     adsLoaderRef.current  = null;
     adDisplayRef.current  = null;
   }, []);
+
+  // ── Fallback countdown (fires when no ad available) ───────────────────────────
+  useEffect(() => {
+    if (fallbackSecs === null) return;
+    if (fallbackSecs <= 0) {
+      handleComplete();
+      return;
+    }
+    const t = setTimeout(() => setFallbackSecs(s => (s ?? 1) - 1), 1000);
+    return () => clearTimeout(t);
+  }, [fallbackSecs, handleComplete]);
 
   // ── IMA SDK path ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -64,26 +76,24 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
     const ima: Ima = getIma();
     if (!ima) {
       setLoading(false);
-      const msg = "Ad player SDK not available.";
-      setError(msg);
-      onError(msg);
+      // IMA SDK not available — start fallback countdown
+      setFallbackSecs(durationSeconds > 0 ? durationSeconds : 10);
       return;
     }
 
     completedRef.current = false;
     setLoading(true);
     setError(null);
+    setFallbackSecs(null);
 
-    // Create display container
     const adDisplayContainer = new ima.AdDisplayContainer(container, video);
     adDisplayRef.current = adDisplayContainer;
     adDisplayContainer.initialize();
 
-    // Create ads loader
     const adsLoader = new ima.AdsLoader(adDisplayContainer);
     adsLoaderRef.current = adsLoader;
 
-    // ── ADS_MANAGER_LOADED ───────────────────────────────────────────────────
+    // ── ADS_MANAGER_LOADED ──────────────────────────────────────────────────
     const onAdsManagerLoaded = (evt: Ima) => {
       const am: Ima = evt.getAdsManager(video);
       adsManagerRef.current = am;
@@ -91,23 +101,18 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
       const Evt    = ima.AdEvent.Type;
       const ErrEvt = ima.AdErrorEvent.Type;
 
-      // Show ad as soon as it starts
-      am.addEventListener(Evt.LOADED,  () => setLoading(false));
-      am.addEventListener(Evt.STARTED, () => setLoading(false));
-
-      // Unlock claim only when ALL ads in the pod are done (not after first of many)
+      am.addEventListener(Evt.LOADED,            () => setLoading(false));
+      am.addEventListener(Evt.STARTED,           () => setLoading(false));
+      // Use ALL_ADS_COMPLETED so multi-ad pods complete fully before unlocking claim
       am.addEventListener(Evt.ALL_ADS_COMPLETED, handleComplete);
       am.addEventListener(Evt.SKIPPED,           handleComplete);
 
-      // Ad-manager level error (mid-playback)
-      am.addEventListener(ErrEvt.AD_ERROR, (e: Ima) => {
-        const msg: string = e.getError?.()?.getMessage?.() ?? "Ad error.";
+      // Mid-playback error → destroy, show error, start fallback countdown
+      am.addEventListener(ErrEvt.AD_ERROR, (_e: Ima) => {
         destroyIma();
         setLoading(false);
-        setError(msg);
-        onError(msg);
-        // Let user claim even if mid-playback error
-        setTimeout(handleComplete, 2000);
+        setError("Ad interrupted. Unlocking claim shortly…");
+        setFallbackSecs(5); // short wait — ad already started
       });
 
       try {
@@ -120,18 +125,16 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
       } catch {
         destroyIma();
         setLoading(false);
-        // Silent complete — ad failed to start, don't punish user
-        handleComplete();
+        setFallbackSecs(5);
       }
     };
 
-    // ── ADS_LOADER level error (no fill, bad tag, network) ───────────────────
-    // Do NOT show an error to the user — just silently unlock claim.
-    // Fill rate <100% is the ad network's problem, not the user's.
+    // ── Loader error (no fill, bad tag, network timeout) ─────────────────────
+    // No ad available — run full fallback countdown so server timer aligns
     const onAdLoaderError = (_evt: Ima) => {
       destroyIma();
       setLoading(false);
-      handleComplete(); // unlock claim silently
+      setFallbackSecs(durationSeconds > 0 ? durationSeconds : 10);
     };
 
     adsLoader.addEventListener(
@@ -145,7 +148,6 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
       false,
     );
 
-    // Request ads
     const adsRequest = new ima.AdsRequest();
     adsRequest.adTagUrl              = vastUrl;
     adsRequest.linearAdSlotWidth     = container.offsetWidth  || 640;
@@ -156,7 +158,7 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
 
     return () => { destroyIma(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [direct, vastUrl, retryKey]);
+  }, [direct, vastUrl, durationSeconds, retryKey]);
 
   // ── Direct MP4 path ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -169,20 +171,19 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
     setLoading(false);
     setError(null);
     setMuted(false);
+    setFallbackSecs(null);
 
     vid.src = vastUrl;
     vid.load();
 
-    const tryPlay = () =>
-      vid.play().catch(() => {
-        vid.muted = true;
-        setMuted(true);
-        return vid.play().catch(() => setError("Tap the screen to start the ad."));
-      });
-    void tryPlay();
+    void vid.play().catch(() => {
+      vid.muted = true;
+      setMuted(true);
+      void vid.play().catch(() => setError("Tap the screen to start the ad."));
+    });
 
-    const onEnded   = () => handleComplete();
-    const onVidErr  = () => setError("Video failed to play. Please try again.");
+    const onEnded  = () => handleComplete();
+    const onVidErr = () => setError("Video failed to play. Please try again.");
 
     vid.addEventListener("ended", onEnded);
     vid.addEventListener("error", onVidErr);
@@ -211,8 +212,9 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
     destroyIma();
     completedRef.current = false;
     setError(null);
-    setLoading(!direct); // IMA needs loading state; direct MP4 doesn't
+    setLoading(!direct);
     setMuted(false);
+    setFallbackSecs(null);
     setRetryKey(k => k + 1);
   };
 
@@ -220,7 +222,7 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
   return (
     <div style={{ width: "100%", height: "100%", position: "relative", background: "#000", overflow: "hidden" }}>
 
-      {/* Content video — used by IMA as reference element; actual ad renders in adContainer */}
+      {/* Content video ref for IMA; actual player for direct MP4 */}
       <video
         ref={videoRef}
         style={{
@@ -233,7 +235,7 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
         controls={false}
       />
 
-      {/* IMA ad container — IMA SDK renders the ad video + controls into this div */}
+      {/* IMA ad container */}
       {!direct && (
         <div
           ref={adContainerRef}
@@ -242,7 +244,7 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
       )}
 
       {/* Loading spinner */}
-      {loading && (
+      {loading && fallbackSecs === null && (
         <div style={{
           position: "absolute", inset: 0, zIndex: 10,
           display: "flex", flexDirection: "column",
@@ -264,14 +266,42 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
         </div>
       )}
 
-      {/* Error overlay — only shown for mid-playback errors (no-fill is silent) */}
-      {error && !loading && (
+      {/* Fallback countdown (no fill / SDK unavailable) */}
+      {fallbackSecs !== null && fallbackSecs > 0 && (
+        <div style={{
+          position: "absolute", inset: 0, zIndex: 15,
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          gap: "16px", background: "#000",
+        }}>
+          <div style={{
+            width: "72px", height: "72px", borderRadius: "50%",
+            border: "3px solid rgba(217,119,6,0.25)",
+            borderTopColor: "#d97706",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <span style={{ fontFamily: "monospace", fontSize: "22px", fontWeight: 900, color: "#d97706" }}>
+              {fallbackSecs}
+            </span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <Clock style={{ width: "12px", height: "12px", color: "rgba(255,255,255,0.3)" }} />
+            <p style={{
+              fontFamily: "monospace", fontSize: "11px",
+              color: "rgba(255,255,255,0.3)",
+              textTransform: "uppercase", letterSpacing: "0.08em",
+            }}>No ad available — please wait</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error overlay (mid-playback errors only) */}
+      {error && fallbackSecs === null && (
         <div style={{
           position: "absolute", inset: 0, zIndex: 20,
           display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center",
-          gap: "16px", padding: "24px",
-          background: "rgba(0,0,0,0.9)",
+          gap: "16px", padding: "24px", background: "rgba(0,0,0,0.92)",
         }}>
           <div style={{
             display: "flex", alignItems: "center", gap: "8px",
