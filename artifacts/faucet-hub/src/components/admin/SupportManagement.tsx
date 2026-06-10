@@ -122,7 +122,7 @@ export function SupportManagement({ onUnreadCount }: SupportManagementProps) {
 
   useEffect(() => {
     void loadList();
-    listPollRef.current = setInterval(() => void loadList(), 60000);
+    listPollRef.current = setInterval(() => void loadList(), 5000);
     return () => { if (listPollRef.current) clearInterval(listPollRef.current); };
   }, [loadList]);
 
@@ -136,7 +136,7 @@ export function SupportManagement({ onUnreadCount }: SupportManagementProps) {
 
   useEffect(() => {
     if (!selected) return;
-    detailPollRef.current = setInterval(() => void loadDetail(selected.id), 15000);
+    detailPollRef.current = setInterval(() => void loadDetail(selected.id), 5000);
     return () => { if (detailPollRef.current) clearInterval(detailPollRef.current); };
   }, [selected?.id, loadDetail]);
 
