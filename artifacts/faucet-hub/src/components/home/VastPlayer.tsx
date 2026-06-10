@@ -15,11 +15,6 @@ function isDirectVideo(url: string) {
   return VIDEO_EXTS.test(url.split("?")[0] ?? "");
 }
 
-// ── Beacon helper ─────────────────────────────────────────────────────────────
-function beacon(url: string) {
-  try { navigator.sendBeacon(url); } catch { /* ignore */ }
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 interface Props {
   vastUrl: string;
@@ -28,30 +23,42 @@ interface Props {
 }
 
 export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
-  const adContainerRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const adsManagerRef = useRef<Ima>(null);
-  const completedRef = useRef(false);
+  const adContainerRef   = useRef<HTMLDivElement>(null);
+  const videoRef         = useRef<HTMLVideoElement>(null);
+  const adsManagerRef    = useRef<Ima>(null);
+  const adsLoaderRef     = useRef<Ima>(null);
+  const adDisplayRef     = useRef<Ima>(null);
+  const completedRef     = useRef(false);
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [muted, setMuted] = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
+  const [muted,   setMuted]   = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
   const direct = isDirectVideo(vastUrl);
 
+  // Single-fire complete — prevents double-complete from COMPLETE + ALL_ADS_COMPLETED
   const handleComplete = useCallback(() => {
     if (completedRef.current) return;
     completedRef.current = true;
     onComplete();
   }, [onComplete]);
 
+  // Destroy all IMA objects cleanly
+  const destroyIma = useCallback(() => {
+    try { adsManagerRef.current?.destroy(); }  catch { /* ignore */ }
+    try { adsLoaderRef.current?.destroy?.(); } catch { /* ignore */ }
+    adsManagerRef.current = null;
+    adsLoaderRef.current  = null;
+    adDisplayRef.current  = null;
+  }, []);
+
   // ── IMA SDK path ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (direct) return;
 
     const container = adContainerRef.current;
-    const video = videoRef.current;
+    const video     = videoRef.current;
     if (!container || !video) return;
 
     const ima: Ima = getIma();
@@ -67,42 +74,40 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
     setLoading(true);
     setError(null);
 
-    // AdDisplayContainer must be initialized on user interaction in some browsers,
-    // but for pre-roll we call it here — browsers allow it when triggered by user click.
+    // Create display container
     const adDisplayContainer = new ima.AdDisplayContainer(container, video);
+    adDisplayRef.current = adDisplayContainer;
     adDisplayContainer.initialize();
 
+    // Create ads loader
     const adsLoader = new ima.AdsLoader(adDisplayContainer);
+    adsLoaderRef.current = adsLoader;
 
+    // ── ADS_MANAGER_LOADED ───────────────────────────────────────────────────
     const onAdsManagerLoaded = (evt: Ima) => {
       const am: Ima = evt.getAdsManager(video);
       adsManagerRef.current = am;
 
-      const Evt = ima.AdEvent.Type;
+      const Evt    = ima.AdEvent.Type;
       const ErrEvt = ima.AdErrorEvent.Type;
 
-      am.addEventListener(Evt.LOADED,    () => setLoading(false));
-      am.addEventListener(Evt.STARTED,   () => setLoading(false));
-      am.addEventListener(Evt.COMPLETE,          handleComplete);
+      // Show ad as soon as it starts
+      am.addEventListener(Evt.LOADED,  () => setLoading(false));
+      am.addEventListener(Evt.STARTED, () => setLoading(false));
+
+      // Unlock claim only when ALL ads in the pod are done (not after first of many)
       am.addEventListener(Evt.ALL_ADS_COMPLETED, handleComplete);
       am.addEventListener(Evt.SKIPPED,           handleComplete);
 
-      // IMA SDK fires VAST tracking beacons automatically — no manual beacons needed.
-
+      // Ad-manager level error (mid-playback)
       am.addEventListener(ErrEvt.AD_ERROR, (e: Ima) => {
-        const code: number = e.getError?.()?.getErrorCode?.() ?? 0;
-        const msg: string  = e.getError?.()?.getMessage?.() ?? "Ad error.";
-        // No-fill (303) or any other error — unlock claim so user isn't stuck
+        const msg: string = e.getError?.()?.getMessage?.() ?? "Ad error.";
+        destroyIma();
         setLoading(false);
-        if (code === 303 || code === 1205) {
-          // No ad available — complete silently
-          handleComplete();
-        } else {
-          setError(msg);
-          onError(msg);
-          // Also complete after 3 s so user can still claim
-          setTimeout(() => { handleComplete(); }, 3000);
-        }
+        setError(msg);
+        onError(msg);
+        // Let user claim even if mid-playback error
+        setTimeout(handleComplete, 2000);
       });
 
       try {
@@ -113,20 +118,20 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
         );
         am.start();
       } catch {
+        destroyIma();
         setLoading(false);
-        setError("Ad failed to start.");
-        onError("Ad failed to start.");
-        setTimeout(() => { handleComplete(); }, 3000);
+        // Silent complete — ad failed to start, don't punish user
+        handleComplete();
       }
     };
 
-    const onAdError = (evt: Ima) => {
-      const msg: string = evt.getError?.()?.getMessage?.() ?? "Failed to load ad.";
+    // ── ADS_LOADER level error (no fill, bad tag, network) ───────────────────
+    // Do NOT show an error to the user — just silently unlock claim.
+    // Fill rate <100% is the ad network's problem, not the user's.
+    const onAdLoaderError = (_evt: Ima) => {
+      destroyIma();
       setLoading(false);
-      setError(msg);
-      onError(msg);
-      // Unlock claim after 3 s on loader error too
-      setTimeout(() => { handleComplete(); }, 3000);
+      handleComplete(); // unlock claim silently
     };
 
     adsLoader.addEventListener(
@@ -136,25 +141,22 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
     );
     adsLoader.addEventListener(
       ima.AdErrorEvent.Type.AD_ERROR,
-      onAdError,
+      onAdLoaderError,
       false,
     );
 
+    // Request ads
     const adsRequest = new ima.AdsRequest();
-    adsRequest.adTagUrl               = vastUrl;
-    adsRequest.linearAdSlotWidth      = container.offsetWidth  || 640;
-    adsRequest.linearAdSlotHeight     = container.offsetHeight || 360;
-    adsRequest.nonLinearAdSlotWidth   = container.offsetWidth  || 640;
-    adsRequest.nonLinearAdSlotHeight  = 80;
-
+    adsRequest.adTagUrl              = vastUrl;
+    adsRequest.linearAdSlotWidth     = container.offsetWidth  || 640;
+    adsRequest.linearAdSlotHeight    = container.offsetHeight || 360;
+    adsRequest.nonLinearAdSlotWidth  = container.offsetWidth  || 640;
+    adsRequest.nonLinearAdSlotHeight = 80;
     adsLoader.requestAds(adsRequest);
 
-    return () => {
-      try { adsManagerRef.current?.destroy?.(); } catch { /* ignore */ }
-      adsManagerRef.current = null;
-    };
+    return () => { destroyIma(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [direct, vastUrl, retryKey, handleComplete, onError]);
+  }, [direct, vastUrl, retryKey]);
 
   // ── Direct MP4 path ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -166,6 +168,7 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
     completedRef.current = false;
     setLoading(false);
     setError(null);
+    setMuted(false);
 
     vid.src = vastUrl;
     vid.load();
@@ -174,25 +177,25 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
       vid.play().catch(() => {
         vid.muted = true;
         setMuted(true);
-        return vid.play().catch(() => {
-          setError("Tap the screen to start the ad.");
-        });
+        return vid.play().catch(() => setError("Tap the screen to start the ad."));
       });
-
     void tryPlay();
 
-    const onEnded = () => handleComplete();
-    const onVidError = () => setError("Video failed to play. Please try again.");
+    const onEnded   = () => handleComplete();
+    const onVidErr  = () => setError("Video failed to play. Please try again.");
 
-    vid.addEventListener("ended",  onEnded);
-    vid.addEventListener("error",  onVidError);
+    vid.addEventListener("ended", onEnded);
+    vid.addEventListener("error", onVidErr);
     return () => {
-      vid.removeEventListener("ended",  onEnded);
-      vid.removeEventListener("error",  onVidError);
+      vid.removeEventListener("ended", onEnded);
+      vid.removeEventListener("error", onVidErr);
+      vid.pause();
+      vid.src = "";
     };
-  }, [direct, vastUrl, retryKey, handleComplete]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [direct, vastUrl, retryKey]);
 
-  // ── Tap-to-play (direct MP4 only) ────────────────────────────────────────────
+  // ── Handlers ─────────────────────────────────────────────────────────────────
   const handleTapToPlay = () => {
     const vid = videoRef.current;
     if (!vid) return;
@@ -205,9 +208,10 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
   };
 
   const handleRetry = () => {
+    destroyIma();
     completedRef.current = false;
     setError(null);
-    setLoading(true);
+    setLoading(!direct); // IMA needs loading state; direct MP4 doesn't
     setMuted(false);
     setRetryKey(k => k + 1);
   };
@@ -216,24 +220,20 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
   return (
     <div style={{ width: "100%", height: "100%", position: "relative", background: "#000", overflow: "hidden" }}>
 
-      {/* Video element — used by IMA SDK as content-video reference, or as player for direct MP4 */}
+      {/* Content video — used by IMA as reference element; actual ad renders in adContainer */}
       <video
         ref={videoRef}
         style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "contain",
-          display: "block",
-          // For IMA VAST: IMA renders its own video inside adContainer;
-          // this element sits beneath and is hidden by the ad layer.
+          width: "100%", height: "100%",
+          objectFit: "contain", display: "block",
           visibility: direct ? "visible" : "hidden",
-          position: direct ? "relative" : "absolute",
+          position: "absolute", inset: 0,
         }}
         playsInline
         controls={false}
       />
 
-      {/* IMA ad container — IMA SDK renders the ad video + UI into this div */}
+      {/* IMA ad container — IMA SDK renders the ad video + controls into this div */}
       {!direct && (
         <div
           ref={adContainerRef}
@@ -241,14 +241,13 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
         />
       )}
 
-      {/* Loading overlay */}
+      {/* Loading spinner */}
       {loading && (
         <div style={{
-          position: "absolute", inset: 0,
+          position: "absolute", inset: 0, zIndex: 10,
           display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center",
           gap: "12px", background: "#000",
-          zIndex: 10,
         }}>
           <div style={{
             width: "48px", height: "48px", borderRadius: "50%",
@@ -260,27 +259,24 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
             fontFamily: "monospace", fontSize: "11px",
             color: "rgba(255,255,255,0.35)",
             textTransform: "uppercase", letterSpacing: "0.1em",
-          }}>
-            Loading video ad…
-          </p>
+          }}>Loading video ad…</p>
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       )}
 
-      {/* Error overlay (non-fatal — shows on top but claim unlocks after timeout) */}
+      {/* Error overlay — only shown for mid-playback errors (no-fill is silent) */}
       {error && !loading && (
         <div style={{
-          position: "absolute", inset: 0,
+          position: "absolute", inset: 0, zIndex: 20,
           display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center",
-          gap: "16px", padding: "24px", background: "rgba(0,0,0,0.85)",
-          zIndex: 20,
+          gap: "16px", padding: "24px",
+          background: "rgba(0,0,0,0.9)",
         }}>
           <div style={{
             display: "flex", alignItems: "center", gap: "8px",
             padding: "10px 16px", borderRadius: "10px",
-            background: "rgba(239,68,68,0.1)",
-            border: "1px solid rgba(239,68,68,0.2)",
+            background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)",
           }}>
             <AlertCircle style={{ width: "14px", height: "14px", color: "#f87171", flexShrink: 0 }} />
             <p style={{ fontFamily: "monospace", fontSize: "12px", color: "#f87171" }}>{error}</p>
@@ -292,10 +288,8 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
                 style={{
                   display: "flex", alignItems: "center", gap: "8px",
                   padding: "10px 20px", borderRadius: "10px",
-                  background: "rgba(217,119,6,0.15)",
-                  border: "1px solid rgba(217,119,6,0.3)",
-                  fontFamily: "monospace", fontSize: "12px",
-                  color: "#d97706", cursor: "pointer",
+                  background: "rgba(217,119,6,0.15)", border: "1px solid rgba(217,119,6,0.3)",
+                  fontFamily: "monospace", fontSize: "12px", color: "#d97706", cursor: "pointer",
                 }}
               >
                 <Play style={{ width: "14px", height: "14px" }} /> Tap to Play
@@ -306,8 +300,7 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
               style={{
                 display: "flex", alignItems: "center", gap: "8px",
                 padding: "10px 20px", borderRadius: "10px",
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.1)",
+                background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
                 fontFamily: "monospace", fontSize: "12px",
                 color: "rgba(255,255,255,0.5)", cursor: "pointer",
               }}
@@ -321,17 +314,13 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
       {/* Unmute button — direct MP4 only */}
       {muted && direct && !error && (
         <button
-          onClick={() => {
-            if (videoRef.current) { videoRef.current.muted = false; setMuted(false); }
-          }}
+          onClick={() => { if (videoRef.current) { videoRef.current.muted = false; setMuted(false); } }}
           style={{
-            position: "absolute", top: "12px", right: "12px",
+            position: "absolute", top: "12px", right: "12px", zIndex: 30,
             padding: "6px 12px", borderRadius: "8px",
-            background: "rgba(0,0,0,0.7)",
-            border: "1px solid rgba(255,255,255,0.2)",
+            background: "rgba(0,0,0,0.7)", border: "1px solid rgba(255,255,255,0.2)",
             fontFamily: "monospace", fontSize: "11px",
             color: "rgba(255,255,255,0.7)", cursor: "pointer",
-            zIndex: 30,
           }}
         >
           🔇 Tap to unmute

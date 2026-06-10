@@ -921,7 +921,11 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                   textAlign: "right",
                 }}
               >
-                {adWatchCountdown > 0 ? `${adWatchCountdown}s` : "✓"}
+                {adWatchCountdown > 0
+                  ? (adType === "vast" || adType === "hypelab")
+                    ? <span style={{ fontSize: "10px", letterSpacing: "0.05em", fontWeight: 600, opacity: 0.7 }}>LIVE</span>
+                    : `${adWatchCountdown}s`
+                  : "✓"}
               </div>
             </div>
 
