@@ -720,11 +720,11 @@ export function ChainManagement() {
                     {rpcUrlsList.map((url, i) => {
                       const health = rpcHealth[url];
                       return (
-                        <div key={i} className="flex items-center gap-1.5">
+                        <div key={i} className="flex items-center gap-1.5 min-w-0">
                           <span className="text-[10px] font-mono text-muted-foreground w-14 shrink-0 text-right">
                             {i === 0 ? "Primary" : `Fallback ${i}`}
                           </span>
-                          <div className="relative flex-1">
+                          <div className="relative flex-1 min-w-0">
                             <Input
                               value={url}
                               onChange={e => {
@@ -802,7 +802,7 @@ export function ChainManagement() {
                     </div>
                   </div>
                 )}
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 sm:col-span-2">
                   <Label className="text-xs">Block Explorer URL</Label>
                   <Input value={formData.explorerUrl} onChange={e => setFormData({...formData, explorerUrl: e.target.value})} placeholder="https://explorer.example.com" className="font-mono text-sm h-9" />
                   <p className="text-[10px] font-mono truncate" style={{ color: formData.explorerUrl ? "#4ade80" : "rgba(251,191,36,0.8)" }}>
