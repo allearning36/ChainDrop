@@ -156,11 +156,15 @@ export function ChainManagement() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...newAd, priority: chainAds.length }),
       });
-      if (!res.ok) throw new Error("Failed to add ad");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? `Server error ${res.status}`);
+      }
       setNewAd({ label: "", adUrl: "", adType: "vast" });
       loadAds(chainId);
-    } catch { toast({ variant: "destructive", title: "Error", description: "Could not add ad." }); }
-    finally { setAddingAd(false); }
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Could not add ad", description: err?.message ?? "Unknown error" });
+    } finally { setAddingAd(false); }
   };
 
   const handleToggleAd = async (chainId: number, ad: ChainAdRow) => {
@@ -1243,7 +1247,7 @@ export function ChainManagement() {
                   {/* Add new ad form */}
                   <div className="pt-2 space-y-2" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                     <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Add Ad Network</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <Input
                         placeholder="Label (e.g. HilltopAds)"
                         value={newAd.label}
@@ -1258,14 +1262,6 @@ export function ChainManagement() {
                         <option value="vast">VAST tag URL</option>
                         <option value="mp4">Direct MP4 URL</option>
                       </select>
-                      <Button
-                        size="sm" className="h-8 text-xs font-mono"
-                        disabled={!newAd.label.trim() || !newAd.adUrl.trim() || addingAd}
-                        onClick={() => handleAddAd(editingChain.id)}
-                      >
-                        {addingAd ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                        <span className="ml-1">Add</span>
-                      </Button>
                     </div>
                     <Input
                       placeholder="VAST tag URL or direct MP4 URL"
@@ -1273,6 +1269,14 @@ export function ChainManagement() {
                       onChange={e => setNewAd(a => ({ ...a, adUrl: e.target.value }))}
                       className="font-mono text-xs h-8"
                     />
+                    <Button
+                      size="sm" className="w-full h-8 text-xs font-mono"
+                      disabled={!newAd.label.trim() || !newAd.adUrl.trim() || addingAd}
+                      onClick={() => handleAddAd(editingChain.id)}
+                    >
+                      {addingAd ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                      <span className="ml-1">Add</span>
+                    </Button>
                   </div>
                 </div>
               </div>
