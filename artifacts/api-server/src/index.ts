@@ -1,4 +1,4 @@
-// v7 — hardcoded seed key
+// v8 — force redeploy
 import app from "./app";
 import { logger } from "./lib/logger";
 import { runMigrations } from "@workspace/db";
