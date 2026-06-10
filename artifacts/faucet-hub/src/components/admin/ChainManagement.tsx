@@ -1075,11 +1075,11 @@ export function ChainManagement() {
                     >
                       <option value="url">URL — opens in new tab (popunder)</option>
                       <option value="script">Script / HTML — injected on page</option>
-                      <option value="vast">VAST — video ad (ExoClick, Adsterra, etc.)</option>
+                      <option value="vast">VAST / MP4 — video ad (any network or direct MP4)</option>
                       <option value="hypelab">HypeLab — rewarded video SDK</option>
                     </select>
                     <p className="text-[10px] text-muted-foreground font-mono">
-                      {formData.adType === "vast" && "Enter a VAST tag URL below. Any VAST-compatible network works."}
+                      {formData.adType === "vast" && "Enter a VAST tag URL (any network: Adsterra, ExoClick, Clickadu, HilltopAds…) or a direct MP4 video URL."}
                       {formData.adType === "hypelab" && "Enter HypeLab placement ID below (format: id|placement, e.g. rewarded-3c1099a1d4|3c1099a1d4)."}
                       {formData.adType === "url" && "Enter a URL — will open in a new tab when user clicks Watch Ad."}
                       {formData.adType === "script" && "Paste the ad network HTML/script embed code below."}
@@ -1096,7 +1096,7 @@ export function ChainManagement() {
                       onChange={e => setFormData({...formData, adNetworkCode: e.target.value})}
                       placeholder={
                         formData.adType === "vast"
-                          ? "https://exoclick.com/vast-tag-url?..."
+                          ? "https://adsterra.com/vast/tag?... OR https://cdn.example.com/ad.mp4"
                           : formData.adType === "hypelab"
                           ? "rewarded-3c1099a1d4|3c1099a1d4"
                           : "https://your-ad-network.com/ad-unit or paste HTML embed code"

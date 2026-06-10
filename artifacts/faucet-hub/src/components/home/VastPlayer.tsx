@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Play, AlertCircle } from "lucide-react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { Play, AlertCircle, RefreshCw } from "lucide-react";
 
 interface VastAd {
   mediaUrl: string;
@@ -9,30 +9,142 @@ interface VastAd {
   skipOffsetSeconds: number | null;
 }
 
-// Resolve VAST via backend proxy — avoids CORS issues with ad servers
-async function resolveVast(vastUrl: string): Promise<VastAd | null> {
-  const res = await fetch(`/api/vast/resolve?url=${encodeURIComponent(vastUrl)}`, {
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`Proxy error: HTTP ${res.status}`);
-  const data = await res.json() as {
-    noFill: boolean;
-    mediaUrl?: string;
-    mimeType?: string;
-    impressionUrls?: string[];
-    trackingUrls?: Record<string, string[]>;
-    skipOffsetSeconds?: number | null;
-  };
-  if (data.noFill || !data.mediaUrl) return null;
-  return {
-    mediaUrl: data.mediaUrl,
-    mimeType: data.mimeType ?? "video/mp4",
-    impressionUrls: data.impressionUrls ?? [],
-    trackingUrls: data.trackingUrls ?? {},
-    skipOffsetSeconds: data.skipOffsetSeconds ?? null,
-  };
+// ── VAST XML parser (browser-side) ───────────────────────────────────────────
+// Strips CDATA wrappers and handles any whitespace around them.
+function extractCdata(raw: string): string {
+  return raw.replace(/^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/, "$1").trim();
 }
 
+function parseVastXml(xml: string): VastAd | null {
+  // Wrapper → recurse (caller handles via resolveVastBrowser)
+  const wrapperRe = /<(?:VASTAdTagURI|vastadtaguri)[^>]*>([\s\S]*?)<\/(?:VASTAdTagURI|vastadtaguri)>/i;
+  const wrapperMatch = xml.match(wrapperRe);
+  if (wrapperMatch) {
+    const nextUrl = extractCdata(wrapperMatch[1] ?? "");
+    if (nextUrl) return { mediaUrl: "__wrapper__:" + nextUrl, mimeType: "", impressionUrls: [], trackingUrls: {}, skipOffsetSeconds: null };
+  }
+
+  // Find the first mp4-capable MediaFile — prefer video/mp4, fallback to others
+  const mediaRe = /<MediaFile[^>]*>([\s\S]*?)<\/MediaFile>/gi;
+  const typeRe = /\btype="([^"]+)"/i;
+  let mediaUrl = "";
+  let mimeType = "video/mp4";
+  let bestPriority = 999;
+  let m: RegExpExecArray | null;
+
+  while ((m = mediaRe.exec(xml)) !== null) {
+    const tag = m[0] ?? "";
+    const content = m[1] ?? "";
+    const typeMatch = tag.match(typeRe);
+    const mime = typeMatch ? typeMatch[1].toLowerCase().trim() : "video/mp4";
+    const url = extractCdata(content);
+    if (!url) continue;
+
+    // Priority: mp4 > webm > other (skip HLS/DASH for now — needs MSE)
+    let priority = 10;
+    if (mime.includes("mp4")) priority = 0;
+    else if (mime.includes("webm")) priority = 1;
+    else if (mime.includes("ogg")) priority = 2;
+    else if (mime.includes("mpegurl") || mime.includes("dash")) continue; // skip adaptive
+
+    if (priority < bestPriority) {
+      bestPriority = priority;
+      mediaUrl = url;
+      mimeType = mime;
+    }
+  }
+
+  if (!mediaUrl) return null;
+
+  const impressionUrls: string[] = [];
+  const impressionRe = /<Impression[^>]*>([\s\S]*?)<\/Impression>/gi;
+  while ((m = impressionRe.exec(xml)) !== null) {
+    const u = extractCdata(m[1] ?? "");
+    if (u) impressionUrls.push(u);
+  }
+
+  const trackingUrls: Record<string, string[]> = {};
+  const trackingRe = /<Tracking\s+event="([^"]+)"[^>]*>([\s\S]*?)<\/Tracking>/gi;
+  while ((m = trackingRe.exec(xml)) !== null) {
+    const ev = (m[1] ?? "").trim();
+    const u = extractCdata(m[2] ?? "");
+    if (ev && u) {
+      if (!trackingUrls[ev]) trackingUrls[ev] = [];
+      trackingUrls[ev].push(u);
+    }
+  }
+
+  let skipOffsetSeconds: number | null = null;
+  const skipMatch = xml.match(/skipoffset="([^"]+)"/i);
+  if (skipMatch && skipMatch[1] && !skipMatch[1].endsWith("%")) {
+    const parts = skipMatch[1].split(":").map(Number);
+    if (parts.length === 3) skipOffsetSeconds = (parts[0]! * 3600) + (parts[1]! * 60) + parts[2]!;
+  }
+
+  return { mediaUrl, mimeType, impressionUrls, trackingUrls, skipOffsetSeconds };
+}
+
+// ── VAST resolution ───────────────────────────────────────────────────────────
+// 1. Direct MP4/video URL  → use as-is
+// 2. VAST tag URL          → fetch browser-side first, fallback to proxy
+const VIDEO_EXTS = /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i;
+
+async function fetchVastXml(url: string, useProxy: boolean): Promise<string> {
+  if (useProxy) {
+    const res = await fetch(`/api/vast/resolve-xml?url=${encodeURIComponent(url)}`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) throw new Error(`Proxy HTTP ${res.status}`);
+    const data = await res.json() as { xml?: string; error?: string };
+    if (!data.xml) throw new Error(data.error ?? "Empty proxy response");
+    return data.xml;
+  }
+  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.text();
+}
+
+async function resolveVast(vastUrl: string, depth = 0): Promise<VastAd | null> {
+  if (depth > 5) return null;
+
+  // Direct video file — no VAST parsing needed
+  if (VIDEO_EXTS.test(vastUrl.split("?")[0] ?? "")) {
+    return {
+      mediaUrl: vastUrl,
+      mimeType: "video/mp4",
+      impressionUrls: [],
+      trackingUrls: {},
+      skipOffsetSeconds: null,
+    };
+  }
+
+  // Try browser-side first, then proxy fallback
+  let xml: string;
+  try {
+    xml = await fetchVastXml(vastUrl, false);
+  } catch {
+    // Browser-side failed (likely CORS) — try our proxy
+    try {
+      xml = await fetchVastXml(vastUrl, true);
+    } catch {
+      return null;
+    }
+  }
+
+  const parsed = parseVastXml(xml);
+  if (!parsed) return null;
+
+  // Wrapper chain — follow it
+  if (parsed.mediaUrl.startsWith("__wrapper__:")) {
+    const nextUrl = parsed.mediaUrl.slice("__wrapper__:".length);
+    return resolveVast(nextUrl, depth + 1);
+  }
+
+  return parsed;
+}
+
+// ── Beacon helper ─────────────────────────────────────────────────────────────
 function beacon(urls: string[] | undefined): void {
   if (!urls) return;
   for (const url of urls) {
@@ -40,6 +152,7 @@ function beacon(urls: string[] | undefined): void {
   }
 }
 
+// ── Component ─────────────────────────────────────────────────────────────────
 interface Props {
   vastUrl: string;
   onComplete: () => void;
@@ -57,15 +170,35 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
   const firedRef = useRef<Set<string>>(new Set());
   const completedRef = useRef(false);
 
+  const handleComplete = useCallback(() => {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    beacon(vastRef.current?.trackingUrls["complete"]);
+    onComplete();
+  }, [onComplete]);
+
+  const handleSkip = useCallback(() => {
+    if (completedRef.current) return;
+    beacon(vastRef.current?.trackingUrls["skip"]);
+    completedRef.current = true;
+    onComplete();
+  }, [onComplete]);
+
+  // Load and resolve the VAST / MP4 URL
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setError(null);
+    completedRef.current = false;
+    firedRef.current = new Set();
 
     resolveVast(vastUrl)
       .then(vast => {
         if (cancelled) return;
-        if (!vast || !vast.mediaUrl) {
-          setError("No playable ad found. Please try again.");
-          onError("No playable ad found.");
+        if (!vast) {
+          const msg = "No playable video ad found. Please try again.";
+          setError(msg);
+          onError(msg);
           return;
         }
         vastRef.current = vast;
@@ -100,8 +233,9 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
       });
 
     return () => { cancelled = true; };
-  }, [vastUrl]);
+  }, [vastUrl, onError]);
 
+  // Video event listeners
   useEffect(() => {
     const vid = videoRef.current;
     if (!vid) return;
@@ -143,14 +277,9 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
       }
     };
 
-    const handleEnded = () => {
-      if (completedRef.current) return;
-      completedRef.current = true;
-      beacon(vastRef.current?.trackingUrls["complete"]);
-      onComplete();
-    };
+    const handleEnded = () => handleComplete();
 
-    const handleError = () => {
+    const handleVideoError = () => {
       setError("Video failed to play. Please try again.");
       onError("Video failed to play.");
     };
@@ -158,21 +287,15 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
     vid.addEventListener("play", handlePlay);
     vid.addEventListener("timeupdate", handleTimeUpdate);
     vid.addEventListener("ended", handleEnded);
-    vid.addEventListener("error", handleError);
+    vid.addEventListener("error", handleVideoError);
 
     return () => {
       vid.removeEventListener("play", handlePlay);
       vid.removeEventListener("timeupdate", handleTimeUpdate);
       vid.removeEventListener("ended", handleEnded);
-      vid.removeEventListener("error", handleError);
+      vid.removeEventListener("error", handleVideoError);
     };
-  }, [canSkip, onComplete, onError]);
-
-  const handleSkip = () => {
-    beacon(vastRef.current?.trackingUrls["skip"]);
-    completedRef.current = true;
-    onComplete();
-  };
+  }, [canSkip, handleComplete, onError]);
 
   const handleTapToPlay = () => {
     const vid = videoRef.current;
@@ -183,6 +306,45 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
       setMuted(true);
       void vid.play();
     });
+  };
+
+  const handleRetry = () => {
+    completedRef.current = false;
+    firedRef.current = new Set();
+    setError(null);
+    setLoading(true);
+    setCanSkip(false);
+    setSkipIn(null);
+    vastRef.current = null;
+
+    resolveVast(vastUrl)
+      .then(vast => {
+        if (!vast) {
+          const msg = "No playable video ad found. Please try again.";
+          setError(msg);
+          onError(msg);
+          return;
+        }
+        vastRef.current = vast;
+        setLoading(false);
+
+        if (vast.skipOffsetSeconds !== null) setSkipIn(vast.skipOffsetSeconds);
+
+        const vid = videoRef.current;
+        if (!vid) return;
+        vid.src = vast.mediaUrl;
+        vid.load();
+        void vid.play().catch(() => {
+          vid.muted = true;
+          setMuted(true);
+          void vid.play();
+        });
+      })
+      .catch(err => {
+        const msg = err instanceof Error ? err.message : "Failed to load ad.";
+        setError(msg);
+        onError(msg);
+      });
   };
 
   if (loading) {
@@ -202,12 +364,20 @@ export function VastPlayer({ vastUrl, onComplete, onError }: Props) {
           <AlertCircle style={{ width: "14px", height: "14px", color: "#f87171", flexShrink: 0 }} />
           <p style={{ fontFamily: "monospace", fontSize: "12px", color: "#f87171" }}>{error}</p>
         </div>
-        <button
-          onClick={handleTapToPlay}
-          style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 24px", borderRadius: "10px", background: "rgba(217,119,6,0.15)", border: "1px solid rgba(217,119,6,0.3)", fontFamily: "monospace", fontSize: "12px", color: "#d97706", cursor: "pointer" }}
-        >
-          <Play style={{ width: "14px", height: "14px" }} /> Tap to Play
-        </button>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button
+            onClick={handleTapToPlay}
+            style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 20px", borderRadius: "10px", background: "rgba(217,119,6,0.15)", border: "1px solid rgba(217,119,6,0.3)", fontFamily: "monospace", fontSize: "12px", color: "#d97706", cursor: "pointer" }}
+          >
+            <Play style={{ width: "14px", height: "14px" }} /> Tap to Play
+          </button>
+          <button
+            onClick={handleRetry}
+            style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 20px", borderRadius: "10px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", fontFamily: "monospace", fontSize: "12px", color: "rgba(255,255,255,0.5)", cursor: "pointer" }}
+          >
+            <RefreshCw style={{ width: "13px", height: "13px" }} /> Retry
+          </button>
+        </div>
       </div>
     );
   }
