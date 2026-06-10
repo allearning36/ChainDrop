@@ -194,6 +194,59 @@ export interface RpcHealthResult {
   error?: string | null;
 }
 
+export type ChainAdAdType = typeof ChainAdAdType[keyof typeof ChainAdAdType];
+
+
+export const ChainAdAdType = {
+  vast: 'vast',
+  mp4: 'mp4',
+} as const;
+
+export interface ChainAd {
+  id: number;
+  chainId: number;
+  /** Human-readable name, e.g. HilltopAds */
+  label: string;
+  /** VAST tag URL or direct MP4 URL */
+  adUrl: string;
+  adType: ChainAdAdType;
+  /** Lower = higher priority in waterfall */
+  priority: number;
+  isEnabled: boolean;
+  createdAt: string;
+}
+
+export type ChainAdPublicAdType = typeof ChainAdPublicAdType[keyof typeof ChainAdPublicAdType];
+
+
+export const ChainAdPublicAdType = {
+  vast: 'vast',
+  mp4: 'mp4',
+} as const;
+
+export interface ChainAdPublic {
+  id: number;
+  adUrl: string;
+  adType: ChainAdPublicAdType;
+  priority: number;
+}
+
+export type ChainAdInputAdType = typeof ChainAdInputAdType[keyof typeof ChainAdInputAdType];
+
+
+export const ChainAdInputAdType = {
+  vast: 'vast',
+  mp4: 'mp4',
+} as const;
+
+export interface ChainAdInput {
+  label: string;
+  adUrl: string;
+  adType: ChainAdInputAdType;
+  priority?: number;
+  isEnabled?: boolean;
+}
+
 export type ChainAdminChainType = typeof ChainAdminChainType[keyof typeof ChainAdminChainType];
 
 

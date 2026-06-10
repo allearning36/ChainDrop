@@ -21,6 +21,7 @@ import referralRouter from "./referral";
 import antiAbuseRouter from "./antiAbuse";
 import promoRouter from "./promo";
 import earnDropRouter from "./earnDrop";
+import chainAdsRouter from "./chainAds";
 
 const router: IRouter = Router();
 
@@ -46,5 +47,6 @@ router.use(referralRouter);
 router.use(antiAbuseRouter);
 router.use(promoRouter);
 router.use(earnDropRouter);
+router.use(chainAdsRouter);
 
 export default router;

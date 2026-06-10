@@ -1214,6 +1214,95 @@ export const DeleteChainParams = zod.object({
 
 
 /**
+ * @summary List ads for a chain
+ */
+export const GetChainAdsParams = zod.object({
+  "chainId": zod.coerce.number()
+})
+
+export const GetChainAdsResponseItem = zod.object({
+  "id": zod.number(),
+  "chainId": zod.number(),
+  "label": zod.string().describe('Human-readable name, e.g. HilltopAds'),
+  "adUrl": zod.string().describe('VAST tag URL or direct MP4 URL'),
+  "adType": zod.enum(['vast', 'mp4']),
+  "priority": zod.number().describe('Lower = higher priority in waterfall'),
+  "isEnabled": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+export const GetChainAdsResponse = zod.array(GetChainAdsResponseItem)
+
+
+/**
+ * @summary Add an ad to a chain
+ */
+export const CreateChainAdParams = zod.object({
+  "chainId": zod.coerce.number()
+})
+
+export const CreateChainAdBody = zod.object({
+  "label": zod.string(),
+  "adUrl": zod.string(),
+  "adType": zod.enum(['vast', 'mp4']),
+  "priority": zod.number().optional(),
+  "isEnabled": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Update a chain ad
+ */
+export const UpdateChainAdParams = zod.object({
+  "chainId": zod.coerce.number(),
+  "adId": zod.coerce.number()
+})
+
+export const UpdateChainAdBody = zod.object({
+  "label": zod.string(),
+  "adUrl": zod.string(),
+  "adType": zod.enum(['vast', 'mp4']),
+  "priority": zod.number().optional(),
+  "isEnabled": zod.boolean().optional()
+})
+
+export const UpdateChainAdResponse = zod.object({
+  "id": zod.number(),
+  "chainId": zod.number(),
+  "label": zod.string().describe('Human-readable name, e.g. HilltopAds'),
+  "adUrl": zod.string().describe('VAST tag URL or direct MP4 URL'),
+  "adType": zod.enum(['vast', 'mp4']),
+  "priority": zod.number().describe('Lower = higher priority in waterfall'),
+  "isEnabled": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a chain ad
+ */
+export const DeleteChainAdParams = zod.object({
+  "chainId": zod.coerce.number(),
+  "adId": zod.coerce.number()
+})
+
+
+/**
+ * @summary Get enabled ads for a chain (public)
+ */
+export const GetPublicChainAdsParams = zod.object({
+  "chainId": zod.coerce.number()
+})
+
+export const GetPublicChainAdsResponseItem = zod.object({
+  "id": zod.number(),
+  "adUrl": zod.string(),
+  "adType": zod.enum(['vast', 'mp4']),
+  "priority": zod.number()
+})
+export const GetPublicChainAdsResponse = zod.array(GetPublicChainAdsResponseItem)
+
+
+/**
  * @summary Get site settings (public)
  */
 export const GetSettingsResponse = zod.record(zod.string(), zod.string())

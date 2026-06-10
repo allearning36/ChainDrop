@@ -20,3 +20,4 @@ export * from "./masterChainTokens";
 export * from "./liveErrorLogs";
 export * from "./promoCodes";
 export * from "./earnDrop";
+export * from "./chainAds";

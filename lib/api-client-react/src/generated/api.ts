@@ -38,6 +38,9 @@ import type {
   BuyInfo,
   BuyInput,
   BuyResult,
+  ChainAd,
+  ChainAdInput,
+  ChainAdPublic,
   ChainAdmin,
   ChainDetail,
   ChainInput,
@@ -3865,6 +3868,378 @@ export const useDeleteChain = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getDeleteChainMutationOptions(options));
     }
+
+export const getGetChainAdsUrl = (chainId: number,) => {
+
+
+
+
+  return `/api/admin/chains/${chainId}/ads`
+}
+
+/**
+ * @summary List ads for a chain
+ */
+export const getChainAds = async (chainId: number, options?: RequestInit): Promise<ChainAd[]> => {
+
+  return customFetch<ChainAd[]>(getGetChainAdsUrl(chainId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetChainAdsQueryKey = (chainId: number,) => {
+    return [
+    `/api/admin/chains/${chainId}/ads`
+    ] as const;
+    }
+
+
+export const getGetChainAdsQueryOptions = <TData = Awaited<ReturnType<typeof getChainAds>>, TError = ErrorType<unknown>>(chainId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getChainAds>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetChainAdsQueryKey(chainId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getChainAds>>> = ({ signal }) => getChainAds(chainId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(chainId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getChainAds>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetChainAdsQueryResult = NonNullable<Awaited<ReturnType<typeof getChainAds>>>
+export type GetChainAdsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List ads for a chain
+ */
+
+export function useGetChainAds<TData = Awaited<ReturnType<typeof getChainAds>>, TError = ErrorType<unknown>>(
+ chainId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getChainAds>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetChainAdsQueryOptions(chainId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateChainAdUrl = (chainId: number,) => {
+
+
+
+
+  return `/api/admin/chains/${chainId}/ads`
+}
+
+/**
+ * @summary Add an ad to a chain
+ */
+export const createChainAd = async (chainId: number,
+    chainAdInput: ChainAdInput, options?: RequestInit): Promise<ChainAd> => {
+
+  return customFetch<ChainAd>(getCreateChainAdUrl(chainId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      chainAdInput,)
+  }
+);}
+
+
+
+
+export const getCreateChainAdMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createChainAd>>, TError,{chainId: number;data: BodyType<ChainAdInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createChainAd>>, TError,{chainId: number;data: BodyType<ChainAdInput>}, TContext> => {
+
+const mutationKey = ['createChainAd'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createChainAd>>, {chainId: number;data: BodyType<ChainAdInput>}> = (props) => {
+          const {chainId,data} = props ?? {};
+
+          return  createChainAd(chainId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateChainAdMutationResult = NonNullable<Awaited<ReturnType<typeof createChainAd>>>
+    export type CreateChainAdMutationBody = BodyType<ChainAdInput>
+    export type CreateChainAdMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add an ad to a chain
+ */
+export const useCreateChainAd = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createChainAd>>, TError,{chainId: number;data: BodyType<ChainAdInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createChainAd>>,
+        TError,
+        {chainId: number;data: BodyType<ChainAdInput>},
+        TContext
+      > => {
+      return useMutation(getCreateChainAdMutationOptions(options));
+    }
+
+export const getUpdateChainAdUrl = (chainId: number,
+    adId: number,) => {
+
+
+
+
+  return `/api/admin/chains/${chainId}/ads/${adId}`
+}
+
+/**
+ * @summary Update a chain ad
+ */
+export const updateChainAd = async (chainId: number,
+    adId: number,
+    chainAdInput: ChainAdInput, options?: RequestInit): Promise<ChainAd> => {
+
+  return customFetch<ChainAd>(getUpdateChainAdUrl(chainId,adId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      chainAdInput,)
+  }
+);}
+
+
+
+
+export const getUpdateChainAdMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateChainAd>>, TError,{chainId: number;adId: number;data: BodyType<ChainAdInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateChainAd>>, TError,{chainId: number;adId: number;data: BodyType<ChainAdInput>}, TContext> => {
+
+const mutationKey = ['updateChainAd'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateChainAd>>, {chainId: number;adId: number;data: BodyType<ChainAdInput>}> = (props) => {
+          const {chainId,adId,data} = props ?? {};
+
+          return  updateChainAd(chainId,adId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateChainAdMutationResult = NonNullable<Awaited<ReturnType<typeof updateChainAd>>>
+    export type UpdateChainAdMutationBody = BodyType<ChainAdInput>
+    export type UpdateChainAdMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a chain ad
+ */
+export const useUpdateChainAd = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateChainAd>>, TError,{chainId: number;adId: number;data: BodyType<ChainAdInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateChainAd>>,
+        TError,
+        {chainId: number;adId: number;data: BodyType<ChainAdInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateChainAdMutationOptions(options));
+    }
+
+export const getDeleteChainAdUrl = (chainId: number,
+    adId: number,) => {
+
+
+
+
+  return `/api/admin/chains/${chainId}/ads/${adId}`
+}
+
+/**
+ * @summary Delete a chain ad
+ */
+export const deleteChainAd = async (chainId: number,
+    adId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteChainAdUrl(chainId,adId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteChainAdMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteChainAd>>, TError,{chainId: number;adId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteChainAd>>, TError,{chainId: number;adId: number}, TContext> => {
+
+const mutationKey = ['deleteChainAd'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteChainAd>>, {chainId: number;adId: number}> = (props) => {
+          const {chainId,adId} = props ?? {};
+
+          return  deleteChainAd(chainId,adId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteChainAdMutationResult = NonNullable<Awaited<ReturnType<typeof deleteChainAd>>>
+
+    export type DeleteChainAdMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a chain ad
+ */
+export const useDeleteChainAd = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteChainAd>>, TError,{chainId: number;adId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteChainAd>>,
+        TError,
+        {chainId: number;adId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteChainAdMutationOptions(options));
+    }
+
+export const getGetPublicChainAdsUrl = (chainId: number,) => {
+
+
+
+
+  return `/api/chains/${chainId}/ads`
+}
+
+/**
+ * @summary Get enabled ads for a chain (public)
+ */
+export const getPublicChainAds = async (chainId: number, options?: RequestInit): Promise<ChainAdPublic[]> => {
+
+  return customFetch<ChainAdPublic[]>(getGetPublicChainAdsUrl(chainId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublicChainAdsQueryKey = (chainId: number,) => {
+    return [
+    `/api/chains/${chainId}/ads`
+    ] as const;
+    }
+
+
+export const getGetPublicChainAdsQueryOptions = <TData = Awaited<ReturnType<typeof getPublicChainAds>>, TError = ErrorType<unknown>>(chainId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicChainAds>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublicChainAdsQueryKey(chainId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicChainAds>>> = ({ signal }) => getPublicChainAds(chainId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(chainId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicChainAds>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublicChainAdsQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicChainAds>>>
+export type GetPublicChainAdsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get enabled ads for a chain (public)
+ */
+
+export function useGetPublicChainAds<TData = Awaited<ReturnType<typeof getPublicChainAds>>, TError = ErrorType<unknown>>(
+ chainId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicChainAds>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublicChainAdsQueryOptions(chainId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGetSettingsUrl = () => {
 

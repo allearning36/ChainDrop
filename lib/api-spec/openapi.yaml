@@ -1102,6 +1102,133 @@ paths:
         "204":
           description: Deleted
 
+  /admin/chains/{chainId}/ads:
+    get:
+      operationId: getChainAds
+      tags: [admin]
+      summary: List ads for a chain
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: chainId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of chain ads
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChainAd"
+    post:
+      operationId: createChainAd
+      tags: [admin]
+      summary: Add an ad to a chain
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: chainId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChainAdInput"
+      responses:
+        "201":
+          description: Created ad
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChainAd"
+
+  /admin/chains/{chainId}/ads/{adId}:
+    patch:
+      operationId: updateChainAd
+      tags: [admin]
+      summary: Update a chain ad
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: chainId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: adId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChainAdInput"
+      responses:
+        "200":
+          description: Updated ad
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChainAd"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteChainAd
+      tags: [admin]
+      summary: Delete a chain ad
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: chainId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: adId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /chains/{chainId}/ads:
+    get:
+      operationId: getPublicChainAds
+      tags: [chains]
+      summary: Get enabled ads for a chain (public)
+      parameters:
+        - name: chainId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Enabled ads for chain
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChainAdPublic"
+
   /settings:
     get:
       operationId: getSettings
@@ -1707,6 +1834,62 @@ components:
           type: integer
         error:
           type: ["string", "null"]
+
+    ChainAd:
+      type: object
+      required: [id, chainId, label, adUrl, adType, priority, isEnabled, createdAt]
+      properties:
+        id:
+          type: integer
+        chainId:
+          type: integer
+        label:
+          type: string
+          description: "Human-readable name, e.g. HilltopAds"
+        adUrl:
+          type: string
+          description: "VAST tag URL or direct MP4 URL"
+        adType:
+          type: string
+          enum: [vast, mp4]
+        priority:
+          type: integer
+          description: "Lower = higher priority in waterfall"
+        isEnabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    ChainAdPublic:
+      type: object
+      required: [id, adUrl, adType, priority]
+      properties:
+        id:
+          type: integer
+        adUrl:
+          type: string
+        adType:
+          type: string
+          enum: [vast, mp4]
+        priority:
+          type: integer
+
+    ChainAdInput:
+      type: object
+      required: [label, adUrl, adType]
+      properties:
+        label:
+          type: string
+        adUrl:
+          type: string
+        adType:
+          type: string
+          enum: [vast, mp4]
+        priority:
+          type: integer
+        isEnabled:
+          type: boolean
 
     ChainAdmin:
       type: object

@@ -142,6 +142,9 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [adWatchContent, setAdWatchContent] = useState<string | null>(null);
   const [adWatchError, setAdWatchError] = useState("");
   const [adType, setAdType] = useState<"url" | "script" | "vast" | "hypelab">("url");
+  // Waterfall: list of ad URLs to try in order; index tracks current position
+  const [adWaterfall, setAdWaterfall]         = useState<string[]>([]);
+  const [adWaterfallIndex, setAdWaterfallIndex] = useState(0);
   const [processingAdHtml, setProcessingAdHtml] = useState("");
   const [remainingSecs, setRemainingSecs] = useState(0);
   const [captchaExpired, setCaptchaExpired] = useState(false);
@@ -341,24 +344,51 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
     requestAdTokenMutation.mutate(
       { data: { chainId: chain.id, address: debouncedAddress } },
       {
-        onSuccess: (res) => {
+        onSuccess: async (res) => {
           const resolvedType = (res.adType ?? "url") as "url" | "script" | "vast" | "hypelab";
           setAdWatchToken(res.token);
-          setAdWatchContent(res.adContent ?? null);
           setAdType(resolvedType);
-          // For VAST/HypeLab: countdown is not timer-based — set to 1 so button stays locked until completion
           setAdWatchCountdown(resolvedType === "vast" || resolvedType === "hypelab" ? 1 : res.durationSeconds);
           setAdWatchDuration(res.durationSeconds);
 
+          if (resolvedType === "vast") {
+            // Fetch waterfall ads for this chain
+            let waterfall: string[] = [];
+            try {
+              const r = await fetch(`/api/chains/${chain.id}/ads`);
+              if (r.ok) {
+                const ads = await r.json() as Array<{ adUrl: string }>;
+                waterfall = ads.map(a => a.adUrl).filter(Boolean);
+              }
+            } catch { /* ignore — fall back to adContent */ }
+
+            // If waterfall has ads, use those; otherwise fall back to legacy adNetworkCode
+            if (waterfall.length > 0) {
+              setAdWaterfall(waterfall);
+              setAdWaterfallIndex(0);
+              setAdWatchContent(waterfall[0] ?? null);
+            } else {
+              setAdWaterfall(res.adContent ? [res.adContent] : []);
+              setAdWaterfallIndex(0);
+              setAdWatchContent(res.adContent ?? null);
+            }
+            adWindowRef.current?.close();
+            adWindowRef.current = null;
+            setStep("watch-ad");
+            return;
+          }
+
+          setAdWatchContent(res.adContent ?? null);
+          setAdWaterfall([]);
+          setAdWaterfallIndex(0);
+
           if (resolvedType === "url" && res.adContent) {
-            // Navigate the pre-opened window to the ad URL
             if (adWindowRef.current && !adWindowRef.current.closed) {
               adWindowRef.current.location.href = res.adContent;
             } else {
               window.open(res.adContent, "_blank");
             }
           } else {
-            // VAST / HypeLab / Script: close the blank tab, ad runs on this page
             adWindowRef.current?.close();
           }
           adWindowRef.current = null;
