@@ -635,7 +635,7 @@ export function ChainManagement() {
 
       {/* Form Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto overflow-x-hidden bg-card border-border" onOpenAutoFocus={e => e.preventDefault()}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto bg-card border-border" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="font-mono uppercase tracking-tight">
               {editingChain ? `Edit ${editingChain.name}` : "Deploy New Chain"}
@@ -649,7 +649,7 @@ export function ChainManagement() {
             </div>
           )}
 
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-2 w-full min-w-0 overflow-x-hidden">
 
             {/* Select from Chain Library */}
             <button
