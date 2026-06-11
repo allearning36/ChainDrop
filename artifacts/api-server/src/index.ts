@@ -1,4 +1,4 @@
-// v9 — ensure chain_ads + earn_drop tables on production
+// v10 — ensure chain_ads + earn_drop tables + ad_daily_chain_limit column on production
 import app from "./app";
 import { logger } from "./lib/logger";
 import { runMigrations, pool } from "@workspace/db";
@@ -87,6 +87,8 @@ const EXTRA_TABLES_SQL = `
   );
   CREATE INDEX IF NOT EXISTS "earn_drop_joins_campaign_idx" ON "earn_drop_joins" ("campaign_id");
   CREATE UNIQUE INDEX IF NOT EXISTS "earn_drop_joins_unique_idx" ON "earn_drop_joins" ("campaign_id", "session_id");
+
+  ALTER TABLE "chains" ADD COLUMN IF NOT EXISTS "ad_daily_chain_limit" integer NOT NULL DEFAULT 0;
 `;
 
 process.on("uncaughtException", (err) => {
