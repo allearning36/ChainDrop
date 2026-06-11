@@ -27,7 +27,7 @@ function Toggle({ checked, onChange, label, description }: { checked: boolean; o
       </div>
       <button
         onClick={() => onChange(!checked)}
-        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${checked ? "bg-red-500" : "bg-muted"}`}
+        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${checked ? "bg-green-500" : "bg-muted"}`}
       >
         <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${checked ? "translate-x-6" : "translate-x-1"}`} />
       </button>

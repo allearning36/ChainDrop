@@ -98,6 +98,7 @@ router.get("/admin/claims", requireAdmin, async (req, res): Promise<void> => {
       chainSymbol: chainMap[r.chainId]?.symbol ?? "",
       txHash: r.txHash,
       amount: r.amount,
+      ip: r.ip ?? null,
       claimedAt: r.claimedAt.toISOString(),
     })),
     total: Number(total),

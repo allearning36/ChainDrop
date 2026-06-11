@@ -7,7 +7,7 @@ import { formatTokenAmount } from "@/lib/utils";
 
 type ClaimRow = {
   id: number; address: string; chainId: number; chainName: string;
-  chainSymbol: string; txHash: string; amount: string; claimedAt: string;
+  chainSymbol: string; txHash: string; amount: string; ip: string | null; claimedAt: string;
 };
 type Page = { claims: ClaimRow[]; total: number; page: number; limit: number; pages: number };
 
@@ -96,19 +96,19 @@ export function ClaimsLog() {
           <table className="w-full text-xs font-mono">
             <thead>
               <tr style={{ background: "rgba(255,255,255,0.04)" }}>
-                {["#", "Address", "Chain", "Amount", "Tx Hash", "Time"].map(h => (
+                {["#", "Address", "Chain", "Amount", "IP", "Tx Hash", "Time"].map(h => (
                   <th key={h} className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
               {loading && !data && (
-                <tr><td colSpan={6} className="py-12 text-center text-muted-foreground">
+                <tr><td colSpan={7} className="py-12 text-center text-muted-foreground">
                   <Loader2 className="w-5 h-5 animate-spin inline mr-2" />Loading…
                 </td></tr>
               )}
               {data?.claims.length === 0 && (
-                <tr><td colSpan={6} className="py-12 text-center text-muted-foreground">No claims found</td></tr>
+                <tr><td colSpan={7} className="py-12 text-center text-muted-foreground">No claims found</td></tr>
               )}
               {data?.claims.map((c, i) => (
                 <tr key={c.id} className="hover:bg-muted/30 transition-colors">
@@ -127,6 +127,9 @@ export function ClaimsLog() {
                     <span className="ml-1 text-muted-foreground">{c.chainName}</span>
                   </td>
                   <td className="px-3 py-2 text-green-400 font-semibold">{formatTokenAmount(c.amount)}</td>
+                  <td className="px-3 py-2">
+                    <span className="text-muted-foreground text-[11px]" title={c.ip ?? ""}>{c.ip ?? "—"}</span>
+                  </td>
                   <td className="px-3 py-2">
                     <a href={`https://sepolia.etherscan.io/tx/${c.txHash}`} target="_blank" rel="noreferrer"
                       className="flex items-center gap-1 text-blue-400 hover:text-blue-300" title={c.txHash}>
