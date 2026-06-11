@@ -105,6 +105,7 @@ const DEFAULT_CHAIN = {
   adClaimAmount: "",
   adDurationSeconds: 30,
   adCooldownSeconds: 0,
+  adDailyChainLimit: 0,
   adNetworkCode: "",
   adType: "url",
   captchaEnabled: true,
@@ -351,6 +352,7 @@ export function ChainManagement() {
       adClaimAmount: (chain as any).adClaimAmount ?? "",
       adDurationSeconds: (chain as any).adDurationSeconds ?? 30,
       adCooldownSeconds: (chain as any).adCooldownSeconds ?? 0,
+      adDailyChainLimit: (chain as any).adDailyChainLimit ?? 0,
       adNetworkCode: (chain as any).adNetworkCode ?? "",
       adType: (chain as any).adType ?? "url",
       captchaEnabled: (chain as any).captchaEnabled !== false,
@@ -1122,6 +1124,21 @@ export function ChainManagement() {
                       {(formData.adCooldownSeconds ?? 0) > 0
                         ? `Users can watch an ad every ${formatCooldown(formData.adCooldownSeconds ?? 0)}`
                         : "Users can watch ads without cooldown"}
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Daily Ad Watch Limit <span className="text-muted-foreground font-normal">(0 = unlimited)</span></Label>
+                    <Input
+                      type="number" min="0" step="1"
+                      value={formData.adDailyChainLimit}
+                      onChange={e => setFormData({...formData, adDailyChainLimit: Number(e.target.value)})}
+                      className="font-mono text-sm h-9"
+                      placeholder="0"
+                    />
+                    <p className="text-[10px] text-muted-foreground font-mono">
+                      {(formData.adDailyChainLimit ?? 0) > 0
+                        ? `Users can watch max ${formData.adDailyChainLimit} ad${formData.adDailyChainLimit === 1 ? "" : "s"}/day on this chain`
+                        : "No per-chain daily ad limit (unlimited)"}
                     </p>
                   </div>
                   <div className="space-y-1.5">

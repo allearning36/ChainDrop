@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
-import { desc, eq, and, gt, gte, sql } from "drizzle-orm";
+import { desc, eq, and, gt, gte, sql, count as drizzleCount } from "drizzle-orm";
 import { db, claimsTable, chainsTable, blockedAddressesTable, ipBlocksTable, settingsTable, purchasesTable, adTokensTable, nonceTable } from "@workspace/db";
 import { ClaimFaucetBody, GetFaucetStatusParams, RequestAdTokenBody, ClaimFaucetWithAdBody } from "@workspace/api-zod";
 import { sendTokens, isValidAddress, type ChainType } from "../lib/chains/index";
@@ -558,6 +558,46 @@ router.post("/faucet/ad-token", async (req, res): Promise<void> => {
   if (!addressValid) {
     res.status(400).json({ error: `Invalid ${chain.name} address format` });
     return;
+  }
+
+  // Enforce per-chain daily ad watch limit
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  if ((chain.adDailyChainLimit ?? 0) > 0) {
+    const [chainCountRow] = await db
+      .select({ cnt: drizzleCount() })
+      .from(adTokensTable)
+      .where(and(
+        eq(adTokensTable.chainId, chainId),
+        eq(adTokensTable.address, address.toLowerCase()),
+        gt(adTokensTable.issuedAt, since24h),
+      ));
+    const chainCount = Number(chainCountRow?.cnt ?? 0);
+    if (chainCount >= chain.adDailyChainLimit!) {
+      res.status(429).json({ error: `Daily ad limit reached for ${chain.name}. Max ${chain.adDailyChainLimit} ad${chain.adDailyChainLimit === 1 ? "" : "s"}/day on this chain.` });
+      return;
+    }
+  }
+
+  // Enforce global daily ad watch limit (across all chains)
+  const [globalLimitSetting] = await db
+    .select()
+    .from(settingsTable)
+    .where(eq(settingsTable.key, "adDailyGlobalLimit"))
+    .limit(1);
+  const globalLimit = Number(globalLimitSetting?.value ?? 0);
+  if (globalLimit > 0) {
+    const [globalCountRow] = await db
+      .select({ cnt: drizzleCount() })
+      .from(adTokensTable)
+      .where(and(
+        eq(adTokensTable.address, address.toLowerCase()),
+        gt(adTokensTable.issuedAt, since24h),
+      ));
+    const globalCount = Number(globalCountRow?.cnt ?? 0);
+    if (globalCount >= globalLimit) {
+      res.status(429).json({ error: `Daily ad watch limit reached. Max ${globalLimit} ads/day across all chains.` });
+      return;
+    }
   }
 
   // Enforce ad cooldown if configured

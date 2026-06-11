@@ -72,6 +72,8 @@ export interface ChainAdmin {
   adType?: ChainAdminAdType;
   /** Seconds between ad watches per address (0 = no cooldown) */
   adCooldownSeconds?: number;
+  /** Max ad watches per address per day on this chain (0 = unlimited) */
+  adDailyChainLimit?: number;
   /** Whether reCAPTCHA is required to claim this chain (default: true) */
   captchaEnabled?: boolean;
   /**

@@ -214,6 +214,27 @@ export function VastPlayer({ vastUrl, durationSeconds, onComplete, onError }: Pr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [direct, vastUrl, retryKey]);
 
+  // ── Visibility change — user clicked the ad link and came back ───────────────
+  useEffect(() => {
+    let hiddenAt: number | null = null;
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAt = Date.now();
+      } else if (document.visibilityState === "visible" && hiddenAt !== null) {
+        const wasHiddenMs = Date.now() - hiddenAt;
+        hiddenAt = null;
+        if (!completedRef.current && wasHiddenMs > 300) {
+          // User came back after clicking the ad — destroy IMA and start short fallback
+          destroyIma();
+          setLoading(false);
+          setFallbackSecs(prev => (prev !== null ? prev : 3));
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [destroyIma]);
+
   // ── Handlers ─────────────────────────────────────────────────────────────────
   const handleTapToPlay = () => {
     const vid = videoRef.current;

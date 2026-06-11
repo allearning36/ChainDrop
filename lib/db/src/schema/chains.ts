@@ -38,6 +38,7 @@ export const chainsTable = pgTable("chains", {
   adClaimAmount: numeric("ad_claim_amount", { precision: 18, scale: 8 }),
   adDurationSeconds: integer("ad_duration_seconds").notNull().default(30),
   adCooldownSeconds: integer("ad_cooldown_seconds").notNull().default(0),
+  adDailyChainLimit: integer("ad_daily_chain_limit").notNull().default(0),
   adNetworkCode: text("ad_network_code"),
   adType: text("ad_type").notNull().default("url"),
   captchaEnabled: boolean("captcha_enabled").notNull().default(true),

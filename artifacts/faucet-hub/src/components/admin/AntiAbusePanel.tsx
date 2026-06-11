@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { adminFetch } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { ShieldAlert, ShieldCheck, Loader2, Trash2, RefreshCw, Globe, Fingerprint, Wallet, Settings2 } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Loader2, Trash2, RefreshCw, Globe, Fingerprint, Wallet, Settings2, Tv2 } from "lucide-react";
 
 interface AntiAbuseConfig {
   enabled: boolean;
@@ -166,6 +168,71 @@ function TargetIcon({ type }: { type: string }) {
   return <Wallet className="w-3.5 h-3.5 text-muted-foreground" />;
 }
 
+function AdWatchLimitsSettings() {
+  const { toast } = useToast();
+  const [globalLimit, setGlobalLimit] = useState("0");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: Record<string, string> | null) => {
+        if (d?.adDailyGlobalLimit !== undefined) setGlobalLimit(d.adDailyGlobalLimit);
+      })
+      .catch(() => {});
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const res = await adminFetch("/api/admin/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adDailyGlobalLimit: globalLimit }),
+      });
+      if (!res.ok) throw new Error();
+      toast({ title: "Saved", description: "Ad watch limits updated." });
+    } catch {
+      toast({ title: "Error", description: "Failed to save.", variant: "destructive" });
+    } finally { setSaving(false); }
+  }
+
+  const lim = Number(globalLimit);
+
+  return (
+    <div className="space-y-4 max-w-lg">
+      <div className="flex items-center gap-2">
+        <Tv2 className="w-4 h-4 text-primary" />
+        <h3 className="font-mono text-sm font-bold">Ad Watch Limits</h3>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Limit how many video ads a single wallet address can watch per day across all chains. Per-chain limits are set in each chain's Ad settings.
+      </p>
+      <div className="rounded-lg border border-border bg-card/40 p-4 space-y-4">
+        <div className="space-y-1.5">
+          <Label className="text-xs font-mono">Global Daily Ad Limit <span className="text-muted-foreground font-normal">(0 = unlimited)</span></Label>
+          <Input
+            type="number" min="0" step="1"
+            value={globalLimit}
+            onChange={e => setGlobalLimit(e.target.value)}
+            className="font-mono text-sm h-9 max-w-[160px]"
+            placeholder="0"
+          />
+          <p className="text-[10px] font-mono text-muted-foreground">
+            {lim > 0
+              ? `Wallets can watch max ${lim} ad${lim === 1 ? "" : "s"}/day across all chains combined`
+              : "No global daily limit — unlimited ad watches"}
+          </p>
+        </div>
+      </div>
+      <Button onClick={save} disabled={saving} className="font-mono" size="sm">
+        {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+        Save Ad Limits
+      </Button>
+    </div>
+  );
+}
+
 export function AntiAbusePanel() {
   const { toast } = useToast();
   const [bans, setBans]         = useState<AutoBan[]>([]);
@@ -299,8 +366,9 @@ export function AntiAbusePanel() {
         </TabsContent>
 
         {/* ── Settings tab ── */}
-        <TabsContent value="settings" className="mt-4">
+        <TabsContent value="settings" className="mt-4 space-y-6">
           <AbuseSettings />
+          <AdWatchLimitsSettings />
         </TabsContent>
       </Tabs>
     </div>

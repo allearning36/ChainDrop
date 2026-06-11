@@ -1975,6 +1975,9 @@ components:
         adCooldownSeconds:
           type: integer
           description: "Seconds between ad watches per address (0 = no cooldown)"
+        adDailyChainLimit:
+          type: integer
+          description: "Max ad watches per address per day on this chain (0 = unlimited)"
         captchaEnabled:
           type: boolean
           description: "Whether reCAPTCHA is required to claim this chain (default: true)"
