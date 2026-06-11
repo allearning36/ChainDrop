@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, memo } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ChainPublic, useGetFaucetStatus, useClaimFaucet, useRequestAdToken, useClaimFaucetWithAd, getGetChainQueryKey, getGetFaucetStatusQueryKey, getGetFaucetHistoryQueryKey } from "@workspace/api-client-react";
@@ -125,12 +125,23 @@ interface ClaimModalProps {
   onClose: () => void;
 }
 
+const ProcessingAdBanner = memo(function ProcessingAdBanner({ html }: { html: string }) {
+  if (!html) return (
+    <div className="flex items-center justify-center py-6">
+      <p className="text-xs font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>
+        — Advertisement —
+      </p>
+    </div>
+  );
+  return <div className="w-full" dangerouslySetInnerHTML={{ __html: html }} />;
+});
+
 export function ClaimModal({ chain, onClose }: ClaimModalProps) {
   const [address, setAddress] = useState("");
   const [debouncedAddress, setDebouncedAddress] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
   const [step, setStep] = useState<"input" | "watch-ad" | "ad" | "result">("input");
-  const [adCountdown, setAdCountdown] = useState(10);
+  const [adCountdown, setAdCountdown] = useState(5);
   const [txHash, setTxHash] = useState("");
   const [claimedAmount, setClaimedAmount] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -299,7 +310,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
         setClaimedAmount(res.amount);
         setCaptchaToken("");
         recaptchaRef.current?.reset();
-        setAdCountdown(10);
+        setAdCountdown(5);
         setStep("ad");
         // Persist so cooldown re-open shows result step
         try {
@@ -413,7 +424,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
           setTxHash(res.txHash);
           setClaimedAmount(res.amount);
           setAdWatchToken("");
-          setAdCountdown(10);
+          setAdCountdown(5);
           setStep("ad");
           queryClient.invalidateQueries({ queryKey: getGetChainQueryKey(chain.id) });
           queryClient.invalidateQueries({ queryKey: getGetFaucetHistoryQueryKey() });
@@ -764,18 +775,7 @@ export function ClaimModal({ chain, onClose }: ClaimModalProps) {
                   className="w-full rounded-xl overflow-hidden"
                   style={{ background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.08)" }}
                 >
-                  {processingAdHtml ? (
-                    <div
-                      className="w-full"
-                      dangerouslySetInnerHTML={{ __html: processingAdHtml }}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center py-6">
-                      <p className="text-xs font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.2)" }}>
-                        — Advertisement —
-                      </p>
-                    </div>
-                  )}
+                  <ProcessingAdBanner html={processingAdHtml} />
                 </div>
               </div>
             )}
