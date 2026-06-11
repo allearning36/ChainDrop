@@ -3,11 +3,11 @@ import { adminFetch } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Globe, Trash2, PlusCircle } from "lucide-react";
+import { Loader2, Globe, Trash2, PlusCircle, ShieldBan, List } from "lucide-react";
 
 interface IpBlock { ip: string; reason: string; blockedAt: string; }
-
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -19,6 +19,13 @@ function isValidIp(ip: string) {
   return v4.test(ip) || v6.test(ip);
 }
 
+function parseIpList(raw: string): string[] {
+  return raw
+    .split(/[\n,\s]+/)
+    .map(s => s.trim())
+    .filter(s => isValidIp(s));
+}
+
 export function IPBlocking() {
   const { toast } = useToast();
   const [blocks, setBlocks] = useState<IpBlock[]>([]);
@@ -27,6 +34,10 @@ export function IPBlocking() {
   const [reason, setReason] = useState("");
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
+
+  const [bulkText, setBulkText] = useState("");
+  const [bulkReason, setBulkReason] = useState("");
+  const [bulkAdding, setBulkAdding] = useState(false);
 
   const load = () =>
     adminFetch("/api/admin/ip-blocks")
@@ -59,6 +70,29 @@ export function IPBlocking() {
     } finally { setAdding(false); }
   }
 
+  async function handleBulkBlock() {
+    const ips = parseIpList(bulkText);
+    if (ips.length === 0) {
+      toast({ title: "No valid IPs", description: "Enter at least one valid IP address.", variant: "destructive" });
+      return;
+    }
+    setBulkAdding(true);
+    try {
+      const res = await adminFetch("/api/admin/ip-blocks/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ips, reason: bulkReason.trim() }),
+      });
+      if (!res.ok) { const e = await res.json() as { error: string }; throw new Error(e.error); }
+      const data = await res.json() as { blocked: number; ips: string[] };
+      setBulkText(""); setBulkReason("");
+      await load();
+      toast({ title: `${data.blocked} IP${data.blocked !== 1 ? "s" : ""} Blocked`, description: "All valid IPs have been blocked." });
+    } catch (e) {
+      toast({ title: "Error", description: e instanceof Error ? e.message : "Failed to block IPs.", variant: "destructive" });
+    } finally { setBulkAdding(false); }
+  }
+
   async function handleUnblock(ipAddr: string) {
     setRemoving(ipAddr);
     try {
@@ -70,6 +104,8 @@ export function IPBlocking() {
     } finally { setRemoving(null); }
   }
 
+  const parsedBulkCount = parseIpList(bulkText).length;
+
   return (
     <div className="space-y-6">
       <div>
@@ -77,17 +113,22 @@ export function IPBlocking() {
         <p className="text-sm text-muted-foreground mt-1">Block specific IP addresses from accessing the faucet.</p>
       </div>
 
-      {/* Block form */}
+      {/* Single block form */}
       <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-        <h3 className="text-sm font-mono font-semibold">Block an IP Address</h3>
+        <h3 className="text-sm font-mono font-semibold flex items-center gap-2">
+          <PlusCircle className="w-4 h-4 text-primary" /> Block Single IP
+        </h3>
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label className="font-mono text-xs">IP Address</Label>
-            <Input value={ip} onChange={e => setIp(e.target.value)} placeholder="192.168.1.1" className="font-mono bg-background border-border" />
+            <Input value={ip} onChange={e => setIp(e.target.value)} placeholder="192.168.1.1"
+              onKeyDown={e => e.key === "Enter" && void handleBlock()}
+              className="font-mono bg-background border-border" />
           </div>
           <div className="space-y-1.5">
             <Label className="font-mono text-xs">Reason (optional)</Label>
-            <Input value={reason} onChange={e => setReason(e.target.value)} placeholder="Abuse, spam, etc." className="font-mono bg-background border-border" />
+            <Input value={reason} onChange={e => setReason(e.target.value)} placeholder="Abuse, spam, etc."
+              className="font-mono bg-background border-border" />
           </div>
         </div>
         <Button onClick={handleBlock} disabled={adding || !ip.trim()} className="font-mono">
@@ -96,10 +137,53 @@ export function IPBlocking() {
         </Button>
       </div>
 
+      {/* Bulk block form */}
+      <div className="rounded-xl border border-primary/30 bg-card p-5 space-y-4">
+        <div>
+          <h3 className="text-sm font-mono font-semibold flex items-center gap-2">
+            <ShieldBan className="w-4 h-4 text-primary" /> Bulk Block IPs
+          </h3>
+          <p className="text-xs text-muted-foreground mt-1 font-mono">
+            Enter multiple IP addresses — one per line, or comma/space separated.
+          </p>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="font-mono text-xs">IP Addresses</Label>
+          <Textarea
+            value={bulkText}
+            onChange={e => setBulkText(e.target.value)}
+            placeholder={"103.230.105.27\n103.230.106.24\n156.59.24.41\n129.227.79.186"}
+            className="font-mono bg-background border-border text-xs min-h-[120px] resize-y"
+          />
+          {bulkText.trim() && (
+            <p className="text-xs font-mono text-primary">
+              {parsedBulkCount} valid IP{parsedBulkCount !== 1 ? "s" : ""} detected
+            </p>
+          )}
+        </div>
+        <div className="space-y-1.5">
+          <Label className="font-mono text-xs">Reason (optional)</Label>
+          <Input value={bulkReason} onChange={e => setBulkReason(e.target.value)}
+            placeholder="Bot abuse, datacenter IPs, etc."
+            className="font-mono bg-background border-border" />
+        </div>
+        <Button
+          onClick={handleBulkBlock}
+          disabled={bulkAdding || parsedBulkCount === 0}
+          className="font-mono"
+          style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff" }}
+        >
+          {bulkAdding
+            ? <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            : <ShieldBan className="w-4 h-4 mr-2" />}
+          Block {parsedBulkCount > 0 ? `${parsedBulkCount} IP${parsedBulkCount !== 1 ? "s" : ""}` : "IPs"}
+        </Button>
+      </div>
+
       {/* Blocked list */}
       <div className="space-y-2">
-        <h3 className="text-sm font-mono text-muted-foreground uppercase tracking-widest">
-          Blocked IPs ({blocks.length})
+        <h3 className="text-sm font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+          <List className="w-3.5 h-3.5" /> Blocked IPs ({blocks.length})
         </h3>
         {loading ? (
           <div className="flex justify-center py-10"><Loader2 className="animate-spin w-6 h-6 text-primary" /></div>

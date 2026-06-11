@@ -330,6 +330,27 @@ router.post("/admin/ip-blocks", requireAdmin, async (req, res): Promise<void> =>
   res.status(201).json({ ip: row!.ip, reason: row!.reason, blockedAt: row!.blockedAt.toISOString() });
 });
 
+router.post("/admin/ip-blocks/bulk", requireAdmin, async (req, res): Promise<void> => {
+  const { ips, reason } = req.body as { ips?: unknown; reason?: string };
+  if (!Array.isArray(ips) || ips.length === 0) {
+    res.status(400).json({ error: "ips array is required" }); return;
+  }
+  const v4 = /^(\d{1,3}\.){3}\d{1,3}$/;
+  const v6 = /^[0-9a-f:]+$/i;
+  const normalized = (ips as unknown[])
+    .map(ip => (typeof ip === "string" ? ip.trim() : ""))
+    .filter(ip => v4.test(ip) || v6.test(ip));
+  if (normalized.length === 0) {
+    res.status(400).json({ error: "No valid IP addresses provided" }); return;
+  }
+  const reasonStr = (reason ?? "").trim();
+  const rows = await db.insert(ipBlocksTable)
+    .values(normalized.map(ip => ({ ip, reason: reasonStr })))
+    .onConflictDoUpdate({ target: ipBlocksTable.ip, set: { reason: reasonStr } })
+    .returning();
+  res.status(201).json({ blocked: rows.length, ips: rows.map(r => r.ip) });
+});
+
 router.delete("/admin/ip-blocks/:ip", requireAdmin, async (req, res): Promise<void> => {
   const ip = String(req.params.ip).trim();
   await db.delete(ipBlocksTable).where(eq(ipBlocksTable.ip, ip));
