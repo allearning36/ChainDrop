@@ -3,6 +3,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   ChainPublic, useGetBuyInfo, useSubmitBuy,
   getGetBuyInfoQueryKey, PaymentNetwork, getGetFaucetHistoryQueryKey,
+  getBaseUrl,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -171,6 +172,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
   const [testnetAmountSent, setTestnetAmountSent] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [isRetryable, setIsRetryable] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [copied, setCopied] = useState<"addr" | "tx" | null>(null);
   const [walletSelectorOpen, setWalletSelectorOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -424,6 +426,38 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
         },
       }
     );
+  };
+
+  // Retry via a separate un-rate-limited endpoint (payment already verified)
+  const doRetryBuy = async (txHash: string) => {
+    setIsRetrying(true);
+    setErrorMsg("");
+    setStep("submitting");
+    try {
+      const base = getBaseUrl() ?? "";
+      const res = await fetch(`${base}/api/faucet/buy/retry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mainnetTxHash: txHash, userAddress: walletAddress }),
+      });
+      const data = await res.json() as { testnetTxHash?: string; testnetAmountSent?: string; symbol?: string; chainName?: string; error?: string };
+      if (!res.ok) {
+        setErrorMsg(data.error ?? "Retry failed. Please try again or contact support.");
+        setIsRetryable(true);
+        setStep("error");
+        return;
+      }
+      setTestnetTxHash(data.testnetTxHash ?? "");
+      setTestnetAmountSent(data.testnetAmountSent ?? "");
+      setStep("success");
+      queryClient.invalidateQueries({ queryKey: getGetFaucetHistoryQueryKey() });
+    } catch {
+      setErrorMsg("Network error during retry. Please try again.");
+      setIsRetryable(true);
+      setStep("error");
+    } finally {
+      setIsRetrying(false);
+    }
   };
 
   const copyToClipboard = (text: string, which: "addr" | "tx") => {
@@ -821,10 +855,13 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
                 {isRetryable && mainnetTxHash ? (
                   <>
                     <button
-                      onClick={() => { setErrorMsg(""); setIsRetryable(false); setStep("submitting"); doSubmitBuy(mainnetTxHash); }}
-                      className="w-full h-11 rounded-xl font-bold font-mono text-sm"
-                      style={{ background: "linear-gradient(135deg,#166534 0%,#22c55e 100%)", color: "#fff", boxShadow: "0 4px 20px rgba(34,197,94,0.25)" }}
-                    >↺ Retry — Send Testnet Tokens</button>
+                      onClick={() => { setIsRetryable(false); void doRetryBuy(mainnetTxHash); }}
+                      disabled={isRetrying}
+                      className="w-full h-11 rounded-xl font-bold font-mono text-sm flex items-center justify-center gap-2"
+                      style={{ background: "linear-gradient(135deg,#166534 0%,#22c55e 100%)", color: "#fff", boxShadow: "0 4px 20px rgba(34,197,94,0.25)", opacity: isRetrying ? 0.7 : 1 }}
+                    >
+                      {isRetrying ? <><Loader2 className="w-4 h-4 animate-spin" /> Retrying…</> : <>↺ Retry — Send Testnet Tokens</>}
+                    </button>
                     <button
                       onClick={() => { setStep("info"); setErrorMsg(""); setIsRetryable(false); setMainnetTxHash(""); }}
                       className="w-full h-9 rounded-xl font-mono text-xs"

@@ -261,6 +261,121 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PUBLIC: POST /faucet/buy/retry — retry a pending purchase (no rate limit)
+// The mainnet tx was already verified on first attempt; just re-send testnet tokens.
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.post("/faucet/buy/retry", async (req, res): Promise<void> => {
+  const mainnetTxHash = (req.body.mainnetTxHash as string | undefined)?.trim();
+  const userAddress = (req.body.userAddress as string | undefined)?.trim().toLowerCase();
+
+  if (!mainnetTxHash || !/^0x[a-fA-F0-9]{64}$/.test(mainnetTxHash)) {
+    res.status(400).json({ error: "Invalid or missing mainnetTxHash" });
+    return;
+  }
+  if (!userAddress) {
+    res.status(400).json({ error: "Missing userAddress" });
+    return;
+  }
+
+  const [purchase] = await db
+    .select()
+    .from(purchasesTable)
+    .where(eq(purchasesTable.mainnetTxHash, mainnetTxHash))
+    .limit(1);
+
+  if (!purchase) {
+    res.status(404).json({ error: "Purchase not found. Use the normal buy flow." });
+    return;
+  }
+  if (purchase.status === "completed") {
+    res.status(400).json({ error: "This purchase was already completed successfully." });
+    return;
+  }
+  if (purchase.userAddress !== userAddress) {
+    res.status(403).json({ error: "Address mismatch." });
+    return;
+  }
+
+  const [chain] = await db
+    .select()
+    .from(chainsTable)
+    .where(eq(chainsTable.id, purchase.chainId));
+
+  if (!chain || !chain.buyEnabled) {
+    res.status(400).json({ error: "Chain not available" });
+    return;
+  }
+
+  const allNetworksRetry = await db.select().from(paymentNetworksTable).where(eq(paymentNetworksTable.isEnabled, true));
+  const network = allNetworksRetry.find(n => n.networkId === purchase.networkId);
+
+  // Re-calculate testnet amount using stored paid amount + current rate
+  let buyRatesMapRetry: Record<string, string> = {};
+  try { buyRatesMapRetry = JSON.parse(chain.buyRates || "{}"); } catch { /* keep empty */ }
+  const rateRetry = parseFloat(buyRatesMapRetry[purchase.networkId ?? "eth"] || chain.buyRate);
+  const testnetAmount = (parseFloat(purchase.mainnetAmountPaid) * rateRetry).toFixed(8);
+
+  let testnetTxHash: string;
+  try {
+    const result = await sendChainTokens(
+      chain.chainType as ChainType,
+      parseRpcUrls(chain.rpcUrls, chain.rpcUrl),
+      resolveChainPrivateKey(chain.privateKey),
+      userAddress,
+      testnetAmount,
+    );
+    testnetTxHash = result.txHash;
+  } catch (err) {
+    req.log.error({ err }, "Retry: failed to send testnet tokens");
+    res.status(500).json({ error: "Still unable to send testnet tokens. Please try again in a moment, or contact support with your payment tx hash." });
+    return;
+  }
+
+  await db
+    .update(purchasesTable)
+    .set({ testnetAmountSent: testnetAmount, testnetTxHash, status: "completed" })
+    .where(eq(purchasesTable.id, purchase.id));
+
+  broadcast({
+    type: "buy_success",
+    chainName: chain.name,
+    chainId: chain.id,
+    address: userAddress,
+    txHash: testnetTxHash,
+    amount: testnetAmount,
+    symbol: chain.symbol,
+  });
+
+  // Referral commission (fire-and-forget)
+  void getReferralSettings().then(async settings => {
+    if (settings.commissionOnBuy && (settings.buyChainIds.length === 0 || settings.buyChainIds.includes(chain.id))) {
+      const [payChain] = await db
+        .select({ coingeckoId: chainsTable.coingeckoId })
+        .from(chainsTable)
+        .where(eq(chainsTable.symbol, (network?.symbol ?? "ETH").toUpperCase()))
+        .limit(1);
+      await creditCommissions({
+        refereeAddress: userAddress,
+        sourceType: "buy",
+        sourceId: purchase.id,
+        chainId: chain.id,
+        amountEth: purchase.mainnetAmountPaid,
+        fromCoingeckoId: payChain?.coingeckoId ?? null,
+        settings,
+      });
+    }
+  }).catch(() => {/* non-critical */});
+
+  res.json({
+    testnetTxHash,
+    testnetAmountSent: testnetAmount,
+    symbol: chain.symbol,
+    chainName: chain.name,
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC: GET /faucet/buy/history/user?wallet= — user buy history
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/faucet/buy/history/user", async (req, res): Promise<void> => {
