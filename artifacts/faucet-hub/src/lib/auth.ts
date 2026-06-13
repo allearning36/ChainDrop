@@ -1,4 +1,4 @@
-import { setAuthTokenGetter } from "@workspace/api-client-react";
+import { setAuthTokenGetter, getBaseUrl } from "@workspace/api-client-react";
 
 const TOKEN_KEY = "chainDrop_adminToken";
 
@@ -35,8 +35,12 @@ export function handleUnauthorized() {
 // ── Auth-aware fetch helper ───────────────────────────────────────────────────
 // Drop-in replacement for fetch() in admin components.
 // Automatically calls handleUnauthorized() on 401.
+// Prepends the configured base URL (VITE_API_BASE_URL) to relative paths so
+// that production Vercel requests correctly reach the Railway API server.
 export async function adminFetch(input: string, init?: RequestInit): Promise<Response> {
-  const res = await fetch(input, {
+  const base = getBaseUrl();
+  const url = base && input.startsWith("/") ? `${base}${input}` : input;
+  const res = await fetch(url, {
     ...init,
     headers: {
       Authorization: `Bearer ${getToken() ?? ""}`,
