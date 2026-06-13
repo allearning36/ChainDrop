@@ -87,14 +87,41 @@ router.get("/chains", async (req, res): Promise<void> => {
   // so this request always returns instantly.
   const cachedBalances = getCached<Record<number, string | null>>(BALANCE_CACHE_KEY);
   if (cachedBalances === null) {
-    void refreshWalletBalances(allRows);
+    // Only refresh balance for chains that are actually available (YES) — SOON/NO chains
+    // have no claimable faucet so RPC calls for them are wasted.
+    void refreshWalletBalances(allRows.filter((c) => c.availableStatus === "YES"));
   }
   const balanceMap: Record<number, string | null> = cachedBalances ?? {};
 
+  // ── Filters ──────────────────────────────────────────────────────────────────
   let rows = allRows;
+
+  // Type filter (testnet / mainnet)
   if (query.success && query.data.type) {
     const isTestnet = query.data.type === "testnet";
     rows = rows.filter((c) => c.isTestnet === isTestnet);
+  }
+
+  // Search filter (name or symbol, case-insensitive)
+  const search = ((req.query.search as string) ?? "").trim().toLowerCase();
+  if (search) {
+    rows = rows.filter(
+      (c) =>
+        c.name.toLowerCase().includes(search) ||
+        c.symbol.toLowerCase().includes(search),
+    );
+  }
+
+  // Total before pagination (for X-Total-Count header)
+  const total = rows.length;
+  res.setHeader("X-Total-Count", String(total));
+
+  // Pagination (only applied when limit > 0)
+  const limit = Math.max(0, parseInt((req.query.limit as string) ?? "0") || 0);
+  const page  = Math.max(1, parseInt((req.query.page  as string) ?? "1") || 1);
+  if (limit > 0) {
+    rows = rows.slice((page - 1) * limit, page * limit);
+    res.setHeader("X-Has-More", String(page * limit < total));
   }
 
   res.json(

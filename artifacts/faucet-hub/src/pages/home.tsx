@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { SEOHead } from "@/components/layout/SEOHead";
@@ -10,8 +10,10 @@ import { ChainCard } from "@/components/home/ChainCard";
 import { InFeedAdCard } from "@/components/home/InFeedAdCard";
 import { RecentFeed } from "@/components/home/RecentFeed";
 import { ClaimModal } from "@/components/home/ClaimModal";
-import { useGetChains, getGetChainsQueryKey, ChainPublic } from "@workspace/api-client-react";
+import { ChainPublic, getBaseUrl } from "@workspace/api-client-react";
 import { Loader2, Search, X, SlidersHorizontal, Check, Heart, Copy, Check as CheckIcon } from "lucide-react";
+
+const CHAINS_PER_PAGE = 8;
 
 interface DonationAddress { chain: string; symbol: string; address: string; }
 
@@ -140,55 +142,95 @@ export default function Home() {
     window.history.replaceState({}, "", url.toString());
   }, []);
 
-  const { data: testnetChains = [], isLoading: loadingTestnet } = useGetChains({ type: "testnet" }, {
-    query: {
-      queryKey: getGetChainsQueryKey({ type: "testnet" }),
-      refetchInterval: 300_000,
-      staleTime: 60_000,
-      retry: 8,
-      retryDelay: (attempt: number) => Math.min(3000 * (attempt + 1), 30000),
-    }
-  });
-  const { data: mainnetChains = [], isLoading: loadingMainnet } = useGetChains({ type: "mainnet" }, {
-    query: {
-      queryKey: getGetChainsQueryKey({ type: "mainnet" }),
-      refetchInterval: 300_000,
-      staleTime: 60_000,
-      retry: 8,
-      retryDelay: (attempt: number) => Math.min(3000 * (attempt + 1), 30000),
-    }
-  });
+  // ── Paginated chain state ─────────────────────────────────────────────────────
+  const [testnetChains, setTestnetChains] = useState<ChainPublic[]>([]);
+  const [mainnetChains, setMainnetChains] = useState<ChainPublic[]>([]);
+  const [testnetTotal,  setTestnetTotal]  = useState(0);
+  const [mainnetTotal,  setMainnetTotal]  = useState(0);
+  const [testnetPage,   setTestnetPage]   = useState(1);
+  const [mainnetPage,   setMainnetPage]   = useState(1);
+  const [testnetHasMore, setTestnetHasMore] = useState(false);
+  const [mainnetHasMore, setMainnetHasMore] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [loadingMore,    setLoadingMore]    = useState(false);
 
-  const isLoading = loadingTestnet || loadingMainnet;
-  const chains = networkType === "testnet" ? testnetChains : mainnetChains;
+  // ── Search state ─────────────────────────────────────────────────────────────
+  const [searchResults,  setSearchResults]  = useState<ChainPublic[]>([]);
+  const [searchLoading,  setSearchLoading]  = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const isSearching = search.trim().length > 0;
+  // ── Fetch one page of chains ─────────────────────────────────────────────────
+  const fetchPage = useCallback(async (type: "testnet" | "mainnet", pg: number, append: boolean) => {
+    const url = `${getBaseUrl() ?? ""}/api/chains?type=${type}&page=${pg}&limit=${CHAINS_PER_PAGE}`;
+    const res  = await fetch(url);
+    const ttl  = parseInt(res.headers.get("X-Total-Count") ?? "0");
+    const data: ChainPublic[] = await res.json();
+    const more = pg * CHAINS_PER_PAGE < ttl;
+    if (type === "testnet") {
+      setTestnetChains(prev => append ? [...prev, ...data] : data);
+      setTestnetTotal(ttl);
+      setTestnetHasMore(more);
+      setTestnetPage(pg);
+    } else {
+      setMainnetChains(prev => append ? [...prev, ...data] : data);
+      setMainnetTotal(ttl);
+      setMainnetHasMore(more);
+      setMainnetPage(pg);
+    }
+  }, []);
+
+  // Initial load — both networks (for totals in HeroSection)
+  useEffect(() => {
+    setInitialLoading(true);
+    Promise.all([fetchPage("testnet", 1, false), fetchPage("mainnet", 1, false)])
+      .finally(() => setInitialLoading(false));
+  }, [fetchPage]);
+
+  // Debounced search — hits backend so it covers ALL chains, not just loaded ones
+  useEffect(() => {
+    const q = search.trim();
+    if (!q) { setSearchResults([]); return; }
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const res  = await fetch(`${getBaseUrl() ?? ""}/api/chains?search=${encodeURIComponent(q)}&limit=50`);
+        const data: ChainPublic[] = await res.json();
+        setSearchResults(data);
+      } catch { setSearchResults([]); }
+      finally   { setSearchLoading(false); }
+    }, 300);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [search]);
+
+  // Load more — appends next page for the active network
+  const loadMore = useCallback(async () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    const nextPage = networkType === "testnet" ? testnetPage + 1 : mainnetPage + 1;
+    try { await fetchPage(networkType, nextPage, true); }
+    finally { setLoadingMore(false); }
+  }, [loadingMore, networkType, testnetPage, mainnetPage, fetchPage]);
+
+  const isSearching   = search.trim().length > 0;
+  const isLoading     = initialLoading || (isSearching && searchLoading);
+  const chains        = isSearching
+    ? searchResults
+    : (networkType === "testnet" ? testnetChains : mainnetChains);
+  const currentHasMore = !isSearching &&
+    (networkType === "testnet" ? testnetHasMore : mainnetHasMore);
 
   const filteredChains = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    // When searching, look across all chains; otherwise use current network
-    const base = q ? (() => {
-      const all = [...testnetChains, ...mainnetChains];
-      const seen = new Set<number>();
-      return all.filter(c => {
-        if (seen.has(c.id)) return false;
-        seen.add(c.id);
-        return c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q);
-      });
-    })() : chains;
-    // Apply status filter
-    if (statusFilter === "all") return base;
-    return base.filter(c => c.availableStatus === statusFilter);
-  }, [chains, testnetChains, mainnetChains, search, statusFilter]);
-
-  const coinIds = chains.map(c => c.coingeckoId).filter(Boolean) as string[];
+    if (statusFilter === "all") return chains;
+    return chains.filter(c => c.availableStatus === statusFilter);
+  }, [chains, statusFilter]);
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background selection:bg-primary selection:text-primary-foreground">
       <SEOHead />
       <Navbar />
       <HeadlineBanner />
-      <HeroSection totalChains={testnetChains.length + mainnetChains.length} />
+      <HeroSection totalChains={testnetTotal + mainnetTotal} />
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8 relative">
         {/* Page ambient background */}
@@ -467,9 +509,8 @@ export default function Home() {
                 let adSlotIndex = 0;
 
                 filteredChains.forEach((chain, i) => {
-                  // Insert ad BEFORE this chain card if position matches
                   if (showAds) {
-                    const pos = i + 1; // 1-based card count
+                    const pos = i + 1;
                     const isFirstSlot = pos === firstPos;
                     const isRepeatSlot = pos > firstPos && (pos - firstPos) % interval === 0;
                     if (isFirstSlot || isRepeatSlot) {
@@ -492,6 +533,27 @@ export default function Home() {
                 return items;
               })()}
             </div>
+
+            {/* See More button */}
+            {currentHasMore && (
+              <div className="flex justify-center mt-8">
+                <button
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="flex items-center gap-2 px-8 py-3 rounded-2xl font-mono text-sm font-semibold transition-all duration-200 hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed"
+                  style={{
+                    background: "rgba(34,197,94,0.1)",
+                    border: "1px solid rgba(34,197,94,0.3)",
+                    color: "#22c55e",
+                    boxShadow: "0 0 20px rgba(34,197,94,0.08)",
+                  }}
+                >
+                  {loadingMore
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Loading…</>
+                    : <>Load More Chains</>}
+                </button>
+              </div>
+            )}
           </>
         )}
 
