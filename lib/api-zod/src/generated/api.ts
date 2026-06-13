@@ -151,7 +151,11 @@ export const GetBuyInfoResponse = zod.object({
   "name": zod.string(),
   "symbol": zod.string(),
   "chainId": zod.number(),
-  "rpcUrl": zod.string()
+  "rpcUrl": zod.string(),
+  "logoUrl": zod.string().nullish(),
+  "rate": zod.string().optional().describe('Effective exchange rate for this network (testnet tokens per 1 payment token)'),
+  "minAmount": zod.string().optional().describe('Minimum payment amount for this network'),
+  "maxAmount": zod.string().nullish().describe('Maximum payment amount for this network (null = unlimited)')
 }))
 })
 

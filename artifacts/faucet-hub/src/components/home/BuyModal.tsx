@@ -209,7 +209,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
   // Fetch wallet balance + real gas estimate when wallet or network changes
   useEffect(() => {
     if (!walletAddress || !selectedNetwork) { setWalletBalance(null); return; }
-    const rpcUrl = NETWORK_RPC[selectedNetwork.id] ?? (selectedNetwork as any).rpcUrl as string | undefined;
+    const rpcUrl = selectedNetwork.rpcUrl || NETWORK_RPC[selectedNetwork.id];
     if (!rpcUrl) { setWalletBalance(null); return; }
     setIsFetchingBalance(true);
     setWalletBalance(null);
@@ -242,7 +242,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
     setStep("confirming");
     const abort = new AbortController();
     abortRef.current = abort;
-    const rpcUrl = NETWORK_RPC[selectedNetwork.id] || "https://eth.llamarpc.com";
+    const rpcUrl = selectedNetwork.rpcUrl || NETWORK_RPC[selectedNetwork.id] || "https://eth.llamarpc.com";
     waitForReceipt(rpcUrl, hash, abort.signal).then((result) => {
       if (abort.signal.aborted) return;
       if (result === null) {
@@ -263,11 +263,11 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
   if (!chain || !chain.buyEnabled) return null;
 
   const receiveAddress = buyInfo?.receiveAddress || "";
-  const buyRate = parseFloat(buyInfo?.buyRate || "1000");
-  const minAmount = parseFloat(buyInfo?.minAmount || "0.0005");
+  const networkRate = parseFloat(selectedNetwork?.rate ?? buyInfo?.buyRate ?? "1000");
+  const networkMin  = parseFloat(selectedNetwork?.minAmount ?? buyInfo?.minAmount ?? "0.0005");
   const ethAmountNum = parseFloat(ethAmount) || 0;
-  const willReceive = (ethAmountNum * buyRate).toFixed(8);
-  const amountValid = ethAmountNum >= minAmount;
+  const willReceive = (ethAmountNum * networkRate).toFixed(8);
+  const amountValid = ethAmountNum >= networkMin;
 
   const netColor = selectedNetwork
     ? (NETWORK_COLORS[selectedNetwork.id] || "#818cf8")
@@ -337,7 +337,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
               params: [{
                 chainId: targetChainHex,
                 chainName: selectedNetwork.name,
-                rpcUrls: [NETWORK_RPC[selectedNetwork.id] || ""],
+                rpcUrls: [selectedNetwork.rpcUrl || NETWORK_RPC[selectedNetwork.id] || ""],
               }],
             });
             switched = true;
@@ -385,7 +385,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
 
     const abort = new AbortController();
     abortRef.current = abort;
-    const rpcUrl = NETWORK_RPC[selectedNetwork.id] || "https://eth.llamarpc.com";
+    const rpcUrl = selectedNetwork.rpcUrl || NETWORK_RPC[selectedNetwork.id] || "https://eth.llamarpc.com";
     const result = await waitForReceipt(rpcUrl, txHash, abort.signal);
 
     if (abort.signal.aborted) return;
@@ -507,11 +507,11 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
                 <div className="rounded-xl px-4 py-3 flex items-center justify-between" style={{ background: "rgba(129,140,248,0.06)", border: "1px solid rgba(129,140,248,0.15)" }}>
                   <div>
                     <p className="text-[10px] font-mono uppercase tracking-widest mb-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>Rate</p>
-                    <p className="text-sm font-bold font-mono text-white">1 ETH <span style={{ color: "#818cf8" }}>→</span> {buyRate.toLocaleString()} {chain.symbol}</p>
+                    <p className="text-sm font-bold font-mono text-white">1 ETH <span style={{ color: "#818cf8" }}>→</span> {networkRate.toLocaleString()} {chain.symbol}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] font-mono uppercase tracking-widest mb-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>Min send</p>
-                    <p className="text-sm font-bold font-mono text-white">{minAmount} ETH</p>
+                    <p className="text-sm font-bold font-mono text-white">{networkMin} ETH</p>
                   </div>
                 </div>
 
@@ -576,15 +576,15 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
                 <div>
                   <p className="text-[10px] font-mono uppercase tracking-widest mb-1.5" style={{ color: "rgba(255,255,255,0.35)" }}>Amount to send (ETH)</p>
                   <input
-                    type="number" min={minAmount} step="0.0001" value={ethAmount}
+                    type="number" min={networkMin} step="0.0001" value={ethAmount}
                     onChange={(e) => setEthAmount(e.target.value)}
                     className="w-full h-11 rounded-xl px-3 font-mono text-sm text-white outline-none"
                     style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${amountValid ? "rgba(129,140,248,0.3)" : "rgba(239,68,68,0.3)"}` }}
-                    placeholder={`Min ${minAmount}`}
+                    placeholder={`Min ${networkMin}`}
                   />
                   {ethAmountNum > 0 && (
                     <p className="text-xs font-mono mt-1.5" style={{ color: amountValid ? "#818cf8" : "#f87171" }}>
-                      {amountValid ? `→ You will receive ≈ ${willReceive} ${chain.symbol}` : `Minimum is ${minAmount} ETH`}
+                      {amountValid ? `→ You will receive ≈ ${willReceive} ${chain.symbol}` : `Minimum is ${networkMin} ETH`}
                     </p>
                   )}
                 </div>

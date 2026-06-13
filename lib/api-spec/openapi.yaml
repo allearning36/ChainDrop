@@ -1647,6 +1647,19 @@ components:
           type: integer
         rpcUrl:
           type: string
+        logoUrl:
+          type: string
+          nullable: true
+        rate:
+          type: string
+          description: "Effective exchange rate for this network (testnet tokens per 1 payment token)"
+        minAmount:
+          type: string
+          description: "Minimum payment amount for this network"
+        maxAmount:
+          type: string
+          nullable: true
+          description: "Maximum payment amount for this network (null = unlimited)"
 
     BuyInfo:
       type: object

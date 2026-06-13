@@ -19,6 +19,13 @@ export interface PaymentNetwork {
   symbol: string;
   chainId: number;
   rpcUrl: string;
+  logoUrl?: string | null;
+  /** Effective exchange rate for this network (testnet tokens per 1 payment token) */
+  rate?: string;
+  /** Minimum payment amount for this network */
+  minAmount?: string;
+  /** Maximum payment amount for this network (null = unlimited) */
+  maxAmount?: string | null;
 }
 
 export interface BuyInfo {
