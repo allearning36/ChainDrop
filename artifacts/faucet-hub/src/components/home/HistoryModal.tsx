@@ -23,6 +23,7 @@ interface SwapHistoryItem {
 interface BuyHistoryItem {
   id: number;
   chainId: number;
+  networkId: string | null;
   chainName: string | null;
   chainSymbol: string | null;
   mainnetAmountPaid: string;
@@ -31,6 +32,9 @@ interface BuyHistoryItem {
   testnetTxHash: string | null;
   status: string;
   explorerUrl: string | null;
+  networkName: string | null;
+  networkSymbol: string | null;
+  networkExplorerUrl: string | null;
   createdAt: string;
 }
 
@@ -267,27 +271,39 @@ export function HistoryModal({ open, onClose, walletAddress, defaultTab = "swap"
                   <div key={b.id} className="rounded-xl p-3.5 space-y-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
                     <div className="flex items-center justify-between gap-2">
                       <div className="font-mono text-xs font-semibold text-white min-w-0 truncate">
-                        {b.mainnetAmountPaid} ETH
+                        {b.mainnetAmountPaid} {b.networkSymbol ?? "ETH"}
+                        {b.networkName && (
+                          <span className="ml-1 text-[10px] font-normal" style={{ color: "rgba(255,255,255,0.35)" }}>({b.networkName})</span>
+                        )}
                         <span className="mx-1.5" style={{ color: "#22c55e" }}>→</span>
                         {b.testnetAmountSent ? `${parseFloat(b.testnetAmountSent).toFixed(6)} ` : ""}
                         {b.chainSymbol ?? b.chainName ?? "?"}
+                        {b.chainName && b.chainSymbol && (
+                          <span className="ml-1 text-[10px] font-normal" style={{ color: "rgba(255,255,255,0.35)" }}>({b.chainName})</span>
+                        )}
                       </div>
                       <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: sc.bg, color: sc.color }}>
                         {b.status}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.35)" }}>
-                      <span>{b.chainName ?? `Chain #${b.chainId}`}</span>
+                      <span>
+                        {b.networkName ?? b.networkId ?? "?"} → {b.chainName ?? `Chain #${b.chainId}`}
+                      </span>
                       <span>{fmtDate(b.createdAt)}</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
                       <div className="flex items-center gap-1">
-                        <span className="font-mono text-[10px]" style={{ color: "rgba(255,255,255,0.22)" }}>Paid:</span>
-                        <TxLink hash={b.mainnetTxHash} explorerUrl="https://etherscan.io" />
+                        <span className="font-mono text-[10px]" style={{ color: "rgba(255,255,255,0.22)" }}>
+                          Your payment{b.networkName ? ` (${b.networkName})` : ""}:
+                        </span>
+                        <TxLink hash={b.mainnetTxHash} explorerUrl={b.networkExplorerUrl ?? null} />
                       </div>
                       {b.testnetTxHash && (
                         <div className="flex items-center gap-1">
-                          <span className="font-mono text-[10px]" style={{ color: "rgba(255,255,255,0.22)" }}>Sent:</span>
+                          <span className="font-mono text-[10px]" style={{ color: "rgba(255,255,255,0.22)" }}>
+                            Faucet sent{b.chainName ? ` (${b.chainName})` : ""}:
+                          </span>
                           <TxLink hash={b.testnetTxHash} explorerUrl={b.explorerUrl} />
                         </div>
                       )}

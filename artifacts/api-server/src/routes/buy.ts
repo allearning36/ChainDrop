@@ -185,6 +185,7 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
     .values({
       chainId,
       userAddress: userAddress.toLowerCase(),
+      networkId,
       mainnetTxHash,
       mainnetAmountPaid,
       status: "pending",
@@ -260,6 +261,7 @@ router.get("/faucet/buy/history/user", async (req, res): Promise<void> => {
     .select({
       id: purchasesTable.id,
       chainId: purchasesTable.chainId,
+      networkId: purchasesTable.networkId,
       mainnetAmountPaid: purchasesTable.mainnetAmountPaid,
       testnetAmountSent: purchasesTable.testnetAmountSent,
       mainnetTxHash: purchasesTable.mainnetTxHash,
@@ -269,9 +271,13 @@ router.get("/faucet/buy/history/user", async (req, res): Promise<void> => {
       chainName: chainsTable.name,
       chainSymbol: chainsTable.symbol,
       explorerUrl: chainsTable.explorerUrl,
+      networkName: paymentNetworksTable.name,
+      networkSymbol: paymentNetworksTable.symbol,
+      networkExplorerUrl: paymentNetworksTable.blockExplorerUrl,
     })
     .from(purchasesTable)
     .leftJoin(chainsTable, eq(purchasesTable.chainId, chainsTable.id))
+    .leftJoin(paymentNetworksTable, eq(purchasesTable.networkId, paymentNetworksTable.networkId))
     .where(eq(purchasesTable.userAddress, wallet))
     .orderBy(desc(purchasesTable.createdAt))
     .limit(50);

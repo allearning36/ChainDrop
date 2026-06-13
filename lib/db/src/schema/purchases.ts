@@ -6,6 +6,7 @@ export const purchasesTable = pgTable("purchases", {
   id: serial("id").primaryKey(),
   chainId: integer("chain_id").notNull(),
   userAddress: text("user_address").notNull(),
+  networkId: text("network_id"),
   mainnetTxHash: text("mainnet_tx_hash").notNull().unique(),
   mainnetAmountPaid: numeric("mainnet_amount_paid", { precision: 18, scale: 8 }).notNull(),
   testnetAmountSent: numeric("testnet_amount_sent", { precision: 18, scale: 8 }),
