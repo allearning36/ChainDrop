@@ -11,6 +11,23 @@ import {
   referralCommissionsTable,
   referralClaimRequestsTable,
   referralBalanceAdjustmentsTable,
+  purchasesTable,
+  exchangeOrdersTable,
+  blockedAddressesTable,
+  ipBlocksTable,
+  pagesTable,
+  adTokensTable,
+  chainAdsTable,
+  promoCodesTable,
+  promoClaimsTable,
+  earnDropCampaignsTable,
+  earnDropTasksTable,
+  earnDropPromoCodesTable,
+  earnDropParticipantsTable,
+  earnDropJoinsTable,
+  supportConversationsTable,
+  supportMessagesTable,
+  autoBansTable,
 } from "@workspace/db/schema";
 import { getStoredPasswordHash, verifyPassword } from "./adminTools";
 import { upload } from "./upload";
@@ -900,6 +917,13 @@ router.get("/admin/backup", requireAdmin, async (_req, res): Promise<void> => {
   const [
     chains, claims, banners, announcements, settings,
     referrals, commissions, claimRequests, adjustments,
+    purchases, paymentNetworks, exchangePairs, exchangeOrders,
+    blockedAddresses, ipBlocks, pages, adTokens, chainAds,
+    promoCodes, promoClaims,
+    earnDropCampaigns, earnDropTasks, earnDropPromoCodes, earnDropParticipants, earnDropJoins,
+    supportConversations, supportMessages,
+    masterChains, masterChainTokens,
+    autoBans,
   ] = await Promise.all([
     db.select().from(chainsTable),
     db.select().from(claimsTable),
@@ -910,16 +934,42 @@ router.get("/admin/backup", requireAdmin, async (_req, res): Promise<void> => {
     db.select().from(referralCommissionsTable),
     db.select().from(referralClaimRequestsTable),
     db.select().from(referralBalanceAdjustmentsTable),
+    db.select().from(purchasesTable),
+    db.select().from(paymentNetworksTable),
+    db.select().from(exchangePairsTable),
+    db.select().from(exchangeOrdersTable),
+    db.select().from(blockedAddressesTable),
+    db.select().from(ipBlocksTable),
+    db.select().from(pagesTable),
+    db.select().from(adTokensTable),
+    db.select().from(chainAdsTable),
+    db.select().from(promoCodesTable),
+    db.select().from(promoClaimsTable),
+    db.select().from(earnDropCampaignsTable),
+    db.select().from(earnDropTasksTable),
+    db.select().from(earnDropPromoCodesTable),
+    db.select().from(earnDropParticipantsTable),
+    db.select().from(earnDropJoinsTable),
+    db.select().from(supportConversationsTable),
+    db.select().from(supportMessagesTable),
+    db.select().from(masterChainsTable),
+    db.select().from(masterChainTokensTable),
+    db.select().from(autoBansTable),
   ]);
 
   const backup = {
     exportedAt: new Date().toISOString(),
-    version: 1,
+    version: 2,
     tables: {
       chains: chains.length,
       claims: claims.length,
+      purchases: purchases.length,
+      paymentNetworks: paymentNetworks.length,
+      exchangeOrders: exchangeOrders.length,
       referrals: referrals.length,
       referralCommissions: commissions.length,
+      earnDropCampaigns: earnDropCampaigns.length,
+      supportConversations: supportConversations.length,
     },
     data: {
       chains,
@@ -931,6 +981,27 @@ router.get("/admin/backup", requireAdmin, async (_req, res): Promise<void> => {
       referralCommissions: commissions,
       referralClaimRequests: claimRequests,
       referralBalanceAdjustments: adjustments,
+      purchases,
+      paymentNetworks,
+      exchangePairs,
+      exchangeOrders,
+      blockedAddresses,
+      ipBlocks,
+      pages,
+      adTokens,
+      chainAds,
+      promoCodes,
+      promoClaims,
+      earnDropCampaigns,
+      earnDropTasks,
+      earnDropPromoCodes,
+      earnDropParticipants,
+      earnDropJoins,
+      supportConversations,
+      supportMessages,
+      masterChains,
+      masterChainTokens,
+      autoBans,
     },
   };
 
@@ -965,14 +1036,36 @@ router.post("/admin/restore", requireAdmin, async (req, res): Promise<void> => {
     summary[key] = ok;
   }
 
+  // Restore order matters: parent tables before child tables (FK constraints)
   await upsert(chainsTable,                    chainsTable.id,                    data.chains ?? [],                    "chains");
-  await upsert(claimsTable,                    claimsTable.id,                    data.claims ?? [],                    "claims");
+  await upsert(paymentNetworksTable,           paymentNetworksTable.id,           data.paymentNetworks ?? [],           "paymentNetworks");
+  await upsert(masterChainsTable,             masterChainsTable.id,               data.masterChains ?? [],              "masterChains");
+  await upsert(masterChainTokensTable,        masterChainTokensTable.id,          data.masterChainTokens ?? [],         "masterChainTokens");
   await upsert(bannersTable,                   bannersTable.id,                   data.banners ?? [],                   "banners");
   await upsert(announcementsTable,             announcementsTable.id,             data.announcements ?? [],             "announcements");
+  await upsert(pagesTable,                     pagesTable.slug,                   data.pages ?? [],                     "pages");
+  await upsert(adTokensTable,                  adTokensTable.id,                  data.adTokens ?? [],                  "adTokens");
+  await upsert(chainAdsTable,                  chainAdsTable.id,                  data.chainAds ?? [],                  "chainAds");
+  await upsert(claimsTable,                    claimsTable.id,                    data.claims ?? [],                    "claims");
+  await upsert(purchasesTable,                 purchasesTable.id,                 data.purchases ?? [],                 "purchases");
+  await upsert(exchangePairsTable,             exchangePairsTable.id,             data.exchangePairs ?? [],             "exchangePairs");
+  await upsert(exchangeOrdersTable,            exchangeOrdersTable.id,            data.exchangeOrders ?? [],            "exchangeOrders");
   await upsert(referralsTable,                 referralsTable.id,                 data.referrals ?? [],                 "referrals");
   await upsert(referralCommissionsTable,       referralCommissionsTable.id,       data.referralCommissions ?? [],       "referralCommissions");
   await upsert(referralClaimRequestsTable,     referralClaimRequestsTable.id,     data.referralClaimRequests ?? [],     "referralClaimRequests");
   await upsert(referralBalanceAdjustmentsTable,referralBalanceAdjustmentsTable.id,data.referralBalanceAdjustments ?? [],"referralBalanceAdjustments");
+  await upsert(promoCodesTable,                promoCodesTable.id,                data.promoCodes ?? [],                "promoCodes");
+  await upsert(promoClaimsTable,               promoClaimsTable.id,               data.promoClaims ?? [],               "promoClaims");
+  await upsert(blockedAddressesTable,          blockedAddressesTable.address,     data.blockedAddresses ?? [],          "blockedAddresses");
+  await upsert(ipBlocksTable,                  ipBlocksTable.ip,                  data.ipBlocks ?? [],                  "ipBlocks");
+  await upsert(autoBansTable,                  autoBansTable.id,                  data.autoBans ?? [],                  "autoBans");
+  await upsert(earnDropCampaignsTable,         earnDropCampaignsTable.id,         data.earnDropCampaigns ?? [],         "earnDropCampaigns");
+  await upsert(earnDropTasksTable,             earnDropTasksTable.id,             data.earnDropTasks ?? [],             "earnDropTasks");
+  await upsert(earnDropPromoCodesTable,        earnDropPromoCodesTable.id,        data.earnDropPromoCodes ?? [],        "earnDropPromoCodes");
+  await upsert(earnDropParticipantsTable,      earnDropParticipantsTable.id,      data.earnDropParticipants ?? [],      "earnDropParticipants");
+  await upsert(earnDropJoinsTable,             earnDropJoinsTable.id,             data.earnDropJoins ?? [],             "earnDropJoins");
+  await upsert(supportConversationsTable,      supportConversationsTable.id,      data.supportConversations ?? [],      "supportConversations");
+  await upsert(supportMessagesTable,           supportMessagesTable.id,           data.supportMessages ?? [],           "supportMessages");
 
   // Settings: skip adminPasswordHash to preserve current login password
   const settingsRows = (data.settings ?? []) as Array<{ key: string; value: string }>;
@@ -988,16 +1081,36 @@ router.post("/admin/restore", requireAdmin, async (req, res): Promise<void> => {
   summary["settings"] = settingsOk;
 
   // Reset auto-increment sequences so new inserts after restore don't conflict
-  // with the restored IDs. Without this, nextval() starts from 1 and crashes.
   const sequenceResets = [
-    { seq: "chains_id_seq",                        table: "chains" },
-    { seq: "claims_id_seq",                        table: "claims" },
-    { seq: "banners_id_seq",                       table: "banners" },
-    { seq: "announcements_id_seq",                 table: "announcements" },
-    { seq: "referrals_id_seq",                     table: "referrals" },
-    { seq: "referral_commissions_id_seq",           table: "referral_commissions" },
-    { seq: "referral_claim_requests_id_seq",        table: "referral_claim_requests" },
-    { seq: "referral_balance_adjustments_id_seq",   table: "referral_balance_adjustments" },
+    { seq: "chains_id_seq",                          table: "chains" },
+    { seq: "claims_id_seq",                          table: "claims" },
+    { seq: "banners_id_seq",                         table: "banners" },
+    { seq: "announcements_id_seq",                   table: "announcements" },
+    { seq: "referrals_id_seq",                       table: "referrals" },
+    { seq: "referral_commissions_id_seq",             table: "referral_commissions" },
+    { seq: "referral_claim_requests_id_seq",          table: "referral_claim_requests" },
+    { seq: "referral_balance_adjustments_id_seq",     table: "referral_balance_adjustments" },
+    { seq: "purchases_id_seq",                        table: "purchases" },
+    { seq: "payment_networks_id_seq",                 table: "payment_networks" },
+    { seq: "exchange_pairs_id_seq",                   table: "exchange_pairs" },
+    { seq: "exchange_orders_id_seq",                  table: "exchange_orders" },
+    { seq: "blocked_addresses_id_seq",                table: "blocked_addresses" },
+    { seq: "ip_blocks_id_seq",                        table: "ip_blocks" },
+    { seq: "pages_id_seq",                            table: "pages" },
+    { seq: "ad_tokens_id_seq",                        table: "ad_tokens" },
+    { seq: "chain_ads_id_seq",                        table: "chain_ads" },
+    { seq: "promo_codes_id_seq",                      table: "promo_codes" },
+    { seq: "promo_claims_id_seq",                     table: "promo_claims" },
+    { seq: "earn_drop_campaigns_id_seq",              table: "earn_drop_campaigns" },
+    { seq: "earn_drop_tasks_id_seq",                  table: "earn_drop_tasks" },
+    { seq: "earn_drop_promo_codes_id_seq",            table: "earn_drop_promo_codes" },
+    { seq: "earn_drop_participants_id_seq",           table: "earn_drop_participants" },
+    { seq: "earn_drop_joins_id_seq",                  table: "earn_drop_joins" },
+    { seq: "support_conversations_id_seq",            table: "support_conversations" },
+    { seq: "support_messages_id_seq",                 table: "support_messages" },
+    { seq: "master_chains_id_seq",                    table: "master_chains" },
+    { seq: "master_chain_tokens_id_seq",              table: "master_chain_tokens" },
+    { seq: "auto_bans_id_seq",                        table: "auto_bans" },
   ];
   for (const { seq, table } of sequenceResets) {
     try {
