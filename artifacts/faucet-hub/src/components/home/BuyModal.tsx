@@ -170,6 +170,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
   const [testnetTxHash, setTestnetTxHash] = useState("");
   const [testnetAmountSent, setTestnetAmountSent] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [isRetryable, setIsRetryable] = useState(false);
   const [copied, setCopied] = useState<"addr" | "tx" | null>(null);
   const [walletSelectorOpen, setWalletSelectorOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -418,6 +419,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
         },
         onError: (err: any) => {
           setErrorMsg(err?.data?.error || err.message || "Purchase failed. Contact support with your tx hash.");
+          setIsRetryable(true);
           setStep("error");
         },
       }
@@ -809,19 +811,32 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
                 </div>
                 {mainnetTxHash && (
                   <div className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                    <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>Your mainnet tx hash</p>
-                    <div className="flex items-center gap-2">
-                      <span className="flex-1 font-mono text-xs break-all" style={{ color: "rgba(255,255,255,0.5)" }}>{mainnetTxHash}</span>
-                    </div>
+                    <p className="text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>Your payment tx hash</p>
+                    <span className="font-mono text-xs break-all" style={{ color: "rgba(255,255,255,0.5)" }}>{mainnetTxHash}</span>
                     <p className="text-[10px] font-mono mt-1.5" style={{ color: "rgba(255,255,255,0.25)" }}>
                       Contact support with this hash if the issue persists.
                     </p>
                   </div>
                 )}
-                <button onClick={() => { setStep("info"); setErrorMsg(""); }}
-                  className="w-full h-10 rounded-xl font-mono text-sm"
-                  style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}
-                >← Try Again</button>
+                {isRetryable && mainnetTxHash ? (
+                  <>
+                    <button
+                      onClick={() => { setErrorMsg(""); setIsRetryable(false); setStep("submitting"); doSubmitBuy(mainnetTxHash); }}
+                      className="w-full h-11 rounded-xl font-bold font-mono text-sm"
+                      style={{ background: "linear-gradient(135deg,#166534 0%,#22c55e 100%)", color: "#fff", boxShadow: "0 4px 20px rgba(34,197,94,0.25)" }}
+                    >↺ Retry — Send Testnet Tokens</button>
+                    <button
+                      onClick={() => { setStep("info"); setErrorMsg(""); setIsRetryable(false); setMainnetTxHash(""); }}
+                      className="w-full h-9 rounded-xl font-mono text-xs"
+                      style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.07)" }}
+                    >Start Over (new transaction)</button>
+                  </>
+                ) : (
+                  <button onClick={() => { setStep("info"); setErrorMsg(""); setIsRetryable(false); }}
+                    className="w-full h-10 rounded-xl font-mono text-sm"
+                    style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  >← Try Again</button>
+                )}
               </div>
             )}
           </div>

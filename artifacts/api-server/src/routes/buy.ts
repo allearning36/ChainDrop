@@ -119,87 +119,99 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
     return;
   }
 
-  // Check tx not already used
+  // Check if tx already exists
   const [existing] = await db
     .select()
     .from(purchasesTable)
     .where(eq(purchasesTable.mainnetTxHash, mainnetTxHash))
     .limit(1);
 
-  if (existing) {
-    res.status(400).json({ error: "This transaction has already been used" });
+  // Already completed successfully — block re-use
+  if (existing?.status === "completed") {
+    res.status(400).json({ error: "This transaction has already been processed successfully." });
     return;
   }
 
-  // Verify tx on the chosen network
-  let mainnetAmountPaid: string;
-  try {
-    const provider = new ethers.JsonRpcProvider(network.rpcUrl);
-    const tx = await provider.getTransaction(mainnetTxHash);
-
-    if (!tx) {
-      res.status(400).json({ error: `Transaction not found on ${network.name}. Wait for confirmation and try again.` });
-      return;
-    }
-
-    const receiveAddress = (chain.receiveAddress || resolveChainWalletAddress(chain.walletAddress)).toLowerCase();
-    if (!tx.to || tx.to.toLowerCase() !== receiveAddress) {
-      res.status(400).json({ error: `Transaction must send to: ${receiveAddress}` });
-      return;
-    }
-
-    const amountEth = parseFloat(ethers.formatEther(tx.value));
-    // Use per-network min/max if set, otherwise fall back to global chain limits
-    let buyLimitsMapPost: Record<string, { min?: string; max?: string }> = {};
-    try { buyLimitsMapPost = JSON.parse((chain as any).buyLimits || "{}"); } catch { /* ignore */ }
-    const perNetMin = buyLimitsMapPost[networkId]?.min;
-    const perNetMax = buyLimitsMapPost[networkId]?.max;
-    const effectiveMin = parseFloat(perNetMin ?? chain.buyMinAmount);
-    const effectiveMax = perNetMax ? parseFloat(perNetMax) : (chain.buyMaxAmount ? parseFloat(chain.buyMaxAmount) : null);
-    if (amountEth < effectiveMin) {
-      res.status(400).json({ error: `Minimum amount for ${networkId} is ${effectiveMin}` });
-      return;
-    }
-    if (effectiveMax !== null && amountEth > effectiveMax) {
-      res.status(400).json({ error: `Maximum amount for ${networkId} is ${effectiveMax}` });
-      return;
-    }
-
-    mainnetAmountPaid = ethers.formatEther(tx.value);
-  } catch (err: any) {
-    req.log.error({ err }, "Failed to verify mainnet tx");
-    res.status(400).json({ error: "Failed to verify transaction. Please try again." });
-    return;
-  }
-
-  // Calculate testnet amount: use per-network rate if set, else fall back to global buyRate
+  // Calculate rate (needed for both new and retry paths)
   let buyRatesMap: Record<string, string> = {};
   try { buyRatesMap = JSON.parse(chain.buyRates || "{}"); } catch { /* keep empty */ }
   const rate = parseFloat(buyRatesMap[networkId] || chain.buyRate);
-  const paid = parseFloat(mainnetAmountPaid);
-  const testnetAmount = (paid * rate).toFixed(8);
 
-  // Record purchase as pending
-  const [purchase] = await db
-    .insert(purchasesTable)
-    .values({
-      chainId,
-      userAddress: userAddress.toLowerCase(),
-      networkId,
-      mainnetTxHash,
-      mainnetAmountPaid,
-      status: "pending",
-    })
-    .returning();
+  let purchase: typeof existing;
+  let testnetAmount: string;
 
-  // Send testnet tokens
+  if (existing?.status === "pending") {
+    // ── RETRY PATH ──────────────────────────────────────────────────────────
+    // Mainnet tx was already verified on first attempt. Re-use stored amount.
+    purchase = existing;
+    testnetAmount = (parseFloat(existing.mainnetAmountPaid) * rate).toFixed(8);
+  } else {
+    // ── NEW PURCHASE PATH ────────────────────────────────────────────────────
+    // Verify tx on the chosen network
+    let mainnetAmountPaid: string;
+    try {
+      const provider = new ethers.JsonRpcProvider(network.rpcUrl);
+      const tx = await provider.getTransaction(mainnetTxHash);
+
+      if (!tx) {
+        res.status(400).json({ error: `Transaction not found on ${network.name}. Wait for confirmation and try again.` });
+        return;
+      }
+
+      const receiveAddress = (chain.receiveAddress || resolveChainWalletAddress(chain.walletAddress)).toLowerCase();
+      if (!tx.to || tx.to.toLowerCase() !== receiveAddress) {
+        res.status(400).json({ error: `Transaction must send to: ${receiveAddress}` });
+        return;
+      }
+
+      const amountEth = parseFloat(ethers.formatEther(tx.value));
+      let buyLimitsMapPost: Record<string, { min?: string; max?: string }> = {};
+      try { buyLimitsMapPost = JSON.parse((chain as any).buyLimits || "{}"); } catch { /* ignore */ }
+      const perNetMin = buyLimitsMapPost[networkId]?.min;
+      const perNetMax = buyLimitsMapPost[networkId]?.max;
+      const effectiveMin = parseFloat(perNetMin ?? chain.buyMinAmount);
+      const effectiveMax = perNetMax ? parseFloat(perNetMax) : (chain.buyMaxAmount ? parseFloat(chain.buyMaxAmount) : null);
+      if (amountEth < effectiveMin) {
+        res.status(400).json({ error: `Minimum amount for ${networkId} is ${effectiveMin}` });
+        return;
+      }
+      if (effectiveMax !== null && amountEth > effectiveMax) {
+        res.status(400).json({ error: `Maximum amount for ${networkId} is ${effectiveMax}` });
+        return;
+      }
+
+      mainnetAmountPaid = ethers.formatEther(tx.value);
+    } catch (err: any) {
+      req.log.error({ err }, "Failed to verify mainnet tx");
+      res.status(400).json({ error: "Failed to verify transaction. Please try again." });
+      return;
+    }
+
+    testnetAmount = (parseFloat(mainnetAmountPaid) * rate).toFixed(8);
+
+    // Record purchase as pending before attempting send
+    const [inserted] = await db
+      .insert(purchasesTable)
+      .values({
+        chainId,
+        userAddress: userAddress.toLowerCase(),
+        networkId,
+        mainnetTxHash,
+        mainnetAmountPaid,
+        status: "pending",
+      })
+      .returning();
+    purchase = inserted;
+  }
+
+  // Send testnet tokens (same for both new and retry)
   let testnetTxHash: string;
   try {
     const result = await sendChainTokens(chain.chainType as ChainType, parseRpcUrls(chain.rpcUrls, chain.rpcUrl), resolveChainPrivateKey(chain.privateKey), userAddress, testnetAmount);
     testnetTxHash = result.txHash;
   } catch (err) {
     req.log.error({ err }, "Failed to send testnet tokens for purchase");
-    res.status(500).json({ error: "Failed to send testnet tokens. Contact support with your mainnet tx hash." });
+    res.status(500).json({ error: "Testnet tokens could not be sent. Your payment is saved — tap Retry to try again, or contact support with your tx hash." });
     return;
   }
 
@@ -233,7 +245,7 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
         sourceType: "buy",
         sourceId: purchase.id,
         chainId: chain.id,
-        amountEth: mainnetAmountPaid,
+        amountEth: purchase.mainnetAmountPaid,
         fromCoingeckoId: payChain?.coingeckoId ?? null,
         settings,
       });
