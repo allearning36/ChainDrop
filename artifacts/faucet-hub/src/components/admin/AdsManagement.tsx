@@ -27,7 +27,7 @@ interface VideoAd {
   id: string;
   name: string;
   url: string;
-  type: "vast" | "mp4";
+  type: "vast" | "mp4" | "url" | "script" | "hypelab";
   enabled: boolean;
   priority: number;
 }
@@ -540,15 +540,9 @@ export function AdsManagement() {
             <p className="text-xs font-mono font-semibold text-muted-foreground uppercase tracking-wider">Add Video Ad</p>
             <div className="grid grid-cols-1 gap-2">
               <Input
-                placeholder="Ad Network Name (e.g. HilltopAds VAST, Adsterra)"
+                placeholder="Ad Network Name (e.g. HilltopAds VAST, Adsterra, HypeLab)"
                 value={newAd.name}
                 onChange={e => setNewAd(a => ({ ...a, name: e.target.value }))}
-                className="font-mono text-xs h-9"
-              />
-              <Input
-                placeholder="VAST tag URL or direct MP4 URL"
-                value={newAd.url}
-                onChange={e => setNewAd(a => ({ ...a, url: e.target.value }))}
                 className="font-mono text-xs h-9"
               />
               <select
@@ -556,9 +550,25 @@ export function AdsManagement() {
                 onChange={e => setNewAd(a => ({ ...a, type: e.target.value }))}
                 className="rounded-md border border-input bg-background px-2 py-1 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-ring h-9"
               >
-                <option value="vast">VAST tag URL (recommended)</option>
-                <option value="mp4">Direct MP4 URL</option>
+                <option value="vast">VAST tag URL — video ad (Adsterra, ExoClick, Clickadu, HilltopAds…)</option>
+                <option value="mp4">Direct MP4 URL — self-hosted or CDN video file</option>
+                <option value="url">URL / Popunder — opens ad in new tab (PropellerAds, PopAds, AdMaven…)</option>
+                <option value="script">Script / HTML — injected embed code (Coinzilla, Bitmedia, custom…)</option>
+                <option value="hypelab">HypeLab — rewarded video SDK (placement ID format: id|placement)</option>
               </select>
+              <Input
+                placeholder={
+                  newAd.type === "vast"    ? "https://adsterra.com/vast/tag?... OR https://clickadu.com/vast/..." :
+                  newAd.type === "mp4"     ? "https://cdn.example.com/ad-video.mp4" :
+                  newAd.type === "url"     ? "https://propellerads.com/your-link OR https://popcash.net/..." :
+                  newAd.type === "hypelab" ? "rewarded-3c1099a1d4|3c1099a1d4  (HypeLab placement id|placement)" :
+                  newAd.type === "script"  ? "Paste HTML/script embed code here" :
+                  "Ad URL, VAST tag, or embed code"
+                }
+                value={newAd.url}
+                onChange={e => setNewAd(a => ({ ...a, url: e.target.value }))}
+                className="font-mono text-xs h-9"
+              />
             </div>
             <Button
               className="w-full font-mono text-sm"
@@ -570,9 +580,16 @@ export function AdsManagement() {
             </Button>
           </div>
 
-          <div className="p-3 rounded-lg border border-border/50 bg-card/20 text-xs font-mono text-muted-foreground space-y-1">
-            <p className="text-foreground/70 font-semibold">Supported VAST networks:</p>
-            <p>✓ Adsterra &nbsp; ✓ ExoClick &nbsp; ✓ Clickadu &nbsp; ✓ HilltopAds &nbsp; ✓ Any VAST-compatible network &nbsp; ✓ Direct MP4 URL</p>
+          {/* Supported networks reference */}
+          <div className="p-3 rounded-lg border border-border/50 bg-card/20 text-xs font-mono text-muted-foreground space-y-2">
+            <p className="text-foreground/70 font-semibold">Ad type reference:</p>
+            <div className="space-y-1.5">
+              <p><span className="text-primary">VAST tag URL</span> — ✓ Adsterra &nbsp;✓ ExoClick &nbsp;✓ Clickadu &nbsp;✓ HilltopAds &nbsp;✓ TrafficJunky &nbsp;✓ Any IAB VAST-compatible network</p>
+              <p><span className="text-primary">Direct MP4</span> — ✓ Self-hosted video &nbsp;✓ CDN file &nbsp;✓ Any direct .mp4 link</p>
+              <p><span className="text-primary">URL / Popunder</span> — ✓ PropellerAds &nbsp;✓ PopAds &nbsp;✓ AdMaven &nbsp;✓ Popcash &nbsp;✓ Any redirect/popunder URL</p>
+              <p><span className="text-primary">Script / HTML</span> — ✓ Coinzilla &nbsp;✓ Bitmedia.io &nbsp;✓ A-ADS &nbsp;✓ Custom banner/script embed</p>
+              <p><span className="text-primary">HypeLab</span> — ✓ HypeLab rewarded video SDK &nbsp;(requires HypeLab account + placement ID)</p>
+            </div>
           </div>
         </div>
       )}
