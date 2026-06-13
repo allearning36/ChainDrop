@@ -234,6 +234,7 @@ router.patch("/admin/site-config/inFeedAd", requireAdmin, async (req, res): Prom
     adCode:        typeof b.adCode       === "string" ? b.adCode       : "",
     firstPosition: Math.max(1, Math.min(20, Number(b.firstPosition) || 4)),
     interval:      Math.max(2, Math.min(50, Number(b.interval)      || 6)),
+    name:          typeof b.name         === "string" ? b.name         : "",
   });
   res.json({ ok: true });
 });
@@ -354,6 +355,69 @@ router.post("/admin/ip-blocks/bulk", requireAdmin, async (req, res): Promise<voi
 router.delete("/admin/ip-blocks/:ip", requireAdmin, async (req, res): Promise<void> => {
   const ip = String(req.params.ip).trim();
   await db.delete(ipBlocksTable).where(eq(ipBlocksTable.ip, ip));
+  res.sendStatus(204);
+});
+
+// ── Global Video Ads (VAST pool) ──────────────────────────────────────────────
+
+interface GlobalVideoAd {
+  id: string;
+  name: string;
+  url: string;
+  type: "vast" | "mp4";
+  enabled: boolean;
+  priority: number;
+}
+
+const DEFAULT_GLOBAL_VIDEO_ADS: GlobalVideoAd[] = [];
+
+router.get("/admin/ads/video-ads", requireAdmin, async (_req, res): Promise<void> => {
+  const ads = await getSetting("globalVideoAds", DEFAULT_GLOBAL_VIDEO_ADS);
+  res.json(ads);
+});
+
+router.post("/admin/ads/video-ads", requireAdmin, async (req, res): Promise<void> => {
+  const { name, url, type } = req.body as { name?: string; url?: string; type?: string };
+  if (!name?.trim() || !url?.trim()) {
+    res.status(400).json({ error: "name and url are required" });
+    return;
+  }
+  const ads = await getSetting("globalVideoAds", DEFAULT_GLOBAL_VIDEO_ADS);
+  const newAd: GlobalVideoAd = {
+    id: crypto.randomUUID(),
+    name: name.trim(),
+    url: url.trim(),
+    type: type === "mp4" ? "mp4" : "vast",
+    enabled: true,
+    priority: ads.length,
+  };
+  ads.push(newAd);
+  await setSetting("globalVideoAds", ads);
+  res.status(201).json(newAd);
+});
+
+router.patch("/admin/ads/video-ads/:id", requireAdmin, async (req, res): Promise<void> => {
+  const { id } = req.params as { id: string };
+  const body = req.body as Partial<GlobalVideoAd>;
+  const ads = await getSetting("globalVideoAds", DEFAULT_GLOBAL_VIDEO_ADS);
+  const idx = ads.findIndex(a => a.id === id);
+  if (idx === -1) { res.status(404).json({ error: "Not found" }); return; }
+  const ad = ads[idx]!;
+  if (body.name     !== undefined) ad.name     = body.name;
+  if (body.url      !== undefined) ad.url      = body.url;
+  if (body.type     !== undefined) ad.type     = body.type === "mp4" ? "mp4" : "vast";
+  if (body.enabled  !== undefined) ad.enabled  = body.enabled;
+  if (body.priority !== undefined) ad.priority = body.priority;
+  await setSetting("globalVideoAds", ads);
+  res.json(ad);
+});
+
+router.delete("/admin/ads/video-ads/:id", requireAdmin, async (req, res): Promise<void> => {
+  const { id } = req.params as { id: string };
+  const ads = await getSetting("globalVideoAds", DEFAULT_GLOBAL_VIDEO_ADS);
+  const filtered = ads.filter(a => a.id !== id);
+  if (filtered.length === ads.length) { res.status(404).json({ error: "Not found" }); return; }
+  await setSetting("globalVideoAds", filtered);
   res.sendStatus(204);
 });
 

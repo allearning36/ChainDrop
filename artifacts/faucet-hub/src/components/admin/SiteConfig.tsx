@@ -5,12 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, Globe, Search, Wrench, Shield, AlertTriangle, Puzzle, Paintbrush, KeyRound, Upload, ImageIcon, LayoutTemplate, Heart, Plus, Trash2, FileCheck, X, Copy, ExternalLink, Megaphone } from "lucide-react";
+import { Loader2, Save, Globe, Search, Wrench, Shield, AlertTriangle, Puzzle, Paintbrush, KeyRound, Upload, ImageIcon, LayoutTemplate, Heart, Plus, Trash2, FileCheck, X, Copy, ExternalLink } from "lucide-react";
 import { LogoManagement } from "./LogoManagement";
 import { ChangePassword } from "./ChangePassword";
 
 
-type Tab = "social" | "seo" | "maintenance" | "ratelimit" | "claimlimits" | "integrations" | "logo" | "password" | "hero" | "donations" | "verifyfiles" | "inFeedAd";
+type Tab = "social" | "seo" | "maintenance" | "ratelimit" | "claimlimits" | "integrations" | "logo" | "password" | "hero" | "donations" | "verifyfiles";
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "social", label: "Social Links", icon: Globe },
   { id: "seo", label: "SEO Settings", icon: Search },
@@ -18,7 +18,6 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "ratelimit", label: "Rate Limit", icon: Shield },
   { id: "claimlimits", label: "Claim Limits", icon: AlertTriangle },
   { id: "integrations", label: "Integrations", icon: Puzzle },
-  { id: "inFeedAd", label: "In-Feed Ad", icon: Megaphone },
   { id: "verifyfiles", label: "Verify Files", icon: FileCheck },
   { id: "hero", label: "Hero Section", icon: LayoutTemplate },
   { id: "donations", label: "Donations", icon: Heart },
@@ -47,8 +46,7 @@ interface HeroConfig {
   showStats: boolean;
 }
 export interface DonationAddress { chain: string; symbol: string; address: string; }
-interface InFeedAdConfig { enabled: boolean; adCode: string; firstPosition: number; interval: number; }
-interface SiteConfigData { socialLinks: SocialLinks; seoSettings: SEOSettings; maintenanceMode: MaintenanceMode; rateLimitConfig: RateLimitConfig; ipClaimConfig: IpClaimConfig; integrations: IntegrationsConfig; heroSection: HeroConfig; donationAddresses: DonationAddress[]; inFeedAd: InFeedAdConfig; }
+interface SiteConfigData { socialLinks: SocialLinks; seoSettings: SEOSettings; maintenanceMode: MaintenanceMode; rateLimitConfig: RateLimitConfig; ipClaimConfig: IpClaimConfig; integrations: IntegrationsConfig; heroSection: HeroConfig; donationAddresses: DonationAddress[]; }
 
 const DEFAULT: SiteConfigData = {
   socialLinks: { twitter: "", telegram: "", discord: "", github: "", email: "" },
@@ -72,7 +70,6 @@ const DEFAULT: SiteConfigData = {
     showStats: true,
   },
   donationAddresses: [],
-  inFeedAd: { enabled: false, adCode: "", firstPosition: 4, interval: 6 },
 };
 
 type SaveFn = (section: keyof SiteConfigData, value: object) => Promise<void>;
@@ -772,90 +769,6 @@ function VerifyFilesTab() {
   );
 }
 
-function InFeedAdTab({ data, onSave, saving }: { data: InFeedAdConfig; onSave: SaveFn; saving: boolean }) {
-  const [form, setForm] = useState(data);
-  useEffect(() => setForm(data), [data]);
-
-  return (
-    <div className="space-y-5 max-w-lg">
-      <p className="text-sm text-muted-foreground">
-        Show a banner/GIF ad card inside the chain grid — appears between chain cards at a fixed interval.
-        Supports image ads, GIF ads, and script-based banners (Coinzilla, Bitmedia, Hilltopads, etc.).
-      </p>
-
-      {/* Enable toggle */}
-      <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-card/30">
-        <div>
-          <p className="text-sm font-mono font-semibold">Enable In-Feed Ads</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Show ad cards between chain cards in Testnet & Mainnet grids</p>
-        </div>
-        <button
-          onClick={() => setForm(p => ({ ...p, enabled: !p.enabled }))}
-          className={`relative w-11 h-6 rounded-full transition-colors ${form.enabled ? "bg-primary" : "bg-muted"}`}
-        >
-          <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${form.enabled ? "translate-x-5" : "translate-x-0"}`} />
-        </button>
-      </div>
-
-      {/* Position settings */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label className="font-mono text-xs">First Ad Position</Label>
-          <Input
-            type="number"
-            min={1}
-            max={20}
-            value={form.firstPosition}
-            onChange={e => setForm(p => ({ ...p, firstPosition: Math.max(1, Math.min(20, Number(e.target.value) || 4)) }))}
-            className="font-mono bg-card border-border"
-          />
-          <p className="text-[10px] text-muted-foreground">After how many cards to show first ad (default: 4)</p>
-        </div>
-        <div className="space-y-1.5">
-          <Label className="font-mono text-xs">Repeat Every N Cards</Label>
-          <Input
-            type="number"
-            min={2}
-            max={50}
-            value={form.interval}
-            onChange={e => setForm(p => ({ ...p, interval: Math.max(2, Math.min(50, Number(e.target.value) || 6)) }))}
-            className="font-mono bg-card border-border"
-          />
-          <p className="text-[10px] text-muted-foreground">Show another ad every N cards after the first (default: 6)</p>
-        </div>
-      </div>
-
-      {/* Ad Code */}
-      <div className="space-y-1.5">
-        <Label className="font-mono text-xs">Ad Code / HTML</Label>
-        <Textarea
-          value={form.adCode}
-          onChange={e => setForm(p => ({ ...p, adCode: e.target.value }))}
-          placeholder={`Paste your ad code here. Examples:\n\n<!-- Image/GIF banner -->\n<a href="https://ad-link.com" target="_blank">\n  <img src="https://banner.gif" width="300" height="250" />\n</a>\n\n<!-- Script-based (Coinzilla/Bitmedia) -->\n<div id="zone_12345"></div>\n<script src="https://cdn.coinzilla.io/..."></script>`}
-          className="font-mono text-xs bg-card border-border min-h-[180px] resize-y"
-        />
-        <p className="text-[10px] text-muted-foreground">
-          Supports: image/GIF banners, script-based ad network codes (Coinzilla, Bitmedia, Hilltopads). Each slot runs in an isolated iframe.
-        </p>
-      </div>
-
-      {/* Supported networks */}
-      <div className="rounded-xl border border-border bg-card/20 p-4 space-y-2">
-        <p className="text-xs font-mono font-semibold text-muted-foreground uppercase tracking-wider">Supported Ad Networks</p>
-        <div className="grid grid-cols-2 gap-1.5 text-xs text-muted-foreground font-mono">
-          {["Coinzilla", "Bitmedia.io", "Hilltopads (banner)", "A-ADS", "Custom GIF/image", "Any HTML banner"].map(n => (
-            <span key={n} className="flex items-center gap-1.5">
-              <span className="text-primary">✓</span> {n}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <SaveBtn onClick={() => onSave("inFeedAd", form)} saving={saving} />
-    </div>
-  );
-}
-
 export function SiteConfig() {
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>("social");
@@ -875,7 +788,6 @@ export function SiteConfig() {
         integrations:        { ...prev.integrations,         ...(d.integrations      ?? {}) },
         heroSection:         { ...DEFAULT.heroSection,       ...(d.heroSection       ?? {}) },
         donationAddresses:   Array.isArray(d.donationAddresses) ? d.donationAddresses : [],
-        inFeedAd:            { ...DEFAULT.inFeedAd,          ...(d.inFeedAd          ?? {}) },
       })))
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -920,7 +832,6 @@ export function SiteConfig() {
       {tab === "verifyfiles" && <VerifyFilesTab />}
       {tab === "hero" && <HeroTab data={cfg.heroSection} onSave={save} saving={saving} />}
       {tab === "donations" && <DonationsTab data={cfg.donationAddresses} onSave={save} saving={saving} />}
-      {tab === "inFeedAd" && <InFeedAdTab data={cfg.inFeedAd} onSave={save} saving={saving} />}
       {tab === "logo" && <LogoManagement />}
       {tab === "password" && <ChangePassword />}
     </div>

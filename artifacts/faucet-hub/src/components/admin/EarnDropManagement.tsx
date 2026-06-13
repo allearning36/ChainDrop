@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { adminFetch } from "@/lib/auth";
+import { getBaseUrl } from "@workspace/api-client-react";
 import {
   Plus, Pencil, Trash2, ChevronDown, ChevronUp, Loader2,
   RefreshCw, X, Key, ListChecks, Zap, Eye, EyeOff,
@@ -718,7 +719,7 @@ export function EarnDropManagement() {
     try {
       const [cRes, chRes] = await Promise.all([
         adminFetch("/api/admin/earn-drop/campaigns"),
-        fetch("/api/chains"),
+        fetch(`${getBaseUrl()}/api/chains`),
       ]);
       if (cRes.ok) setCampaigns(await cRes.json() as Campaign[]);
       if (chRes.ok) setChains(await chRes.json() as Chain[]);

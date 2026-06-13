@@ -7,7 +7,7 @@ import ReCAPTCHA from "react-google-recaptcha";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  EarnDropCampaignDetail, EarnDropTaskPublic, EarnDropProgress,
+  EarnDropCampaignDetail, EarnDropTaskPublic, EarnDropProgress, getBaseUrl,
 } from "@workspace/api-client-react";
 
 const RECAPTCHA_SITE_KEY =
@@ -195,7 +195,7 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
   useEffect(() => {
     if (localDone.length >= 1 && !joinedRef.current) {
       joinedRef.current = true;
-      fetch(`/api/earn-drop/campaigns/${campaign.id}/join`, {
+      fetch(`${getBaseUrl()}/api/earn-drop/campaigns/${campaign.id}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId }),
@@ -231,7 +231,7 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
   const loadProgress = useCallback(async (addr: string) => {
     if (!addr.trim() || addr.length < 10) return;
     try {
-      const res = await fetch(`/api/earn-drop/campaigns/${campaign.id}/progress?address=${encodeURIComponent(addr.trim().toLowerCase())}`);
+      const res = await fetch(`${getBaseUrl()}/api/earn-drop/campaigns/${campaign.id}/progress?address=${encodeURIComponent(addr.trim().toLowerCase())}`);
       if (res.ok) setProgress(await res.json() as EarnDropProgress);
     } catch { /* ignore */ }
   }, [campaign.id]);
@@ -274,14 +274,14 @@ export function EarnDropCampaignModal({ campaign, onClose }: Props) {
       // Sync locally completed steps to backend
       for (const step of localDone) {
         if (serverSteps.includes(step)) continue;
-        await fetch(`/api/earn-drop/campaigns/${campaign.id}/complete-task`, {
+        await fetch(`${getBaseUrl()}/api/earn-drop/campaigns/${campaign.id}/complete-task`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ address: addr, stepNumber: step }),
         }).catch(() => null);
       }
 
-      const res = await fetch("/api/earn-drop/claim", {
+      const res = await fetch(`${getBaseUrl()}/api/earn-drop/claim`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

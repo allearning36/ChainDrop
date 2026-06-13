@@ -27,7 +27,7 @@ import { PaymentNetworkManagement } from "@/components/admin/PaymentNetworkManag
 import { ReferralManagement } from "@/components/admin/ReferralManagement";
 import { PromoManagement } from "@/components/admin/PromoManagement";
 import { ChainLibrary } from "@/components/admin/ChainLibrary";
-import { AdManagement } from "@/components/admin/AdManagement";
+import { AdsManagement } from "@/components/admin/AdsManagement";
 import { AntiAbusePanel } from "@/components/admin/AntiAbusePanel";
 import { EarnDropManagement } from "@/components/admin/EarnDropManagement";
 import { AdminTabErrorBoundary } from "@/components/admin/ErrorBoundary";
@@ -36,7 +36,7 @@ import { AdminTabErrorBoundary } from "@/components/admin/ErrorBoundary";
 
 type TopSection =
   | "dashboard" | "live" | "claims" | "support"
-  | "exchange" | "referral" | "promo" | "earn-drop" | "siteconfig"
+  | "exchange" | "referral" | "promo" | "earn-drop" | "ads-management" | "siteconfig"
   | "chains-group" | "analytics-group" | "security-group" | "content-group";
 
 type SubTab = { id: string; label: string; icon: React.ElementType };
@@ -63,7 +63,6 @@ const SECURITY_TABS: SubTab[] = [
 
 const CONTENT_TABS: SubTab[] = [
   { id: "post",  label: "Posts", icon: Send },
-  { id: "ads",   label: "Ads",   icon: Megaphone },
   { id: "pages", label: "Pages", icon: FileText },
 ];
 
@@ -78,19 +77,20 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { section: "dashboard",       label: "Dashboard",     icon: LayoutDashboard },
-  { section: "live",            label: "Live Monitor",  icon: Radio },
-  { section: "claims",          label: "Claims Log",    icon: ClipboardList },
-  { section: "chains-group",    label: "Chains",        icon: LinkIcon,       subTabs: CHAINS_TABS },
-  { section: "exchange",        label: "Exchange",      icon: ArrowLeftRight },
-  { section: "referral",        label: "Referral",      icon: GitBranch },
-  { section: "promo",           label: "Promo Codes",   icon: Gift },
-  { section: "earn-drop",       label: "Earn Drop",     icon: Zap },
-  { section: "analytics-group", label: "Analytics",     icon: ShieldOff,      subTabs: ANALYTICS_TABS },
-  { section: "security-group",  label: "Security",      icon: ShieldAlert,    subTabs: SECURITY_TABS },
-  { section: "content-group",   label: "Content",       icon: Send,           subTabs: CONTENT_TABS },
-  { section: "support",         label: "Support",       icon: HeadphonesIcon, isSupportBadge: true },
-  { section: "siteconfig",      label: "Settings",      icon: Settings2 },
+  { section: "dashboard",       label: "Dashboard",      icon: LayoutDashboard },
+  { section: "live",            label: "Live Monitor",   icon: Radio },
+  { section: "claims",          label: "Claims Log",     icon: ClipboardList },
+  { section: "chains-group",    label: "Chains",         icon: LinkIcon,       subTabs: CHAINS_TABS },
+  { section: "exchange",        label: "Exchange",       icon: ArrowLeftRight },
+  { section: "referral",        label: "Referral",       icon: GitBranch },
+  { section: "promo",           label: "Promo Codes",    icon: Gift },
+  { section: "earn-drop",       label: "Earn Drop",      icon: Zap },
+  { section: "ads-management",  label: "Ads Management", icon: Megaphone },
+  { section: "analytics-group", label: "Analytics",      icon: ShieldOff,      subTabs: ANALYTICS_TABS },
+  { section: "security-group",  label: "Security",       icon: ShieldAlert,    subTabs: SECURITY_TABS },
+  { section: "content-group",   label: "Content",        icon: Send,           subTabs: CONTENT_TABS },
+  { section: "support",         label: "Support",        icon: HeadphonesIcon, isSupportBadge: true },
+  { section: "siteconfig",      label: "Settings",       icon: Settings2 },
 ];
 
 // ── Helper: fetch unread count ─────────────────────────────────────────────────
@@ -138,7 +138,7 @@ function SubTabBar({ tabs, active, onChange }: {
 
 // ── Hash helpers ───────────────────────────────────────────────────────────────
 const VALID_SECTIONS: TopSection[] = [
-  "dashboard","live","claims","support","exchange","referral","promo","earn-drop","siteconfig",
+  "dashboard","live","claims","support","exchange","referral","promo","earn-drop","ads-management","siteconfig",
   "chains-group","analytics-group","security-group","content-group",
 ];
 function readHashSection(): TopSection {
@@ -384,8 +384,9 @@ export default function AdminDashboard() {
           {activeSection === "exchange"   && <AdminTabErrorBoundary label="Exchange"><ExchangeManagement /></AdminTabErrorBoundary>}
           {activeSection === "referral"   && <AdminTabErrorBoundary label="Referral"><ReferralManagement /></AdminTabErrorBoundary>}
           {activeSection === "promo"      && <AdminTabErrorBoundary label="Promo Codes"><PromoManagement /></AdminTabErrorBoundary>}
-          {activeSection === "earn-drop"  && <AdminTabErrorBoundary label="Earn Drop"><EarnDropManagement /></AdminTabErrorBoundary>}
-          {activeSection === "siteconfig" && <AdminTabErrorBoundary label="Settings"><SiteConfig /></AdminTabErrorBoundary>}
+          {activeSection === "earn-drop"     && <AdminTabErrorBoundary label="Earn Drop"><EarnDropManagement /></AdminTabErrorBoundary>}
+          {activeSection === "ads-management" && <AdminTabErrorBoundary label="Ads Management"><AdsManagement /></AdminTabErrorBoundary>}
+          {activeSection === "siteconfig"     && <AdminTabErrorBoundary label="Settings"><SiteConfig /></AdminTabErrorBoundary>}
 
           {activeSection === "chains-group" && (
             <AdminTabErrorBoundary label={breadcrumb}>
@@ -414,7 +415,6 @@ export default function AdminDashboard() {
           {activeSection === "content-group" && (
             <AdminTabErrorBoundary label={breadcrumb}>
               {contentSub === "post"  && <PostManagement />}
-              {contentSub === "ads"   && <AdManagement />}
               {contentSub === "pages" && <PagesManagement />}
             </AdminTabErrorBoundary>
           )}

@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { 
   useGetAdminChains, 
   useCreateChain, 
@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X, ShoppingCart, Pin, PinOff, Server, Shield, Droplets, Globe, Settings2, Clock, ArrowUp, ArrowDown, Activity, CheckCircle2, XCircle, RefreshCw, Tv2, Search, Key, Copy, Database, GripVertical, ToggleLeft, ToggleRight } from "lucide-react";
+import { Edit2, Plus, Trash2, Loader2, AlertCircle, Upload, X, ShoppingCart, Pin, PinOff, Server, Shield, Droplets, Globe, Settings2, Clock, ArrowUp, ArrowDown, Activity, CheckCircle2, XCircle, RefreshCw, Tv2, Search, Key, Copy, Database } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { adminFetch } from "@/lib/auth";
 import { formatCooldown, secondsToHms, hmsToSeconds } from "@/lib/utils";
@@ -131,77 +131,6 @@ export function ChainManagement() {
   const [systemWallet, setSystemWallet] = useState<{ configured: boolean; address: string | null; error?: string } | null>(null);
   const [copiedSysAddr, setCopiedSysAddr] = useState(false);
   const [chainSelectorOpen, setChainSelectorOpen] = useState(false);
-
-  // ── Chain Ads state ──────────────────────────────────────────────────────────
-  type ChainAdRow = { id: number; chainId: number; label: string; adUrl: string; adType: string; priority: number; isEnabled: boolean; createdAt: string };
-  const [chainAds, setChainAds] = useState<ChainAdRow[]>([]);
-  const [adsLoading, setAdsLoading] = useState(false);
-  const [newAd, setNewAd] = useState({ label: "", adUrl: "", adType: "vast" });
-  const [addingAd, setAddingAd] = useState(false);
-
-  const loadAds = useCallback((chainId: number) => {
-    setAdsLoading(true);
-    adminFetch(`/api/admin/chains/${chainId}/ads`)
-      .then(r => r.ok ? r.json() : [])
-      .then((data: ChainAdRow[]) => setChainAds(data))
-      .catch(() => setChainAds([]))
-      .finally(() => setAdsLoading(false));
-  }, []);
-
-  const handleAddAd = async (chainId: number) => {
-    if (!newAd.label.trim() || !newAd.adUrl.trim()) return;
-    setAddingAd(true);
-    try {
-      const res = await adminFetch(`/api/admin/chains/${chainId}/ads`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...newAd, priority: chainAds.length }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(body.error ?? `Server error ${res.status}`);
-      }
-      setNewAd({ label: "", adUrl: "", adType: "vast" });
-      loadAds(chainId);
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Could not add ad", description: err?.message ?? "Unknown error" });
-    } finally { setAddingAd(false); }
-  };
-
-  const handleToggleAd = async (chainId: number, ad: ChainAdRow) => {
-    await adminFetch(`/api/admin/chains/${chainId}/ads/${ad.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label: ad.label, adUrl: ad.adUrl, adType: ad.adType, isEnabled: !ad.isEnabled }),
-    });
-    loadAds(chainId);
-  };
-
-  const handleDeleteAd = async (chainId: number, adId: number) => {
-    await adminFetch(`/api/admin/chains/${chainId}/ads/${adId}`, { method: "DELETE" });
-    loadAds(chainId);
-  };
-
-  const handleMovePriority = async (chainId: number, ad: ChainAdRow, dir: -1 | 1) => {
-    const sorted = [...chainAds].sort((a, b) => a.priority - b.priority);
-    const idx = sorted.findIndex(a => a.id === ad.id);
-    const swapIdx = idx + dir;
-    if (swapIdx < 0 || swapIdx >= sorted.length) return;
-    const swap = sorted[swapIdx]!;
-    await Promise.all([
-      adminFetch(`/api/admin/chains/${chainId}/ads/${ad.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: ad.label, adUrl: ad.adUrl, adType: ad.adType, priority: swap.priority }),
-      }),
-      adminFetch(`/api/admin/chains/${chainId}/ads/${swap.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: swap.label, adUrl: swap.adUrl, adType: swap.adType, priority: ad.priority }),
-      }),
-    ]);
-    loadAds(chainId);
-  };
 
   useEffect(() => {
     adminFetch("/api/admin/system-wallet")
@@ -359,9 +288,6 @@ export function ChainManagement() {
       addressRegex: (chain as any).addressRegex ?? "",
     });
     setFormError("");
-    setChainAds([]);
-    setNewAd({ label: "", adUrl: "", adType: "vast" });
-    loadAds(chain.id);
     setIsFormOpen(true);
   };
 
@@ -1157,52 +1083,6 @@ export function ChainManagement() {
                       {formData.adClaimAmount ? `${formData.adClaimAmount} ${formData.symbol || "tokens"} per ad claim` : `Uses free claim amount (${formData.claimAmount || "0"} ${formData.symbol || "tokens"})`}
                     </p>
                   </div>
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label className="text-xs">Ad Type</Label>
-                    <select
-                      value={formData.adType ?? "url"}
-                      onChange={e => setFormData({...formData, adType: e.target.value})}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
-                    >
-                      <option value="url">URL — opens in new tab (popunder)</option>
-                      <option value="script">Script / HTML — injected on page</option>
-                      <option value="vast">VAST / MP4 — video ad (any network or direct MP4)</option>
-                      <option value="hypelab">HypeLab — rewarded video SDK</option>
-                    </select>
-                    <p className="text-[10px] text-muted-foreground font-mono">
-                      {formData.adType === "vast" && "Enter a VAST tag URL (any network: Adsterra, ExoClick, Clickadu, HilltopAds…) or a direct MP4 video URL."}
-                      {formData.adType === "hypelab" && "Enter HypeLab placement ID below (format: id|placement, e.g. rewarded-3c1099a1d4|3c1099a1d4)."}
-                      {formData.adType === "url" && "Enter a URL — will open in a new tab when user clicks Watch Ad."}
-                      {formData.adType === "script" && "Paste the ad network HTML/script embed code below."}
-                      {!formData.adType && "Select how the ad will be delivered to users."}
-                    </p>
-                  </div>
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label className="text-xs">
-                      {formData.adType === "vast" ? "VAST Tag URL" : formData.adType === "hypelab" ? "HypeLab Placement (id|placement)" : "Ad URL or Embed Code"}
-                      <span className="text-muted-foreground font-normal ml-1">(shown during ad watch)</span>
-                    </Label>
-                    <textarea
-                      value={formData.adNetworkCode}
-                      onChange={e => setFormData({...formData, adNetworkCode: e.target.value})}
-                      placeholder={
-                        formData.adType === "vast"
-                          ? "https://adsterra.com/vast/tag?... OR https://cdn.example.com/ad.mp4"
-                          : formData.adType === "hypelab"
-                          ? "rewarded-3c1099a1d4|3c1099a1d4"
-                          : "https://your-ad-network.com/ad-unit or paste HTML embed code"
-                      }
-                      rows={3}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground"
-                    />
-                    <p className="text-[10px] text-muted-foreground font-mono">
-                      {formData.adType === "vast"
-                        ? "VAST video will play inline. Claim unlocks when video completes."
-                        : formData.adType === "hypelab"
-                        ? "HypeLab rewarded video plays fullscreen. Claim unlocks on video completion."
-                        : `Leave blank to show a placeholder. Users see this for ${formData.adDurationSeconds}s before they can claim.`}
-                    </p>
-                  </div>
                 </div>
               ) : (
                 <div className="px-4 py-3 text-[11px] font-mono text-muted-foreground">
@@ -1210,94 +1090,6 @@ export function ChainManagement() {
                 </div>
               )}
             </div>
-
-            {/* ── SECTION 5c: Video Ads Waterfall ── */}
-            {formData.adClaimEnabled && formData.adType === "vast" && editingChain && (
-              <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(99,102,241,0.2)" }}>
-                <div className="flex items-center gap-2.5 px-4 py-2.5" style={{ background: "rgba(99,102,241,0.05)", borderBottom: "1px solid rgba(99,102,241,0.15)" }}>
-                  <GripVertical className="w-3.5 h-3.5" style={{ color: "#818cf8" }} />
-                  <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: "#818cf8" }}>Video Ads Waterfall</span>
-                  <span className="text-[10px] font-mono text-muted-foreground ml-1">— fallback priority order</span>
-                </div>
-                <div className="p-4 space-y-3">
-                  <p className="text-[11px] font-mono text-muted-foreground">
-                    Add multiple ad networks. If the top-priority ad has no fill, the next one is tried automatically.
-                  </p>
-
-                  {/* Existing ads list */}
-                  {adsLoading ? (
-                    <div className="flex items-center gap-2 py-2">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
-                      <span className="text-xs font-mono text-muted-foreground">Loading…</span>
-                    </div>
-                  ) : chainAds.length === 0 ? (
-                    <div className="text-[11px] font-mono text-muted-foreground py-2">No ads configured yet. Add one below.</div>
-                  ) : (
-                    <div className="space-y-2">
-                      {[...chainAds].sort((a, b) => a.priority - b.priority).map((ad, idx) => (
-                        <div key={ad.id} className="flex items-center gap-2 p-2.5 rounded-lg" style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${ad.isEnabled ? "rgba(99,102,241,0.2)" : "rgba(255,255,255,0.06)"}` }}>
-                          <span className="text-[10px] font-mono text-muted-foreground w-5 text-center">{idx + 1}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-mono font-semibold truncate" style={{ color: ad.isEnabled ? "#c7d2fe" : "rgba(255,255,255,0.3)" }}>{ad.label}</p>
-                            <p className="text-[10px] font-mono text-muted-foreground truncate">{ad.adUrl}</p>
-                          </div>
-                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }}>{ad.adType}</span>
-                          <button onClick={() => handleMovePriority(editingChain.id, ad, -1)} disabled={idx === 0} className="p-1 rounded hover:bg-white/10 disabled:opacity-20">
-                            <ArrowUp className="w-3 h-3 text-muted-foreground" />
-                          </button>
-                          <button onClick={() => handleMovePriority(editingChain.id, ad, 1)} disabled={idx === chainAds.length - 1} className="p-1 rounded hover:bg-white/10 disabled:opacity-20">
-                            <ArrowDown className="w-3 h-3 text-muted-foreground" />
-                          </button>
-                          <button onClick={() => handleToggleAd(editingChain.id, ad)} className="p-1 rounded hover:bg-white/10">
-                            {ad.isEnabled
-                              ? <ToggleRight className="w-4 h-4" style={{ color: "#818cf8" }} />
-                              : <ToggleLeft className="w-4 h-4 text-muted-foreground" />}
-                          </button>
-                          <button onClick={() => handleDeleteAd(editingChain.id, ad.id)} className="p-1 rounded hover:bg-red-500/20">
-                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Add new ad form */}
-                  <div className="pt-2 space-y-2" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                    <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Add Ad Network</p>
-                    <div className="grid grid-cols-1 gap-2">
-                      <Input
-                        placeholder="Label (e.g. HilltopAds)"
-                        value={newAd.label}
-                        onChange={e => setNewAd(a => ({ ...a, label: e.target.value }))}
-                        className="font-mono text-xs h-8"
-                      />
-                      <select
-                        value={newAd.adType}
-                        onChange={e => setNewAd(a => ({ ...a, adType: e.target.value }))}
-                        className="rounded-md border border-input bg-background px-2 py-1 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-ring h-8"
-                      >
-                        <option value="vast">VAST tag URL</option>
-                        <option value="mp4">Direct MP4 URL</option>
-                      </select>
-                    </div>
-                    <Input
-                      placeholder="VAST tag URL or direct MP4 URL"
-                      value={newAd.adUrl}
-                      onChange={e => setNewAd(a => ({ ...a, adUrl: e.target.value }))}
-                      className="font-mono text-xs h-8"
-                    />
-                    <Button
-                      className="w-full h-10 text-sm font-mono font-semibold"
-                      disabled={!newAd.label.trim() || !newAd.adUrl.trim() || addingAd}
-                      onClick={() => handleAddAd(editingChain.id)}
-                    >
-                      {addingAd ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-                      Add
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* ── SECTION 6: Appearance & Links ── */}
             <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>

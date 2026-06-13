@@ -3,7 +3,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { SEOHead } from "@/components/layout/SEOHead";
 import { EarnDropCampaignModal } from "@/components/home/EarnDropCampaignModal";
-import { useGetEarnDropCampaigns, getGetEarnDropCampaignsQueryKey, EarnDropCampaignPublic, EarnDropCampaignDetail } from "@workspace/api-client-react";
+import { useGetEarnDropCampaigns, getGetEarnDropCampaignsQueryKey, EarnDropCampaignPublic, EarnDropCampaignDetail, getBaseUrl } from "@workspace/api-client-react";
 import { Loader2, Zap, Info, ArrowLeft } from "lucide-react";
 
 // ── Countdown ─────────────────────────────────────────────────────────────────
@@ -153,7 +153,7 @@ export default function EarnDropPage() {
 
   const openCampaign = async (id: number) => {
     try {
-      const res = await fetch(`/api/earn-drop/campaigns/${id}`);
+      const res = await fetch(`${getBaseUrl()}/api/earn-drop/campaigns/${id}`);
       if (res.ok) setSelected(await res.json() as EarnDropCampaignDetail);
     } catch { /* ignore */ }
   };

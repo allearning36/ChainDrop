@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { getBaseUrl } from "@workspace/api-client-react";
 
 interface AdSlotProps {
   id: "home-top" | "home-bottom";
@@ -17,7 +18,7 @@ let fetchPromise: Promise<Record<string, string>> | null = null;
 function getSettings(): Promise<Record<string, string>> {
   if (cachedSettings) return Promise.resolve(cachedSettings);
   if (!fetchPromise) {
-    fetchPromise = fetch("/api/settings")
+    fetchPromise = fetch(`${getBaseUrl()}/api/settings`)
       .then(r => r.json() as Promise<Record<string, string>>)
       .then(d => { cachedSettings = d; return d; })
       .catch(() => {

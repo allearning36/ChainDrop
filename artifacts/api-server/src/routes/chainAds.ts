@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, asc } from "drizzle-orm";
-import { db, chainAdsTable } from "@workspace/db";
+import { db, chainAdsTable, settingsTable } from "@workspace/db";
 import { requireAdmin } from "../lib/adminAuth";
 
 const router: IRouter = Router();
@@ -86,23 +86,29 @@ router.delete("/admin/chains/:chainId/ads/:adId", requireAdmin, async (req, res)
   res.status(204).end();
 });
 
-// ── GET /chains/:chainId/ads (public — enabled only, ordered by priority) ────
+// ── GET /chains/:chainId/ads (public — returns global video ads pool) ─────────
 router.get("/chains/:chainId/ads", async (req, res): Promise<void> => {
   const chainId = parseInt(req.params.chainId as string, 10);
   if (!chainId) { res.status(400).json({ error: "Invalid chainId" }); return; }
 
-  const ads = await db
-    .select({
-      id:       chainAdsTable.id,
-      adUrl:    chainAdsTable.adUrl,
-      adType:   chainAdsTable.adType,
-      priority: chainAdsTable.priority,
-    })
-    .from(chainAdsTable)
-    .where(and(eq(chainAdsTable.chainId, chainId), eq(chainAdsTable.isEnabled, true)))
-    .orderBy(asc(chainAdsTable.priority), asc(chainAdsTable.id));
+  const [row] = await db
+    .select()
+    .from(settingsTable)
+    .where(eq(settingsTable.key, "globalVideoAds"))
+    .limit(1);
 
-  res.json(ads);
+  interface RawVideoAd { id: string; url: string; type: string; priority: number; enabled: boolean }
+  let globalAds: RawVideoAd[] = [];
+  if (row?.value) {
+    try { globalAds = JSON.parse(row.value) as RawVideoAd[]; } catch { globalAds = []; }
+  }
+
+  const result = globalAds
+    .filter(a => a.enabled)
+    .sort((a, b) => a.priority - b.priority)
+    .map((a, i) => ({ id: i + 1, adUrl: a.url, adType: a.type, priority: a.priority }));
+
+  res.json(result);
 });
 
 export default router;
