@@ -111,6 +111,7 @@ export default function Home() {
   const [donateOpen, setDonateOpen] = useState(false);
   const [donationAddresses, setDonationAddresses] = useState<DonationAddress[]>([]);
   const [inFeedAd, setInFeedAd] = useState<{ enabled: boolean; adCode: string; firstPosition: number; interval: number } | null>(null);
+  const chainsPerPage = (inFeedAd?.enabled && inFeedAd.adCode.trim().length > 0) ? CHAINS_PER_PAGE - 1 : CHAINS_PER_PAGE;
 
   const STATUS_FILTERS: { value: "all" | "YES" | "SOON" | "NO"; label: string; color: string }[] = [
     { value: "all",  label: "All Chains",   color: "rgba(255,255,255,0.6)" },
@@ -161,11 +162,11 @@ export default function Home() {
 
   // ── Fetch one page of chains ─────────────────────────────────────────────────
   const fetchPage = useCallback(async (type: "testnet" | "mainnet", pg: number, append: boolean) => {
-    const url = `${getBaseUrl() ?? ""}/api/chains?type=${type}&page=${pg}&limit=${CHAINS_PER_PAGE}`;
+    const url = `${getBaseUrl() ?? ""}/api/chains?type=${type}&page=${pg}&limit=${chainsPerPage}`;
     const res  = await fetch(url);
     const ttl  = parseInt(res.headers.get("X-Total-Count") ?? "0");
     const data: ChainPublic[] = await res.json();
-    const more = pg * CHAINS_PER_PAGE < ttl;
+    const more = pg * chainsPerPage < ttl;
     if (type === "testnet") {
       setTestnetChains(prev => append ? [...prev, ...data] : data);
       setTestnetTotal(ttl);
@@ -177,7 +178,7 @@ export default function Home() {
       setMainnetHasMore(more);
       setMainnetPage(pg);
     }
-  }, []);
+  }, [chainsPerPage]);
 
   // Initial load — both networks (for totals in HeroSection)
   useEffect(() => {
