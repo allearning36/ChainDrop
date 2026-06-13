@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { adminFetch } from "@/lib/auth";
+import { getBaseUrl } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -97,6 +98,10 @@ export function AdsManagement() {
   const [newAd, setNewAd] = useState({ name: "", url: "", type: "vast" });
   const [addingAd, setAddingAd] = useState(false);
 
+  // Global daily ad limit state
+  const [globalLimit, setGlobalLimit] = useState("0");
+  const [savingLimit, setSavingLimit] = useState(false);
+
   // ── Load banner data ─────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -128,6 +133,32 @@ export function AdsManagement() {
       })
       .catch(() => setInFeedLoaded(true));
   }, []);
+
+  // ── Load global ad limit ─────────────────────────────────────────────────────
+
+  useEffect(() => {
+    fetch(`${getBaseUrl()}/api/settings`)
+      .then(r => r.ok ? r.json() : null)
+      .then((d: Record<string, string> | null) => {
+        if (d?.adDailyGlobalLimit !== undefined) setGlobalLimit(d.adDailyGlobalLimit);
+      })
+      .catch(() => {});
+  }, []);
+
+  async function saveGlobalLimit() {
+    setSavingLimit(true);
+    try {
+      const res = await adminFetch("/api/admin/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adDailyGlobalLimit: globalLimit }),
+      });
+      if (!res.ok) throw new Error();
+      toast({ title: "Saved", description: "Daily ad limit updated." });
+    } catch {
+      toast({ title: "Error", description: "Failed to save.", variant: "destructive" });
+    } finally { setSavingLimit(false); }
+  }
 
   // ── Load video ads ───────────────────────────────────────────────────────────
 
@@ -473,6 +504,39 @@ export function AdsManagement() {
       {/* ── VIDEO ADS TAB ───────────────────────────────────────────────────── */}
       {tab === "video" && (
         <div className="space-y-5">
+
+          {/* ── Daily Limit ── */}
+          <div className="rounded-lg border border-border bg-card/40 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Tv2 className="w-4 h-4 text-primary" />
+              <p className="font-mono text-sm font-bold">Daily Ad Watch Limit</p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              একজন user সব chain মিলিয়ে দিনে সর্বোচ্চ কতটা ad দেখতে পারবে। প্রতিটি chain-এর নিজস্ব limit Chains → chain edit থেকে set করা যায়।
+            </p>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-mono">Global Daily Ad Limit <span className="text-muted-foreground font-normal">(0 = unlimited)</span></Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number" min="0" step="1"
+                  value={globalLimit}
+                  onChange={e => setGlobalLimit(e.target.value)}
+                  className="font-mono text-sm h-9 w-32"
+                  placeholder="0"
+                />
+                <Button onClick={saveGlobalLimit} disabled={savingLimit} size="sm" className="font-mono">
+                  {savingLimit ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
+                  Save
+                </Button>
+              </div>
+              <p className="text-[10px] font-mono text-muted-foreground">
+                {Number(globalLimit) > 0
+                  ? `Wallets can watch max ${globalLimit} ad${Number(globalLimit) === 1 ? "" : "s"}/day across all chains`
+                  : "No global limit — unlimited ad watches per day"}
+              </p>
+            </div>
+          </div>
+
           <div className="p-3 rounded-lg border border-border/50 bg-card/30 text-xs font-mono text-muted-foreground space-y-1">
             <p className="text-foreground/70 font-semibold">Global VAST Video Ads Pool</p>
             <p>These ads are played on any chain that has "Ad Claims" enabled. The player tries them in priority order — if one has no fill, the next is tried automatically.</p>
