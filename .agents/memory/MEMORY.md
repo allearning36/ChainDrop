@@ -4,3 +4,4 @@
 - [Polling intervals](polling-intervals.md) — aggressive polling was causing excessive DB transfer; intervals bumped
 - [Railway watch paths](railway-watch-paths.md) — Railway only triggers rebuild on changes to artifacts/api-server/, not lib/
 - [Railway IPv6 crash](railway-ipv6.md) — Railway has no IPv6; Supabase resolves to IPv6 → add --dns-result-order=ipv4first to Node start command
+- [Order Engine architecture](order-engine.md) — unified retry/refund/recovery system for Buy + Exchange with per-order deposit wallets and kill switches

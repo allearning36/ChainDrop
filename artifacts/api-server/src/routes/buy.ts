@@ -63,7 +63,7 @@ router.get("/faucet/buy/preflight/:chainId", async (req, res): Promise<void> => 
   // RPC health
   try {
     const health = await checkRpcHealth(rpcUrls[0]!);
-    checks.rpcHealthy = health.ok;
+    checks.rpcHealthy = health.status === "ok";
   } catch { checks.rpcHealthy = false; }
 
   if (!checks.rpcHealthy) {
@@ -74,7 +74,7 @@ router.get("/faucet/buy/preflight/:chainId", async (req, res): Promise<void> => 
   // Wallet balance
   try {
     const walletAddr = resolveChainWalletAddress(chain.walletAddress);
-    const balance = await getWalletBalance(rpcUrls, walletAddr);
+    const balance = await getWalletBalance(chain.chainType as ChainType, rpcUrls, walletAddr);
     const minPay = parseFloat(chain.buyMinAmount) * parseFloat(chain.buyRate || "1");
     checks.walletSufficient = balance !== null && parseFloat(balance) >= minPay;
   } catch { checks.walletSufficient = false; }

@@ -22,6 +22,7 @@ import antiAbuseRouter from "./antiAbuse";
 import promoRouter from "./promo";
 import earnDropRouter from "./earnDrop";
 import chainAdsRouter from "./chainAds";
+import adminOrdersRouter from "./adminOrders";
 
 const router: IRouter = Router();
 
@@ -48,5 +49,6 @@ router.use(antiAbuseRouter);
 router.use(promoRouter);
 router.use(earnDropRouter);
 router.use(chainAdsRouter);
+router.use(adminOrdersRouter);
 
 export default router;
