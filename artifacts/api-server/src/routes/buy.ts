@@ -196,11 +196,18 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
   }
 
   // Check if tx already exists
-  const [existing] = await db
-    .select()
-    .from(purchasesTable)
-    .where(eq(purchasesTable.mainnetTxHash, mainnetTxHash))
-    .limit(1);
+  let existing: typeof purchasesTable.$inferSelect | undefined;
+  try {
+    [existing] = await db
+      .select()
+      .from(purchasesTable)
+      .where(eq(purchasesTable.mainnetTxHash, mainnetTxHash))
+      .limit(1);
+  } catch (dbErr: any) {
+    req.log.error({ err: dbErr }, "Failed to check existing purchase — DB schema needs migration (missing columns)");
+    res.status(500).json({ error: "Service temporarily unavailable. Please contact support with your transaction hash." });
+    return;
+  }
 
   if (existing?.status === "completed") {
     res.status(400).json({ error: "This transaction has already been processed successfully." });
