@@ -10,7 +10,6 @@ import { resolveChainPrivateKey, resolveChainWalletAddress } from "../lib/encryp
 import { creditCommissions, getReferralSettings } from "../lib/referral";
 import { broadcast } from "../lib/liveEvents";
 import { logOrderEvent } from "../lib/orderEvents";
-import { checkBuyKilled, checkChainKilled } from "../lib/killSwitch";
 import { checkRpcHealth } from "../lib/rpcFailover";
 import { getWalletBalance, deriveWalletAddress } from "../lib/chains/index";
 
@@ -40,12 +39,6 @@ async function getAllPaymentNetworks(): Promise<Record<string, { name: string; s
 router.get("/faucet/buy/preflight/:chainId", async (req, res): Promise<void> => {
   const chainId = parseInt(String(req.params.chainId));
   if (isNaN(chainId)) { res.status(400).json({ ok: false, reason: "Invalid chainId" }); return; }
-
-  // Kill switches
-  const buyKill = await checkBuyKilled();
-  if (buyKill) { res.json({ ok: false, reason: buyKill }); return; }
-  const chainKill = await checkChainKilled(chainId);
-  if (chainKill) { res.json({ ok: false, reason: chainKill }); return; }
 
   const [chain] = await db.select().from(chainsTable).where(and(eq(chainsTable.id, chainId), eq(chainsTable.isEnabled, true))).limit(1);
   if (!chain || !chain.buyEnabled) {
@@ -153,12 +146,6 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
   }
 
   const { chainId, userAddress, mainnetTxHash, networkId } = parsed.data;
-
-  // ── Kill switches ──────────────────────────────────────────────────────────
-  const buyKill = await checkBuyKilled();
-  if (buyKill) { res.status(503).json({ error: buyKill }); return; }
-  const chainKill = await checkChainKilled(chainId);
-  if (chainKill) { res.status(503).json({ error: chainKill }); return; }
 
   if (!/^0x[a-fA-F0-9]{64}$/.test(mainnetTxHash)) {
     res.status(400).json({ error: "Invalid transaction hash format" });
