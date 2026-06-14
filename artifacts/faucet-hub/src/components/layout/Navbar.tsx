@@ -349,9 +349,6 @@ export function Navbar() {
           Earn Drop
         </Link>
 
-        {/* ── Wallet button ── */}
-        <WalletButton />
-
         {/* ── FAR RIGHT: Support + Bell ── */}
         <div className="flex items-center gap-1 shrink-0">
           {/* Support button with unread badge */}
@@ -486,6 +483,9 @@ export function Navbar() {
             </PopoverContent>
           </Popover>
         </div>
+
+        {/* ── Wallet button — last so bell stays visible on mobile ── */}
+        <WalletButton />
       </div>
 
       <SupportModal open={supportOpen} onOpenChange={setSupportOpen} />

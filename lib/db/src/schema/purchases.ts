@@ -19,7 +19,7 @@ export const purchasesTable = pgTable("purchases", {
   refundTxHash: text("refund_tx_hash"),
   refundStatus: text("refund_status"), // null | 'pending' | 'completed' | 'failed'
   refundAt: timestamp("refund_at", { withTimezone: true }),
-  fromUserAddress: text("from_user_address"), // tx.from on payment chain — needed for refunds
+  fromUserAddress: text("from_user_address"),  // tx.from on payment chain — needed for refunds
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

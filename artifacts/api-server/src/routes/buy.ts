@@ -277,27 +277,33 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
 
     testnetAmount = (parseFloat(mainnetAmountPaid) * rate).toFixed(8);
 
-    const [inserted] = await db
-      .insert(purchasesTable)
-      .values({
-        chainId,
-        userAddress: userAddress.toLowerCase(),
-        networkId,
-        mainnetTxHash,
-        mainnetAmountPaid,
-        fromUserAddress,
-        status: "pending",
-      })
-      .returning();
-    purchase = inserted;
+    try {
+      const [inserted] = await db
+        .insert(purchasesTable)
+        .values({
+          chainId,
+          userAddress: userAddress.toLowerCase(),
+          networkId,
+          mainnetTxHash,
+          mainnetAmountPaid,
+          fromUserAddress,
+          status: "pending",
+        })
+        .returning();
+      purchase = inserted;
 
-    await logOrderEvent({
-      orderType: "FAUCET_BUY",
-      orderId: String(purchase.id),
-      event: "created",
-      newStatus: "pending",
-      metadata: { chainId, networkId, mainnetAmountPaid, fromUserAddress },
-    });
+      await logOrderEvent({
+        orderType: "FAUCET_BUY",
+        orderId: String(purchase.id),
+        event: "created",
+        newStatus: "pending",
+        metadata: { chainId, networkId, mainnetAmountPaid, fromUserAddress },
+      });
+    } catch (dbErr: any) {
+      req.log.error({ err: dbErr }, "Failed to create purchase record — DB schema may be missing columns (run migration)");
+      res.status(500).json({ error: "Order could not be saved. Please try again or contact support." });
+      return;
+    }
   }
 
   // ── Attempt payout ────────────────────────────────────────────────────────

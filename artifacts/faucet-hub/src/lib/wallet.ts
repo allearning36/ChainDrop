@@ -24,7 +24,7 @@ export const KNOWN_WALLETS: KnownWallet[] = [
   {
     rdns: "io.metamask",
     name: "MetaMask",
-    logo: "https://raw.githubusercontent.com/MetaMask/brand-resources/master/SVG/SVG_MetaMask_Icon_Color.svg",
+    logo: "https://cdn.jsdelivr.net/gh/MetaMask/brand-resources@master/SVG/SVG_MetaMask_Icon_Color.svg",
     color: "#E8831D",
     installUrl: "https://metamask.io/download",
     wcDeepLink: (uri) => `https://metamask.app.link/wc?uri=${encodeURIComponent(uri)}`,
@@ -33,14 +33,14 @@ export const KNOWN_WALLETS: KnownWallet[] = [
   {
     rdns: "io.rabby",
     name: "Rabby",
-    logo: "https://raw.githubusercontent.com/RabbyHub/Rabby/master/src/ui/assets/rabby.svg",
+    logo: "https://cdn.jsdelivr.net/gh/RabbyHub/Rabby@master/src/ui/assets/rabby.svg",
     color: "#7084FF",
     installUrl: "https://rabby.io",
   },
   {
     rdns: "com.trustwallet.app",
     name: "Trust Wallet",
-    logo: "https://trustwallet.com/assets/images/media/assets/TWT.png",
+    logo: "https://cdn.jsdelivr.net/gh/trustwallet/assets@master/dapps/trustwallet.com/logo.png",
     color: "#3375BB",
     installUrl: "https://trustwallet.com/download",
     wcDeepLink: (uri) => `https://link.trustwallet.com/wc?uri=${encodeURIComponent(uri)}`,
@@ -49,7 +49,7 @@ export const KNOWN_WALLETS: KnownWallet[] = [
   {
     rdns: "com.coinbase.wallet",
     name: "Coinbase Wallet",
-    logo: "https://images.ctfassets.net/q5ulk4bp65r7/3TBS4oVkD1ghowTqylkBsg/2dfd4ea3b623a7c0d8deb2ff445dee9e/coinbase-icon2.svg",
+    logo: "https://cdn.jsdelivr.net/gh/trustwallet/assets@master/dapps/wallet.coinbase.com/logo.png",
     color: "#0052FF",
     installUrl: "https://www.coinbase.com/wallet/downloads",
     wcDeepLink: (uri) => `https://go.cb-wallet.com/wc?uri=${encodeURIComponent(uri)}`,
@@ -58,8 +58,8 @@ export const KNOWN_WALLETS: KnownWallet[] = [
   {
     rdns: "com.okex.wallet",
     name: "OKX Wallet",
-    logo: "https://static.okx.com/cdn/assets/imgs/247/58E63FEA47A2B7D7.png",
-    color: "#000000",
+    logo: "https://cdn.jsdelivr.net/gh/trustwallet/assets@master/dapps/www.okx.com/logo.png",
+    color: "#131619",
     installUrl: "https://www.okx.com/web3",
     wcDeepLink: (uri) => `okx://wallet/wc?uri=${encodeURIComponent(uri)}`,
     mobileDeepLink: (url) =>
@@ -68,7 +68,7 @@ export const KNOWN_WALLETS: KnownWallet[] = [
   {
     rdns: "com.binance.wallet",
     name: "Binance Web3 Wallet",
-    logo: "https://bin.bnbstatic.com/image/admin_mgs_image_upload/20201110/87496d50-2408-43e1-ad4c-78b47b448a6a.png",
+    logo: "https://cdn.jsdelivr.net/gh/trustwallet/assets@master/dapps/www.binance.com/logo.png",
     color: "#F3BA2F",
     installUrl: "https://www.binance.com/en/web3wallet",
     wcDeepLink: (uri) => `bnc://app.binance.com/cedefi/wc?uri=${encodeURIComponent(uri)}`,
@@ -76,7 +76,7 @@ export const KNOWN_WALLETS: KnownWallet[] = [
   {
     rdns: "com.bitget.web3",
     name: "Bitget Wallet",
-    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Bitget_logo.svg/1200px-Bitget_logo.svg.png",
+    logo: "https://cdn.jsdelivr.net/gh/trustwallet/assets@master/dapps/web3.bitget.com/logo.png",
     color: "#00B897",
     installUrl: "https://web3.bitget.com/en/wallet-download",
     wcDeepLink: (uri) => `https://bkcode.vip/wc?uri=${encodeURIComponent(uri)}`,
@@ -85,7 +85,7 @@ export const KNOWN_WALLETS: KnownWallet[] = [
   {
     rdns: "pro.tokenpocket",
     name: "TokenPocket",
-    logo: "https://raw.githubusercontent.com/trustwallet/assets/master/dapps/tokenpocket.pro/logo.png",
+    logo: "https://cdn.jsdelivr.net/gh/trustwallet/assets@master/dapps/tokenpocket.pro/logo.png",
     color: "#2980FE",
     installUrl: "https://www.tokenpocket.pro/en/download/app",
     wcDeepLink: (uri) =>
