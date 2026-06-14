@@ -46,9 +46,19 @@ router.get("/faucet/buy/preflight/:chainId", async (req, res): Promise<void> => 
     return;
   }
 
+  // DB health — verify purchases table is accessible before user sends funds
+  try {
+    await db.select({ id: purchasesTable.id }).from(purchasesTable).limit(1);
+  } catch (dbErr: any) {
+    req.log.error({ err: dbErr }, "Preflight: purchases table not accessible — DB migration may be needed");
+    res.json({ ok: false, reason: "Service is under maintenance. Please try again in a few minutes." });
+    return;
+  }
+
   const rpcUrls = parseRpcUrls(chain.rpcUrls, chain.rpcUrl);
   const checks: Record<string, boolean> = {
     chainEnabled: true,
+    dbHealthy: true,
     rpcHealthy: false,
     walletSufficient: false,
   };
