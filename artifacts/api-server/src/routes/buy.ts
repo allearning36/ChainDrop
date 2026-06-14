@@ -320,28 +320,34 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
   } catch (err: any) {
     req.log.error({ err }, "Failed to send testnet tokens for purchase");
 
-    // Record failure with backoff
+    // Record failure with backoff — wrapped so missing DB columns don't hide the real error
     const newRetryCount = (purchase!.retryCount ?? 0) + 1;
     const isPermanentFail = newRetryCount >= MAX_BUY_RETRIES;
-    await db
-      .update(purchasesTable)
-      .set({
-        retryCount: newRetryCount,
-        nextRetryAt: isPermanentFail ? null : buyNextRetryAt(newRetryCount),
-        lastError: err?.message ?? "Unknown error",
-        status: isPermanentFail ? "failed" : "pending",
-      })
-      .where(eq(purchasesTable.id, purchase!.id));
+    try {
+      await db
+        .update(purchasesTable)
+        .set({
+          retryCount: newRetryCount,
+          nextRetryAt: isPermanentFail ? null : buyNextRetryAt(newRetryCount),
+          lastError: err?.message ?? "Unknown error",
+          status: isPermanentFail ? "failed" : "pending",
+        })
+        .where(eq(purchasesTable.id, purchase!.id));
+    } catch (dbErr: any) {
+      req.log.error({ err: dbErr }, "Failed to update purchase after payout failure — DB schema may need migration");
+    }
 
-    await logOrderEvent({
-      orderType: "FAUCET_BUY",
-      orderId: String(purchase!.id),
-      event: "retry_attempt",
-      oldStatus: purchase!.status,
-      newStatus: isPermanentFail ? "failed" : "pending",
-      error: err?.message,
-      metadata: { retryCount: newRetryCount },
-    });
+    try {
+      await logOrderEvent({
+        orderType: "FAUCET_BUY",
+        orderId: String(purchase!.id),
+        event: "retry_attempt",
+        oldStatus: purchase!.status,
+        newStatus: isPermanentFail ? "failed" : "pending",
+        error: err?.message,
+        metadata: { retryCount: newRetryCount },
+      });
+    } catch { /* non-critical */ }
 
     res.status(500).json({
       error: isPermanentFail
@@ -353,20 +359,27 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
   }
 
   // ── Payout success ────────────────────────────────────────────────────────
-  await db
-    .update(purchasesTable)
-    .set({ testnetAmountSent: testnetAmount, testnetTxHash, status: "completed", lastError: null })
-    .where(eq(purchasesTable.id, purchase!.id));
+  // Tokens already sent — DB update is best-effort; we return success regardless
+  try {
+    await db
+      .update(purchasesTable)
+      .set({ testnetAmountSent: testnetAmount, testnetTxHash, status: "completed", lastError: null })
+      .where(eq(purchasesTable.id, purchase!.id));
+  } catch (dbErr: any) {
+    req.log.error({ err: dbErr }, "Failed to mark purchase completed — DB schema may need migration (tokens were sent)");
+  }
 
-  await logOrderEvent({
-    orderType: "FAUCET_BUY",
-    orderId: String(purchase!.id),
-    event: "payout_sent",
-    oldStatus: "pending",
-    newStatus: "completed",
-    txHash: testnetTxHash,
-    metadata: { testnetAmount },
-  });
+  try {
+    await logOrderEvent({
+      orderType: "FAUCET_BUY",
+      orderId: String(purchase!.id),
+      event: "payout_sent",
+      oldStatus: "pending",
+      newStatus: "completed",
+      txHash: testnetTxHash,
+      metadata: { testnetAmount },
+    });
+  } catch { /* non-critical */ }
 
   broadcast({
     type: "buy_success",
@@ -421,11 +434,18 @@ router.post("/faucet/buy/retry", async (req, res): Promise<void> => {
     return;
   }
 
-  const [purchase] = await db
-    .select()
-    .from(purchasesTable)
-    .where(eq(purchasesTable.mainnetTxHash, mainnetTxHash))
-    .limit(1);
+  let purchase: typeof purchasesTable.$inferSelect | undefined;
+  try {
+    [purchase] = await db
+      .select()
+      .from(purchasesTable)
+      .where(eq(purchasesTable.mainnetTxHash, mainnetTxHash))
+      .limit(1);
+  } catch (dbErr: any) {
+    req.log.error({ err: dbErr }, "Retry: failed to query purchase — DB schema may need migration");
+    res.status(500).json({ error: "Unable to look up your order. Please contact support with your payment tx hash." });
+    return;
+  }
 
   if (!purchase) {
     res.status(404).json({ error: "Purchase not found. Use the normal buy flow." });
@@ -484,24 +504,30 @@ router.post("/faucet/buy/retry", async (req, res): Promise<void> => {
 
     const newRetryCount = (purchase.retryCount ?? 0) + 1;
     const isPermanentFail = newRetryCount >= MAX_BUY_RETRIES;
-    await db
-      .update(purchasesTable)
-      .set({
-        retryCount: newRetryCount,
-        nextRetryAt: isPermanentFail ? null : buyNextRetryAt(newRetryCount),
-        lastError: err?.message ?? "Unknown error",
-        status: isPermanentFail ? "failed" : "pending",
-      })
-      .where(eq(purchasesTable.id, purchase.id));
+    try {
+      await db
+        .update(purchasesTable)
+        .set({
+          retryCount: newRetryCount,
+          nextRetryAt: isPermanentFail ? null : buyNextRetryAt(newRetryCount),
+          lastError: err?.message ?? "Unknown error",
+          status: isPermanentFail ? "failed" : "pending",
+        })
+        .where(eq(purchasesTable.id, purchase.id));
+    } catch (dbErr: any) {
+      req.log.error({ err: dbErr }, "Retry: failed to update purchase after failure — DB schema may need migration");
+    }
 
-    await logOrderEvent({
-      orderType: "FAUCET_BUY",
-      orderId: String(purchase.id),
-      event: "retry_attempt",
-      newStatus: isPermanentFail ? "failed" : "pending",
-      error: err?.message,
-      metadata: { retryCount: newRetryCount, manual: true },
-    });
+    try {
+      await logOrderEvent({
+        orderType: "FAUCET_BUY",
+        orderId: String(purchase.id),
+        event: "retry_attempt",
+        newStatus: isPermanentFail ? "failed" : "pending",
+        error: err?.message,
+        metadata: { retryCount: newRetryCount, manual: true },
+      });
+    } catch { /* non-critical */ }
 
     res.status(500).json({
       error: isPermanentFail
@@ -512,20 +538,27 @@ router.post("/faucet/buy/retry", async (req, res): Promise<void> => {
     return;
   }
 
-  await db
-    .update(purchasesTable)
-    .set({ testnetAmountSent: testnetAmount, testnetTxHash, status: "completed", lastError: null, retryCount: (purchase.retryCount ?? 0) + 1 })
-    .where(eq(purchasesTable.id, purchase.id));
+  // Tokens already sent — DB update is best-effort; return success regardless
+  try {
+    await db
+      .update(purchasesTable)
+      .set({ testnetAmountSent: testnetAmount, testnetTxHash, status: "completed", lastError: null, retryCount: (purchase.retryCount ?? 0) + 1 })
+      .where(eq(purchasesTable.id, purchase.id));
+  } catch (dbErr: any) {
+    req.log.error({ err: dbErr }, "Retry: failed to mark purchase completed — DB schema may need migration (tokens were sent)");
+  }
 
-  await logOrderEvent({
-    orderType: "FAUCET_BUY",
-    orderId: String(purchase.id),
-    event: "payout_sent",
-    oldStatus: purchase.status,
-    newStatus: "completed",
-    txHash: testnetTxHash,
-    metadata: { manual: true },
-  });
+  try {
+    await logOrderEvent({
+      orderType: "FAUCET_BUY",
+      orderId: String(purchase.id),
+      event: "payout_sent",
+      oldStatus: purchase.status,
+      newStatus: "completed",
+      txHash: testnetTxHash,
+      metadata: { manual: true },
+    });
+  } catch { /* non-critical */ }
 
   broadcast({
     type: "buy_success",
