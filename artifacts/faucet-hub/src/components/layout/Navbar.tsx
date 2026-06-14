@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { SupportModal } from "@/components/support/SupportModal";
 import { ReferralDashboardModal } from "@/components/home/ReferralDashboardModal";
 import { ListingModal } from "@/components/home/ListingModal";
+import { WalletButton } from "@/components/layout/WalletButton";
 
 interface LogoSettings { logoUrl: string; logoGlow: string; logoSize: string; }
 
@@ -347,6 +348,9 @@ export function Navbar() {
           <Zap className="w-3.5 h-3.5" />
           Earn Drop
         </Link>
+
+        {/* ── Wallet button ── */}
+        <WalletButton />
 
         {/* ── FAR RIGHT: Support + Bell ── */}
         <div className="flex items-center gap-1 shrink-0">

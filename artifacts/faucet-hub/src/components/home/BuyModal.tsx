@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { WalletSelector } from "./WalletSelector";
 import { HistoryModal } from "./HistoryModal";
+import { useWallet } from "@/contexts/WalletContext";
+import { shortAddress } from "@/lib/wallet";
 
 interface BuyModalProps {
   chain: ChainPublic | null;
@@ -161,9 +163,8 @@ async function waitForReceipt(
 }
 
 export function BuyModal({ chain, onClose }: BuyModalProps) {
+  const { address: walletAddress, provider: walletProvider } = useWallet();
   const [step, setStep] = useState<Step>("info");
-  const [walletAddress, setWalletAddress] = useState("");
-  const [walletProvider, setWalletProvider] = useState<any>(null); // injected or WC provider
   const [ethAmount, setEthAmount] = useState("0.01");
   const [selectedNetwork, setSelectedNetwork] = useState<PaymentNetwork | null>(null);
   const [networkDropdown, setNetworkDropdown] = useState(false);
@@ -230,9 +231,9 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
   useEffect(() => {
     if (!chain) {
       abortRef.current?.abort();
-      setStep("info"); setWalletAddress(""); setEthAmount("0.01");
+      setStep("info"); setEthAmount("0.01");
       setMainnetTxHash(""); setErrorMsg(""); setSelectedNetwork(null);
-      setWalletProvider(null); setConfirmDots(0); setSendingSeconds(0); setRecoveryHash("");
+      setConfirmDots(0); setSendingSeconds(0); setRecoveryHash("");
       setWalletBalance(null); setIsFetchingBalance(false);
     }
   }, [chain]);
@@ -284,14 +285,11 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
   const dots = ".".repeat(confirmDots);
 
   // Called when WalletSelector successfully connects
-  const handleWalletConnected = (address: string, type: "injected" | "walletconnect", provider?: any) => {
-    setWalletAddress(address);
-    // For WalletConnect, store the provider; for injected, use window.ethereum
-    setWalletProvider(type === "walletconnect" ? provider : window.ethereum);
+  const handleWalletConnected = () => {
     setWalletSelectorOpen(false);
   };
 
-  const activeProvider = walletProvider || window.ethereum;
+  const activeProvider = walletProvider;
 
   /** Parse any chainId format (number, hex string, "eip155:X") to lowercase hex */
   const parseChainHex = (chainId: unknown): string => {
@@ -411,7 +409,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
   const doSubmitBuy = (txHash: string) => {
     if (!selectedNetwork) return;
     submitBuy.mutate(
-      { data: { chainId: chain.id, userAddress: walletAddress, mainnetTxHash: txHash, networkId: selectedNetwork.id } },
+      { data: { chainId: chain.id, userAddress: walletAddress ?? "", mainnetTxHash: txHash, networkId: selectedNetwork.id } },
       {
         onSuccess: (res) => {
           setTestnetTxHash(res.testnetTxHash);
@@ -650,7 +648,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
                           </span>
                         )}
                         <button
-                          onClick={() => { setWalletAddress(""); setWalletProvider(null); setWalletBalance(null); }}
+                          onClick={() => { setWalletBalance(null); setWalletSelectorOpen(true); }}
                           className="text-[10px] font-mono px-2 py-0.5 rounded"
                           style={{ color: "rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.05)" }}
                         >
@@ -892,7 +890,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
       <HistoryModal
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
-        walletAddress={walletAddress}
+        walletAddress={walletAddress ?? ""}
         onlyTab="buy"
       />
     </>

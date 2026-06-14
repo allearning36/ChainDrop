@@ -15,44 +15,17 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { WalletSelector } from "@/components/home/WalletSelector";
+import { useWallet } from "@/contexts/WalletContext";
 
 interface ReferralDashboardModalProps {
   open: boolean;
   onClose: () => void;
 }
 
-type WalletProvider = "injected" | "walletconnect";
-
-interface ConnectedWallet {
-  address: string;
-  provider: WalletProvider;
-  wcProvider?: any;
-}
-
-async function signMessageWithWallet(wallet: ConnectedWallet, message: string): Promise<string> {
-  if (wallet.provider === "injected") {
-    const eth = (window as any).ethereum;
-    if (!eth) throw new Error("No injected wallet found");
-    return await eth.request({ method: "personal_sign", params: [message, wallet.address] }) as string;
-  } else if (wallet.provider === "walletconnect" && wallet.wcProvider) {
-    return await wallet.wcProvider.request({ method: "personal_sign", params: [message, wallet.address] }) as string;
-  }
-  throw new Error("No wallet provider");
-}
-
-async function detectInjectedWallet(): Promise<string | null> {
-  const eth = (window as any).ethereum;
-  if (!eth) return null;
-  try {
-    const accounts = await eth.request({ method: "eth_accounts" }) as string[];
-    return accounts[0] ?? null;
-  } catch { return null; }
-}
-
-const WALLET_STORAGE_KEY = "chainDrop_referralWallet";
-
 export function ReferralDashboardModal({ open, onClose }: ReferralDashboardModalProps) {
-  const [wallet, setWallet] = useState<ConnectedWallet | null>(null);
+  const walletCtx = useWallet();
+  const walletAddress = walletCtx.address?.toLowerCase() ?? null;
+  const walletProvider = walletCtx.provider;
   const [walletSelectorOpen, setWalletSelectorOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [claimError, setClaimError] = useState("");
@@ -85,11 +58,11 @@ export function ReferralDashboardModal({ open, onClose }: ReferralDashboardModal
   }
 
   const { data: dashboard, isLoading, error: dashError } = useGetReferralDashboard(
-    wallet?.address ?? "",
+    walletAddress ?? "",
     {
       query: {
-        enabled: !!wallet?.address,
-        queryKey: getGetReferralDashboardQueryKey(wallet?.address ?? ""),
+        enabled: !!walletAddress,
+        queryKey: getGetReferralDashboardQueryKey(walletAddress ?? ""),
         refetchInterval: 60000,
       }
     }
@@ -97,52 +70,17 @@ export function ReferralDashboardModal({ open, onClose }: ReferralDashboardModal
 
   const claimMutation = useSubmitReferralClaimRequest();
 
-  // Bug fix 1: restore wallet from localStorage on open (survives page refresh / navigation)
-  useEffect(() => {
-    if (!open) return;
-    detectInjectedWallet().then(addr => {
-      if (addr) {
-        const w = { address: addr.toLowerCase(), provider: "injected" as const };
-        setWallet(w);
-        try { localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify({ address: w.address, provider: w.provider })); } catch { /* ignore */ }
-      } else {
-        // No injected wallet active — try restoring saved session (e.g. WalletConnect)
-        try {
-          const saved = localStorage.getItem(WALLET_STORAGE_KEY);
-          if (saved) {
-            const { address, provider } = JSON.parse(saved) as { address: string; provider: "injected" | "walletconnect" };
-            setWallet({ address, provider, wcProvider: undefined });
-          }
-        } catch { /* ignore */ }
-      }
-    });
-  }, [open]);
-
-  // Reset UI state on close but keep wallet in localStorage
+  // Reset UI state on close
   useEffect(() => {
     if (!open) {
-      setWallet(null);
       setClaimError("");
       setClaimSuccess("");
       setWalletSelectorOpen(false);
     }
   }, [open]);
 
-  const handleWalletConnected = useCallback((address: string, provider: "injected" | "walletconnect", wcProvider?: any) => {
-    setWallet({ address: address.toLowerCase(), provider, wcProvider });
+  const handleWalletConnected = useCallback(() => {
     setWalletSelectorOpen(false);
-    // Persist so wallet auto-restores on next open / refresh
-    try { localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify({ address: address.toLowerCase(), provider })); } catch { /* ignore */ }
-
-    // Register pending referrer from ?ref= URL param
-    const pendingRef = sessionStorage.getItem("pendingReferrer");
-    if (pendingRef && pendingRef !== address.toLowerCase()) {
-      import("@workspace/api-client-react").then(({ registerReferral }) => {
-        registerReferral({ refereeAddress: address.toLowerCase(), referrerAddress: pendingRef })
-          .then(() => sessionStorage.removeItem("pendingReferrer"))
-          .catch(() => {});
-      });
-    }
   }, []);
 
   const handleCopyLink = () => {
@@ -154,7 +92,7 @@ export function ReferralDashboardModal({ open, onClose }: ReferralDashboardModal
   };
 
   const handleClaim = async () => {
-    if (!wallet || !dashboard) return;
+    if (!walletAddress || !walletProvider || !dashboard) return;
     const chainId = selectedChainId ?? evmChains[0]?.id;
     if (!chainId) { setClaimError("No chain available for claiming"); return; }
 
@@ -162,18 +100,21 @@ export function ReferralDashboardModal({ open, onClose }: ReferralDashboardModal
     setClaimError("");
     setClaimSuccess("");
     try {
-      const nonceData = await getReferralNonce(wallet.address);
-      const sig = await signMessageWithWallet(wallet, nonceData.message);
+      const nonceData = await getReferralNonce(walletAddress);
+      const sig = await walletProvider.request({
+        method: "personal_sign",
+        params: [nonceData.message, walletAddress],
+      }) as string;
       const result = await claimMutation.mutateAsync({
         data: {
-          wallet: wallet.address,
+          wallet: walletAddress,
           signature: sig,
           nonce: nonceData.nonce,
           claimChainId: chainId,
         }
       });
       setClaimSuccess(`Claim request #${result.id} submitted for ${parseFloat(result.amountEth).toFixed(6)} ETH. Awaiting admin approval.`);
-      void qc.invalidateQueries({ queryKey: getGetReferralDashboardQueryKey(wallet.address) });
+      void qc.invalidateQueries({ queryKey: getGetReferralDashboardQueryKey(walletAddress) });
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? err?.message ?? "Failed to submit claim";
       setClaimError(msg);
@@ -244,7 +185,7 @@ export function ReferralDashboardModal({ open, onClose }: ReferralDashboardModal
                   </p>
                 </div>
               </div>
-            ) : !wallet ? (
+            ) : !walletAddress ? (
               <div className="flex flex-col items-center justify-center py-16 px-6 gap-4">
                 <Wallet className="w-12 h-12 text-green-400 opacity-60" />
                 <p className="text-sm font-mono text-muted-foreground text-center">
@@ -276,13 +217,10 @@ export function ReferralDashboardModal({ open, onClose }: ReferralDashboardModal
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse shrink-0" />
-                      <span className="font-mono text-xs text-muted-foreground truncate">{wallet.address}</span>
+                      <span className="font-mono text-xs text-muted-foreground truncate">{walletAddress}</span>
                     </div>
                     <button
-                      onClick={() => {
-                        setWallet(null);
-                        try { localStorage.removeItem(WALLET_STORAGE_KEY); } catch { /* ignore */ }
-                      }}
+                      onClick={() => walletCtx.disconnect()}
                       className="text-[10px] font-mono shrink-0 px-2 py-1 rounded"
                       style={{ color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)" }}
                     >

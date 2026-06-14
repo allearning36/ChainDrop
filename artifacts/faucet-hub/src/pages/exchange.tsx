@@ -3,13 +3,11 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { WalletSelector } from "@/components/home/WalletSelector";
 import { HistoryModal } from "@/components/home/HistoryModal";
-import { restoreWalletConnectSession } from "@/lib/walletConnect";
+import { useWallet } from "@/contexts/WalletContext";
 import {
   ArrowLeftRight, ArrowUpDown, Wallet, Loader2, CheckCircle2, AlertCircle,
   ExternalLink, ChevronDown, X, RefreshCw, ArrowLeft, Search, LogOut, Copy, Check, History,
 } from "lucide-react";
-
-const WALLET_STORAGE_KEY = "chaindrop_exchange_wallet";
 
 function parseEtherToHex(amount: string): string {
   const [intPart = "0", fracPart = ""] = amount.split(".");
@@ -256,15 +254,16 @@ export default function ExchangePage() {
   const [fromAmount, setFromAmount] = useState("");
   const [step, setStep] = useState<Step>("select");
   const [walletOpen, setWalletOpen] = useState(false);
-  const [walletAddress, setWalletAddress] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [walletProvider, setWalletProvider] = useState<any>(null);
   const [order, setOrder] = useState<OrderResult | null>(null);
   const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [userBalance, setUserBalance] = useState<string | null>(null);
   const [exchangeBalance, setExchangeBalance] = useState<{ balance: string | null; warning: boolean } | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const { address: walletAddress, provider: walletProvider, disconnect: walletDisconnect } = useWallet();
+  const prevAddressRef = useRef<string | null>(null);
 
   // Load pairs
   useEffect(() => {
@@ -398,45 +397,7 @@ export default function ExchangePage() {
 
   const canSwapDirection = !!(fromOption && toOption);
 
-  // Restore wallet from localStorage on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(WALLET_STORAGE_KEY);
-      if (!saved) return;
-      const { address, type } = JSON.parse(saved) as { address: string; type: string };
-      if (!address) return;
-      if (type === "injected" && window.ethereum) {
-        (window.ethereum as any).request({ method: "eth_accounts" })
-          .then((accounts: string[]) => {
-            const match = accounts.find((a: string) => a.toLowerCase() === address.toLowerCase());
-            if (match) {
-              setWalletAddress(match);
-              setWalletProvider(window.ethereum);
-            } else {
-              localStorage.removeItem(WALLET_STORAGE_KEY);
-            }
-          })
-          .catch(() => localStorage.removeItem(WALLET_STORAGE_KEY));
-      } else if (type === "walletconnect") {
-        // Restore WalletConnect session silently — SDK uses stored session from localStorage
-        restoreWalletConnectSession()
-          .then((result) => {
-            if (result && result.address.toLowerCase() === address.toLowerCase()) {
-              setWalletAddress(result.address);
-              setWalletProvider(result.provider);
-            } else {
-              // Session expired — clear so user knows to reconnect
-              localStorage.removeItem(WALLET_STORAGE_KEY);
-            }
-          })
-          .catch(() => localStorage.removeItem(WALLET_STORAGE_KEY));
-      }
-    } catch {
-      localStorage.removeItem(WALLET_STORAGE_KEY);
-    }
-  }, []);
-
-  // Fetch user balance whenever wallet address or from-chain pair changes (covers fresh connect + page restore)
+  // Fetch user balance whenever wallet address or from-chain pair changes
   useEffect(() => {
     if (!walletAddress || !pair) { setUserBalance(null); return; }
     fetch(pair.fromRpcUrl, {
@@ -455,30 +416,29 @@ export default function ExchangePage() {
       .catch(() => setUserBalance(null));
   }, [walletAddress, pair?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleDisconnect = () => {
-    setWalletAddress("");
-    setWalletProvider(null);
-    setUserBalance(null);
-    localStorage.removeItem(WALLET_STORAGE_KEY);
-    if (step !== "select") setStep("select");
-  };
-
-  const handleWalletConnected = (addr: string, type: string, provider?: any) => {
-    setWalletAddress(addr);
-    const prov = provider || window.ethereum;
-    setWalletProvider(prov);
-    setWalletOpen(false);
-    setStep("select");
-    localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify({ address: addr, type }));
-    // Register referral (fire-and-forget)
+  // Register referral once on first wallet connection
+  useEffect(() => {
+    if (!walletAddress || walletAddress === prevAddressRef.current) return;
+    prevAddressRef.current = walletAddress;
     const pendingRef = sessionStorage.getItem("pendingReferrer");
-    if (pendingRef && pendingRef !== addr.toLowerCase()) {
+    if (pendingRef && pendingRef !== walletAddress.toLowerCase()) {
       import("@workspace/api-client-react").then(({ registerReferral }) => {
-        registerReferral({ refereeAddress: addr.toLowerCase(), referrerAddress: pendingRef })
+        registerReferral({ refereeAddress: walletAddress.toLowerCase(), referrerAddress: pendingRef })
           .then(() => sessionStorage.removeItem("pendingReferrer"))
           .catch(() => {});
       });
     }
+  }, [walletAddress]);
+
+  const handleDisconnect = () => {
+    walletDisconnect();
+    setUserBalance(null);
+    if (step !== "select") setStep("select");
+  };
+
+  const handleWalletConnected = () => {
+    setWalletOpen(false);
+    setStep("select");
   };
 
   const handleInitiateOrder = async () => {
@@ -1014,7 +974,7 @@ export default function ExchangePage() {
       <HistoryModal
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
-        walletAddress={walletAddress}
+        walletAddress={walletAddress ?? ""}
         onlyTab="swap"
       />
 

@@ -763,6 +763,7 @@ packages:
   '@aptos-labs/aptos-client@4.0.0':
     resolution: {integrity: sha512-hj2X9S932oq+bgXka+mZrBnPzYORutXugdRBsGBIGAOkhwunaroDeQVq6z2WqvwxDnBsxXxcWcchIWJmJnokww==}
     engines: {node: '>=22.0.0'}
+    deprecated: This version is deprecated. Please upgrade to 4.1.0 or later.
 
   '@aptos-labs/ts-sdk@7.0.1':
     resolution: {integrity: sha512-kKO43zDsUaLzrNAqVV5eC4OG9ZDtCwaKwmX5S9iN0T4bF/HY1TU/zPoEJvfZGv8ztPeBixC7iVXqU4jNHZ3QFA==}
