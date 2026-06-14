@@ -8,7 +8,7 @@ import {
   HeadphonesIcon, ClipboardList, ShieldOff, Wallet,
   FileText, Settings2, Globe, Send, Users, Radio, ArrowLeftRight, Network, GitBranch,
   Download, Upload, Loader2, Megaphone, ShieldAlert, Database, Menu, X, ChevronRight, Gift, Zap,
-  Power, RefreshCcw,
+  RefreshCcw,
 } from "lucide-react";
 import { DashboardHome } from "@/components/admin/DashboardHome";
 import { ChainManagement } from "@/components/admin/ChainManagement";
@@ -31,7 +31,6 @@ import { ChainLibrary } from "@/components/admin/ChainLibrary";
 import { AdsManagement } from "@/components/admin/AdsManagement";
 import { AntiAbusePanel } from "@/components/admin/AntiAbusePanel";
 import { EarnDropManagement } from "@/components/admin/EarnDropManagement";
-import { KillSwitchPanel } from "@/components/admin/KillSwitchPanel";
 import { RefundDashboard } from "@/components/admin/RefundDashboard";
 import { AdminTabErrorBoundary } from "@/components/admin/ErrorBoundary";
 
@@ -40,7 +39,7 @@ import { AdminTabErrorBoundary } from "@/components/admin/ErrorBoundary";
 type TopSection =
   | "dashboard" | "live" | "claims" | "support"
   | "exchange" | "referral" | "promo" | "earn-drop" | "ads-management" | "siteconfig"
-  | "kill-switches" | "refund-dashboard"
+  | "refund-dashboard"
   | "chains-group" | "analytics-group" | "security-group" | "content-group";
 
 type SubTab = { id: string; label: string; icon: React.ElementType };
@@ -90,7 +89,6 @@ const NAV: NavItem[] = [
   { section: "promo",           label: "Promo Codes",    icon: Gift },
   { section: "earn-drop",       label: "Earn Drop",      icon: Zap },
   { section: "ads-management",  label: "Ads Management", icon: Megaphone },
-  { section: "kill-switches",   label: "Kill Switches",  icon: Power },
   { section: "refund-dashboard",label: "Refunds",        icon: RefreshCcw },
   { section: "analytics-group", label: "Analytics",      icon: ShieldOff,      subTabs: ANALYTICS_TABS },
   { section: "security-group",  label: "Security",       icon: ShieldAlert,    subTabs: SECURITY_TABS },
@@ -145,7 +143,7 @@ function SubTabBar({ tabs, active, onChange }: {
 // ── Hash helpers ───────────────────────────────────────────────────────────────
 const VALID_SECTIONS: TopSection[] = [
   "dashboard","live","claims","support","exchange","referral","promo","earn-drop","ads-management","siteconfig",
-  "kill-switches","refund-dashboard",
+  "refund-dashboard",
   "chains-group","analytics-group","security-group","content-group",
 ];
 function readHashSection(): TopSection {
@@ -394,7 +392,6 @@ export default function AdminDashboard() {
           {activeSection === "earn-drop"     && <AdminTabErrorBoundary label="Earn Drop"><EarnDropManagement /></AdminTabErrorBoundary>}
           {activeSection === "ads-management"   && <AdminTabErrorBoundary label="Ads Management"><AdsManagement /></AdminTabErrorBoundary>}
           {activeSection === "siteconfig"      && <AdminTabErrorBoundary label="Settings"><SiteConfig /></AdminTabErrorBoundary>}
-          {activeSection === "kill-switches"   && <AdminTabErrorBoundary label="Kill Switches"><KillSwitchPanel /></AdminTabErrorBoundary>}
           {activeSection === "refund-dashboard"&& <AdminTabErrorBoundary label="Refunds"><RefundDashboard /></AdminTabErrorBoundary>}
 
           {activeSection === "chains-group" && (
