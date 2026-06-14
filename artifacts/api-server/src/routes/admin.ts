@@ -353,6 +353,7 @@ router.get("/admin/chains", async (_req, res): Promise<void> => {
       adNetworkCode: c.adNetworkCode ?? null,
       adType: c.adType ?? "url",
       adCooldownSeconds: c.adCooldownSeconds,
+      adDailyChainLimit: c.adDailyChainLimit ?? 0,
       captchaEnabled: c.captchaEnabled,
       sortOrder: c.sortOrder,
       createdAt: c.createdAt.toISOString(),
@@ -467,6 +468,7 @@ router.post("/admin/chains", async (req, res): Promise<void> => {
     adNetworkCode: chain.adNetworkCode ?? null,
     adType: chain.adType ?? "url",
     adCooldownSeconds: chain.adCooldownSeconds,
+    adDailyChainLimit: chain.adDailyChainLimit ?? 0,
     captchaEnabled: chain.captchaEnabled,
     sortOrder: chain.sortOrder,
     createdAt: chain.createdAt.toISOString(),
@@ -519,6 +521,10 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
   const rawAdTypePatch = body.adType;
   if (rawAdTypePatch !== undefined) delete body.adType;
 
+  // Extract adDailyChainLimit before Zod (not in OpenAPI schema — handled manually)
+  const rawAdDailyChainLimit = body.adDailyChainLimit;
+  if (rawAdDailyChainLimit !== undefined) delete body.adDailyChainLimit;
+
   // Extract chainType before Zod (same reason as POST — avoid stale enum)
   const rawChainTypePatch = body.chainType;
   if (rawChainTypePatch !== undefined) delete body.chainType;
@@ -540,6 +546,7 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
   if (buyRatesForDbPatch !== undefined) updateData.buyRates = buyRatesForDbPatch;
   if (buyLimitsForDbPatch !== undefined) updateData.buyLimits = buyLimitsForDbPatch;
   if (rawAdTypePatch !== undefined) updateData.adType = rawAdTypePatch;
+  if (rawAdDailyChainLimit !== undefined) updateData.adDailyChainLimit = Number(rawAdDailyChainLimit) || 0;
   const rawUpdatePk = (updateData.privateKey as string | undefined)?.trim();
   if (rawUpdatePk) {
     // Auto-derive wallet address from private key if not supplied (EVM only)
@@ -604,6 +611,7 @@ router.patch("/admin/chains/:id", async (req, res): Promise<void> => {
     adNetworkCode: chain.adNetworkCode ?? null,
     adType: chain.adType ?? "url",
     adCooldownSeconds: chain.adCooldownSeconds,
+    adDailyChainLimit: chain.adDailyChainLimit ?? 0,
     captchaEnabled: chain.captchaEnabled,
     sortOrder: chain.sortOrder,
     createdAt: chain.createdAt.toISOString(),
