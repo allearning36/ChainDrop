@@ -682,7 +682,7 @@ export function BuyModal({ chain, onClose }: BuyModalProps) {
                               cursor: canSend ? "pointer" : "not-allowed",
                             }}
                           >
-                            <Zap className="w-4 h-4" /> Send {ethAmount} ETH via {selectedNetwork?.name || "Wallet"}
+                            <Zap className="w-4 h-4" /> Send
                           </button>
                         </>
                       );
