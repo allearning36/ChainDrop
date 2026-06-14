@@ -12,8 +12,18 @@ export const purchasesTable = pgTable("purchases", {
   testnetAmountSent: numeric("testnet_amount_sent", { precision: 18, scale: 8 }),
   testnetTxHash: text("testnet_tx_hash"),
   status: text("status").notNull().default("pending"),
+  // Order engine — retry & refund tracking
+  retryCount: integer("retry_count").notNull().default(0),
+  nextRetryAt: timestamp("next_retry_at", { withTimezone: true }),
+  lastError: text("last_error"),
+  refundTxHash: text("refund_tx_hash"),
+  refundStatus: text("refund_status"), // null | 'pending' | 'completed' | 'failed'
+  refundAt: timestamp("refund_at", { withTimezone: true }),
+  fromUserAddress: text("from_user_address"), // tx.from on payment chain — needed for refunds
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// Status values: 'pending' | 'completed' | 'failed' | 'refund_required' | 'refunded'
 
 export const insertPurchaseSchema = createInsertSchema(purchasesTable).omit({ id: true, createdAt: true });
 export type InsertPurchase = z.infer<typeof insertPurchaseSchema>;

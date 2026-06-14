@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { ethers } from "ethers";
 import { db, chainsTable, purchasesTable, paymentNetworksTable } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, isNull, lt, or, lte } from "drizzle-orm";
 import { GetBuyInfoParams, SubmitBuyBody } from "@workspace/api-zod";
 import { sendTokens as sendChainTokens, isValidAddress, type ChainType } from "../lib/chains/index";
 import { parseRpcUrls } from "../lib/rpcFailover";
@@ -9,8 +9,20 @@ import { buyLimiter } from "../lib/rateLimiters";
 import { resolveChainPrivateKey, resolveChainWalletAddress } from "../lib/encryption";
 import { creditCommissions, getReferralSettings } from "../lib/referral";
 import { broadcast } from "../lib/liveEvents";
+import { logOrderEvent } from "../lib/orderEvents";
+import { checkBuyKilled, checkChainKilled } from "../lib/killSwitch";
+import { checkRpcHealth } from "../lib/rpcFailover";
+import { getWalletBalance, deriveWalletAddress } from "../lib/chains/index";
 
 const router: IRouter = Router();
+
+const MAX_BUY_RETRIES = 3;
+const BUY_BACKOFF_MINUTES = [2, 8, 32];
+
+function buyNextRetryAt(retryCount: number): Date {
+  const minutes = BUY_BACKOFF_MINUTES[retryCount] ?? 60;
+  return new Date(Date.now() + minutes * 60 * 1000);
+}
 
 async function getAllPaymentNetworks(): Promise<Record<string, { name: string; symbol: string; chainId: number; rpcUrl: string; logoUrl: string | null }>> {
   const networks = await db.select().from(paymentNetworksTable).where(eq(paymentNetworksTable.isEnabled, true));
@@ -21,6 +33,63 @@ async function getAllPaymentNetworks(): Promise<Record<string, { name: string; s
   return result;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PUBLIC: GET /faucet/buy/preflight/:chainId — pre-flight health check
+// Frontend calls this before showing the pay button to detect problems early.
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/faucet/buy/preflight/:chainId", async (req, res): Promise<void> => {
+  const chainId = parseInt(String(req.params.chainId));
+  if (isNaN(chainId)) { res.status(400).json({ ok: false, reason: "Invalid chainId" }); return; }
+
+  // Kill switches
+  const buyKill = await checkBuyKilled();
+  if (buyKill) { res.json({ ok: false, reason: buyKill }); return; }
+  const chainKill = await checkChainKilled(chainId);
+  if (chainKill) { res.json({ ok: false, reason: chainKill }); return; }
+
+  const [chain] = await db.select().from(chainsTable).where(and(eq(chainsTable.id, chainId), eq(chainsTable.isEnabled, true))).limit(1);
+  if (!chain || !chain.buyEnabled) {
+    res.json({ ok: false, reason: "Chain not available for buy" });
+    return;
+  }
+
+  const rpcUrls = parseRpcUrls(chain.rpcUrls, chain.rpcUrl);
+  const checks: Record<string, boolean> = {
+    chainEnabled: true,
+    rpcHealthy: false,
+    walletSufficient: false,
+  };
+
+  // RPC health
+  try {
+    const health = await checkRpcHealth(rpcUrls[0]!);
+    checks.rpcHealthy = health.ok;
+  } catch { checks.rpcHealthy = false; }
+
+  if (!checks.rpcHealthy) {
+    res.json({ ok: false, reason: `Destination chain RPC unavailable (${chain.name})`, checks });
+    return;
+  }
+
+  // Wallet balance
+  try {
+    const walletAddr = resolveChainWalletAddress(chain.walletAddress);
+    const balance = await getWalletBalance(rpcUrls, walletAddr);
+    const minPay = parseFloat(chain.buyMinAmount) * parseFloat(chain.buyRate || "1");
+    checks.walletSufficient = balance !== null && parseFloat(balance) >= minPay;
+  } catch { checks.walletSufficient = false; }
+
+  if (!checks.walletSufficient) {
+    res.json({ ok: false, reason: `Faucet wallet is low on ${chain.name} funds`, checks });
+    return;
+  }
+
+  res.json({ ok: true, reason: null, checks });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PUBLIC: GET /faucet/buy/info/:chainId
+// ─────────────────────────────────────────────────────────────────────────────
 router.get("/faucet/buy/info/:chainId", async (req, res): Promise<void> => {
   const params = GetBuyInfoParams.safeParse({ chainId: req.params.chainId });
   if (!params.success) {
@@ -73,6 +142,9 @@ router.get("/faucet/buy/info/:chainId", async (req, res): Promise<void> => {
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PUBLIC: POST /faucet/buy
+// ─────────────────────────────────────────────────────────────────────────────
 router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
   const parsed = SubmitBuyBody.safeParse(req.body);
   if (!parsed.success) {
@@ -81,6 +153,12 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
   }
 
   const { chainId, userAddress, mainnetTxHash, networkId } = parsed.data;
+
+  // ── Kill switches ──────────────────────────────────────────────────────────
+  const buyKill = await checkBuyKilled();
+  if (buyKill) { res.status(503).json({ error: buyKill }); return; }
+  const chainKill = await checkChainKilled(chainId);
+  if (chainKill) { res.status(503).json({ error: chainKill }); return; }
 
   if (!/^0x[a-fA-F0-9]{64}$/.test(mainnetTxHash)) {
     res.status(400).json({ error: "Invalid transaction hash format" });
@@ -104,14 +182,12 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
     return;
   }
 
-  // Validate the user's address against the actual chain type (EVM, Solana, TON, etc.)
   const addressValid = await isValidAddress(chain.chainType as ChainType, userAddress, chain.addressRegex);
   if (!addressValid) {
     res.status(400).json({ error: "Invalid user wallet address for this chain" });
     return;
   }
 
-  // Verify this network is enabled for this chain
   let enabledNetworkIds: string[] = ["eth"];
   try { enabledNetworkIds = JSON.parse(chain.buyCurrencies); } catch { /* keep default */ }
   if (!enabledNetworkIds.includes(networkId)) {
@@ -126,13 +202,15 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
     .where(eq(purchasesTable.mainnetTxHash, mainnetTxHash))
     .limit(1);
 
-  // Already completed successfully — block re-use
   if (existing?.status === "completed") {
     res.status(400).json({ error: "This transaction has already been processed successfully." });
     return;
   }
+  if (existing?.status === "refund_required" || existing?.status === "refunded") {
+    res.status(400).json({ error: `This transaction has been marked for refund (status: ${existing.status}).` });
+    return;
+  }
 
-  // Calculate rate (needed for both new and retry paths)
   let buyRatesMap: Record<string, string> = {};
   try { buyRatesMap = JSON.parse(chain.buyRates || "{}"); } catch { /* keep empty */ }
   const rate = parseFloat(buyRatesMap[networkId] || chain.buyRate);
@@ -140,15 +218,22 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
   let purchase: typeof existing;
   let testnetAmount: string;
 
-  if (existing?.status === "pending") {
-    // ── RETRY PATH ──────────────────────────────────────────────────────────
-    // Mainnet tx was already verified on first attempt. Re-use stored amount.
+  if (existing?.status === "pending" || existing?.status === "failed") {
+    // ── RETRY PATH ────────────────────────────────────────────────────────────
     purchase = existing;
     testnetAmount = (parseFloat(existing.mainnetAmountPaid) * rate).toFixed(8);
+
+    // Check backoff
+    if (existing.nextRetryAt && new Date() < existing.nextRetryAt) {
+      const waitSec = Math.ceil((existing.nextRetryAt.getTime() - Date.now()) / 1000);
+      res.status(429).json({ error: `Please wait ${waitSec}s before retrying.` });
+      return;
+    }
   } else {
     // ── NEW PURCHASE PATH ────────────────────────────────────────────────────
-    // Verify tx on the chosen network
     let mainnetAmountPaid: string;
+    let fromUserAddress: string | null = null;
+
     try {
       const provider = new ethers.JsonRpcProvider(network.rpcUrl);
       const tx = await provider.getTransaction(mainnetTxHash);
@@ -157,6 +242,9 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
         res.status(400).json({ error: `Transaction not found on ${network.name}. Wait for confirmation and try again.` });
         return;
       }
+
+      // Capture sender address for potential refunds
+      fromUserAddress = tx.from?.toLowerCase() ?? null;
 
       const receiveAddress = (chain.receiveAddress || resolveChainWalletAddress(chain.walletAddress)).toLowerCase();
       if (!tx.to || tx.to.toLowerCase() !== receiveAddress) {
@@ -189,7 +277,6 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
 
     testnetAmount = (parseFloat(mainnetAmountPaid) * rate).toFixed(8);
 
-    // Record purchase as pending before attempting send
     const [inserted] = await db
       .insert(purchasesTable)
       .values({
@@ -198,27 +285,82 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
         networkId,
         mainnetTxHash,
         mainnetAmountPaid,
+        fromUserAddress,
         status: "pending",
       })
       .returning();
     purchase = inserted;
+
+    await logOrderEvent({
+      orderType: "FAUCET_BUY",
+      orderId: String(purchase.id),
+      event: "created",
+      newStatus: "pending",
+      metadata: { chainId, networkId, mainnetAmountPaid, fromUserAddress },
+    });
   }
 
-  // Send testnet tokens (same for both new and retry)
+  // ── Attempt payout ────────────────────────────────────────────────────────
   let testnetTxHash: string;
   try {
-    const result = await sendChainTokens(chain.chainType as ChainType, parseRpcUrls(chain.rpcUrls, chain.rpcUrl), resolveChainPrivateKey(chain.privateKey), userAddress, testnetAmount);
+    const result = await sendChainTokens(
+      chain.chainType as ChainType,
+      parseRpcUrls(chain.rpcUrls, chain.rpcUrl),
+      resolveChainPrivateKey(chain.privateKey),
+      userAddress,
+      testnetAmount,
+    );
     testnetTxHash = result.txHash;
-  } catch (err) {
+  } catch (err: any) {
     req.log.error({ err }, "Failed to send testnet tokens for purchase");
-    res.status(500).json({ error: "Testnet tokens could not be sent. Your payment is saved — tap Retry to try again, or contact support with your tx hash." });
+
+    // Record failure with backoff
+    const newRetryCount = (purchase!.retryCount ?? 0) + 1;
+    const isPermanentFail = newRetryCount >= MAX_BUY_RETRIES;
+    await db
+      .update(purchasesTable)
+      .set({
+        retryCount: newRetryCount,
+        nextRetryAt: isPermanentFail ? null : buyNextRetryAt(newRetryCount),
+        lastError: err?.message ?? "Unknown error",
+        status: isPermanentFail ? "failed" : "pending",
+      })
+      .where(eq(purchasesTable.id, purchase!.id));
+
+    await logOrderEvent({
+      orderType: "FAUCET_BUY",
+      orderId: String(purchase!.id),
+      event: "retry_attempt",
+      oldStatus: purchase!.status,
+      newStatus: isPermanentFail ? "failed" : "pending",
+      error: err?.message,
+      metadata: { retryCount: newRetryCount },
+    });
+
+    res.status(500).json({
+      error: isPermanentFail
+        ? "Payout failed after multiple attempts. A refund will be issued automatically. Contact support with your tx hash if needed."
+        : "Testnet tokens could not be sent. Your payment is saved — tap Retry to try again, or contact support with your tx hash.",
+      isRetryable: !isPermanentFail,
+    });
     return;
   }
 
+  // ── Payout success ────────────────────────────────────────────────────────
   await db
     .update(purchasesTable)
-    .set({ testnetAmountSent: testnetAmount, testnetTxHash, status: "completed" })
-    .where(eq(purchasesTable.id, purchase.id));
+    .set({ testnetAmountSent: testnetAmount, testnetTxHash, status: "completed", lastError: null })
+    .where(eq(purchasesTable.id, purchase!.id));
+
+  await logOrderEvent({
+    orderType: "FAUCET_BUY",
+    orderId: String(purchase!.id),
+    event: "payout_sent",
+    oldStatus: "pending",
+    newStatus: "completed",
+    txHash: testnetTxHash,
+    metadata: { testnetAmount },
+  });
 
   broadcast({
     type: "buy_success",
@@ -230,11 +372,8 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
     symbol: chain.symbol,
   });
 
-  // Referral commission (fire-and-forget)
-  // Commission is based on what the user PAID (mainnetAmountPaid in payment network's native token)
   void getReferralSettings().then(async settings => {
     if (settings.commissionOnBuy && (settings.buyChainIds.length === 0 || settings.buyChainIds.includes(chain.id))) {
-      // Look up payment network's coingeckoId via its symbol in chainsTable
       const [payChain] = await db
         .select({ coingeckoId: chainsTable.coingeckoId })
         .from(chainsTable)
@@ -243,9 +382,9 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
       await creditCommissions({
         refereeAddress: userAddress,
         sourceType: "buy",
-        sourceId: purchase.id,
+        sourceId: purchase!.id,
         chainId: chain.id,
-        amountEth: purchase.mainnetAmountPaid,
+        amountEth: purchase!.mainnetAmountPaid,
         fromCoingeckoId: payChain?.coingeckoId ?? null,
         settings,
       });
@@ -261,10 +400,8 @@ router.post("/faucet/buy", buyLimiter, async (req, res): Promise<void> => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PUBLIC: POST /faucet/buy/retry — retry a pending purchase (no rate limit)
-// The mainnet tx was already verified on first attempt; just re-send testnet tokens.
+// PUBLIC: POST /faucet/buy/retry — manual retry (no rate limit)
 // ─────────────────────────────────────────────────────────────────────────────
-
 router.post("/faucet/buy/retry", async (req, res): Promise<void> => {
   const mainnetTxHash = (req.body.mainnetTxHash as string | undefined)?.trim();
   const userAddress = (req.body.userAddress as string | undefined)?.trim().toLowerCase();
@@ -292,16 +429,27 @@ router.post("/faucet/buy/retry", async (req, res): Promise<void> => {
     res.status(400).json({ error: "This purchase was already completed successfully." });
     return;
   }
+  if (purchase.status === "refund_required" || purchase.status === "refunded") {
+    res.status(400).json({ error: `This purchase is in ${purchase.status} state.` });
+    return;
+  }
   if (purchase.userAddress !== userAddress) {
     res.status(403).json({ error: "Address mismatch." });
     return;
   }
+  if (purchase.retryCount >= MAX_BUY_RETRIES) {
+    res.status(400).json({ error: "Maximum retries reached. A refund will be issued automatically." });
+    return;
+  }
 
-  const [chain] = await db
-    .select()
-    .from(chainsTable)
-    .where(eq(chainsTable.id, purchase.chainId));
+  // Backoff check
+  if (purchase.nextRetryAt && new Date() < purchase.nextRetryAt) {
+    const waitSec = Math.ceil((purchase.nextRetryAt.getTime() - Date.now()) / 1000);
+    res.status(429).json({ error: `Please wait ${waitSec}s before retrying.` });
+    return;
+  }
 
+  const [chain] = await db.select().from(chainsTable).where(eq(chainsTable.id, purchase.chainId));
   if (!chain || !chain.buyEnabled) {
     res.status(400).json({ error: "Chain not available" });
     return;
@@ -310,7 +458,6 @@ router.post("/faucet/buy/retry", async (req, res): Promise<void> => {
   const allNetworksRetry = await db.select().from(paymentNetworksTable).where(eq(paymentNetworksTable.isEnabled, true));
   const network = allNetworksRetry.find(n => n.networkId === purchase.networkId);
 
-  // Re-calculate testnet amount using stored paid amount + current rate
   let buyRatesMapRetry: Record<string, string> = {};
   try { buyRatesMapRetry = JSON.parse(chain.buyRates || "{}"); } catch { /* keep empty */ }
   const rateRetry = parseFloat(buyRatesMapRetry[purchase.networkId ?? "eth"] || chain.buyRate);
@@ -326,16 +473,53 @@ router.post("/faucet/buy/retry", async (req, res): Promise<void> => {
       testnetAmount,
     );
     testnetTxHash = result.txHash;
-  } catch (err) {
+  } catch (err: any) {
     req.log.error({ err }, "Retry: failed to send testnet tokens");
-    res.status(500).json({ error: "Still unable to send testnet tokens. Please try again in a moment, or contact support with your payment tx hash." });
+
+    const newRetryCount = (purchase.retryCount ?? 0) + 1;
+    const isPermanentFail = newRetryCount >= MAX_BUY_RETRIES;
+    await db
+      .update(purchasesTable)
+      .set({
+        retryCount: newRetryCount,
+        nextRetryAt: isPermanentFail ? null : buyNextRetryAt(newRetryCount),
+        lastError: err?.message ?? "Unknown error",
+        status: isPermanentFail ? "failed" : "pending",
+      })
+      .where(eq(purchasesTable.id, purchase.id));
+
+    await logOrderEvent({
+      orderType: "FAUCET_BUY",
+      orderId: String(purchase.id),
+      event: "retry_attempt",
+      newStatus: isPermanentFail ? "failed" : "pending",
+      error: err?.message,
+      metadata: { retryCount: newRetryCount, manual: true },
+    });
+
+    res.status(500).json({
+      error: isPermanentFail
+        ? "Maximum retries reached. A refund will be issued automatically."
+        : "Still unable to send testnet tokens. Please try again in a moment, or contact support with your payment tx hash.",
+      isRetryable: !isPermanentFail,
+    });
     return;
   }
 
   await db
     .update(purchasesTable)
-    .set({ testnetAmountSent: testnetAmount, testnetTxHash, status: "completed" })
+    .set({ testnetAmountSent: testnetAmount, testnetTxHash, status: "completed", lastError: null, retryCount: (purchase.retryCount ?? 0) + 1 })
     .where(eq(purchasesTable.id, purchase.id));
+
+  await logOrderEvent({
+    orderType: "FAUCET_BUY",
+    orderId: String(purchase.id),
+    event: "payout_sent",
+    oldStatus: purchase.status,
+    newStatus: "completed",
+    txHash: testnetTxHash,
+    metadata: { manual: true },
+  });
 
   broadcast({
     type: "buy_success",
@@ -347,7 +531,6 @@ router.post("/faucet/buy/retry", async (req, res): Promise<void> => {
     symbol: chain.symbol,
   });
 
-  // Referral commission (fire-and-forget)
   void getReferralSettings().then(async settings => {
     if (settings.commissionOnBuy && (settings.buyChainIds.length === 0 || settings.buyChainIds.includes(chain.id))) {
       const [payChain] = await db
@@ -376,7 +559,7 @@ router.post("/faucet/buy/retry", async (req, res): Promise<void> => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PUBLIC: GET /faucet/buy/history/user?wallet= — user buy history
+// PUBLIC: GET /faucet/buy/history/user?wallet=
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/faucet/buy/history/user", async (req, res): Promise<void> => {
   const wallet = (req.query.wallet as string | undefined)?.toLowerCase();
@@ -394,6 +577,8 @@ router.get("/faucet/buy/history/user", async (req, res): Promise<void> => {
       mainnetTxHash: purchasesTable.mainnetTxHash,
       testnetTxHash: purchasesTable.testnetTxHash,
       status: purchasesTable.status,
+      refundStatus: purchasesTable.refundStatus,
+      refundTxHash: purchasesTable.refundTxHash,
       createdAt: purchasesTable.createdAt,
       chainName: chainsTable.name,
       chainSymbol: chainsTable.symbol,
@@ -414,5 +599,139 @@ router.get("/faucet/buy/history/user", async (req, res): Promise<void> => {
     createdAt: r.createdAt.toISOString(),
   })));
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BUY RECOVERY — exported for unified recovery worker
+// ─────────────────────────────────────────────────────────────────────────────
+export async function runBuyRecovery(): Promise<void> {
+  const now = new Date();
+  const stuckCutoff = new Date(Date.now() - 5 * 60 * 1000); // 5min old
+
+  // 1. Pending purchases with failed payout (nextRetryAt due or stuck >5min)
+  const pendingStuck = await db
+    .select()
+    .from(purchasesTable)
+    .where(
+      and(
+        eq(purchasesTable.status, "pending"),
+        isNull(purchasesTable.testnetTxHash),
+        lt(purchasesTable.createdAt, stuckCutoff),
+        or(
+          isNull(purchasesTable.nextRetryAt),
+          lte(purchasesTable.nextRetryAt, now),
+        ),
+      ),
+    )
+    .limit(10);
+
+  for (const purchase of pendingStuck) {
+    if (purchase.retryCount >= MAX_BUY_RETRIES) {
+      // Exceeded retries → fail
+      await db.update(purchasesTable)
+        .set({ status: "failed" })
+        .where(eq(purchasesTable.id, purchase.id));
+      await logOrderEvent({ orderType: "FAUCET_BUY", orderId: String(purchase.id), event: "status_changed", oldStatus: "pending", newStatus: "failed", error: "Max retries exceeded" });
+      continue;
+    }
+
+    const [chain] = await db.select().from(chainsTable).where(eq(chainsTable.id, purchase.chainId)).limit(1);
+    if (!chain || !chain.buyEnabled) continue;
+
+    let buyRatesMap: Record<string, string> = {};
+    try { buyRatesMap = JSON.parse(chain.buyRates || "{}"); } catch { /* ignore */ }
+    const rate = parseFloat(buyRatesMap[purchase.networkId ?? "eth"] || chain.buyRate);
+    const testnetAmount = (parseFloat(purchase.mainnetAmountPaid) * rate).toFixed(8);
+
+    try {
+      const result = await sendChainTokens(
+        chain.chainType as ChainType,
+        parseRpcUrls(chain.rpcUrls, chain.rpcUrl),
+        resolveChainPrivateKey(chain.privateKey),
+        purchase.userAddress,
+        testnetAmount,
+      );
+      await db.update(purchasesTable)
+        .set({ status: "completed", testnetAmountSent: testnetAmount, testnetTxHash: result.txHash, lastError: null })
+        .where(eq(purchasesTable.id, purchase.id));
+      await logOrderEvent({ orderType: "FAUCET_BUY", orderId: String(purchase.id), event: "payout_sent", oldStatus: "pending", newStatus: "completed", txHash: result.txHash, metadata: { recovery: true } });
+      broadcast({ type: "buy_success", chainName: chain.name, chainId: chain.id, address: purchase.userAddress, txHash: result.txHash, amount: testnetAmount, symbol: chain.symbol });
+    } catch (err: any) {
+      const newRetryCount = (purchase.retryCount ?? 0) + 1;
+      const isPermanentFail = newRetryCount >= MAX_BUY_RETRIES;
+      await db.update(purchasesTable)
+        .set({ retryCount: newRetryCount, nextRetryAt: isPermanentFail ? null : buyNextRetryAt(newRetryCount), lastError: err?.message, status: isPermanentFail ? "failed" : "pending" })
+        .where(eq(purchasesTable.id, purchase.id));
+      await logOrderEvent({ orderType: "FAUCET_BUY", orderId: String(purchase.id), event: "retry_attempt", newStatus: isPermanentFail ? "failed" : "pending", error: err?.message, metadata: { retryCount: newRetryCount, recovery: true } });
+    }
+  }
+
+  // 2. Failed purchases → refund_required (after 30min grace)
+  const failedCutoff = new Date(Date.now() - 30 * 60 * 1000);
+  const failedPurchases = await db
+    .select()
+    .from(purchasesTable)
+    .where(and(eq(purchasesTable.status, "failed"), lt(purchasesTable.createdAt, failedCutoff)))
+    .limit(10);
+
+  for (const purchase of failedPurchases) {
+    await db.update(purchasesTable)
+      .set({ status: "refund_required" })
+      .where(eq(purchasesTable.id, purchase.id));
+    await logOrderEvent({ orderType: "FAUCET_BUY", orderId: String(purchase.id), event: "status_changed", oldStatus: "failed", newStatus: "refund_required" });
+  }
+
+  // 3. refund_required purchases → execute refund
+  const refundDue = await db
+    .select()
+    .from(purchasesTable)
+    .where(and(eq(purchasesTable.status, "refund_required"), or(isNull(purchasesTable.refundStatus), eq(purchasesTable.refundStatus, "failed"))))
+    .limit(5);
+
+  for (const purchase of refundDue) {
+    await executeBuyRefund(purchase);
+  }
+}
+
+async function executeBuyRefund(purchase: typeof purchasesTable.$inferSelect): Promise<void> {
+  if (!purchase.fromUserAddress) {
+    // Can't refund without knowing who sent — mark for admin review
+    await db.update(purchasesTable).set({ refundStatus: "failed", lastError: "No fromUserAddress recorded — manual refund required" }).where(eq(purchasesTable.id, purchase.id));
+    await logOrderEvent({ orderType: "FAUCET_BUY", orderId: String(purchase.id), event: "refund_failed", error: "No fromUserAddress" });
+    return;
+  }
+
+  const [chain] = await db.select().from(chainsTable).where(eq(chainsTable.id, purchase.chainId)).limit(1);
+  if (!chain) return;
+
+  const allNetworks = await db.select().from(paymentNetworksTable).where(eq(paymentNetworksTable.isEnabled, true));
+  const network = allNetworks.find(n => n.networkId === purchase.networkId);
+  if (!network) {
+    await db.update(purchasesTable).set({ refundStatus: "failed", lastError: "Payment network not found" }).where(eq(purchasesTable.id, purchase.id));
+    return;
+  }
+
+  // Refund: send mainnetAmountPaid - gas_buffer back to fromUserAddress on payment network
+  const GAS_BUFFER = 0.0005;
+  const refundAmount = (parseFloat(purchase.mainnetAmountPaid) - GAS_BUFFER).toFixed(8);
+  if (parseFloat(refundAmount) <= 0) {
+    await db.update(purchasesTable).set({ refundStatus: "failed", lastError: "Refund amount too small after gas deduction" }).where(eq(purchasesTable.id, purchase.id));
+    return;
+  }
+
+  try {
+    await db.update(purchasesTable).set({ refundStatus: "pending" }).where(eq(purchasesTable.id, purchase.id));
+    // Use chain's private key connected to the payment network RPC
+    const privateKey = resolveChainPrivateKey(chain.privateKey);
+    const { sendTokens: sendEth } = await import("../lib/faucet");
+    const { txHash } = await sendEth(network.rpcUrl, privateKey, purchase.fromUserAddress, refundAmount);
+    await db.update(purchasesTable)
+      .set({ status: "refunded", refundStatus: "completed", refundTxHash: txHash, refundAt: new Date() })
+      .where(eq(purchasesTable.id, purchase.id));
+    await logOrderEvent({ orderType: "FAUCET_BUY", orderId: String(purchase.id), event: "refund_sent", oldStatus: "refund_required", newStatus: "refunded", txHash, metadata: { refundAmount } });
+  } catch (err: any) {
+    await db.update(purchasesTable).set({ refundStatus: "failed", lastError: `Refund failed: ${err?.message}` }).where(eq(purchasesTable.id, purchase.id));
+    await logOrderEvent({ orderType: "FAUCET_BUY", orderId: String(purchase.id), event: "refund_failed", error: err?.message });
+  }
+}
 
 export default router;
